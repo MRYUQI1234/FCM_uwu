@@ -249,7 +249,7 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
               physics: const NeverScrollableScrollPhysics(),
               child: Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 80 - 16,
                     child: Center(
                       child: Icon(Icons.logout_rounded, color: DashboardTheme.error, size: 20),

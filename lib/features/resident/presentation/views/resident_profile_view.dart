@@ -9,11 +9,13 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 class ResidentProfileView extends StatefulWidget {
   final String displayUser;
   final bool isDark;
+  final VoidCallback? onMenuTap;
 
   const ResidentProfileView({
     super.key,
     required this.displayUser,
     required this.isDark,
+    this.onMenuTap,
   });
 
   @override
@@ -36,21 +38,10 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
     final result = await AuthRepository.instance.getProfile();
     if (result['success'] && mounted) {
       final data = result['data'];
-      final apiName = (data['name'] ?? '').toString();
-      final apiEmail = (data['email'] ?? '').toString();
-      final apiPhone = (data['phone'] ?? '').toString();
-
-      // Filter out admin/technician data — this is a resident dashboard
-      final nameIsAdmin = apiName.isEmpty ||
-          apiName.toLowerCase().contains('admin') ||
-          apiName.toLowerCase().contains('technician');
-      final emailIsAdmin = apiEmail.isEmpty ||
-          apiEmail.toLowerCase().contains('admin');
-
       setState(() {
-        _name = nameIsAdmin ? 'Somchai Rakdee' : apiName;
-        _email = emailIsAdmin ? 'somchai.r@gmail.com' : apiEmail;
-        _phone = apiPhone.isNotEmpty ? apiPhone : '+66 81 234 5678';
+        _name = (data['name'] ?? '').toString();
+        _email = (data['email'] ?? '').toString();
+        _phone = (data['phone'] ?? '').toString();
       });
     }
   }
@@ -58,11 +49,12 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   @override
   Widget build(BuildContext context) {
     return ProfileView(
-      name: _name.isNotEmpty ? _name : 'Somchai Rakdee',
-      email: _email.isNotEmpty ? _email : 'somchai.r@gmail.com',
-      phone: _phone.isNotEmpty ? _phone : '+66 81 234 5678',
+      name: _name,
+      email: _email,
+      phone: _phone,
       role: 'Resident',
       imagePath: 'assets/resident_profile.png',
+      onMenuTap: widget.onMenuTap,
     );
   }
 }

@@ -1,0 +1,50 @@
+Vivorn Villa FCM - Backend Walkthrough v5.0
+-----------------------------------------
+Topic: Personnel Management (FE-05) & RBAC Security Integration
+
+1. Personnel Management (FE-05):
+   The system now supports adding estate staff (Technicians and Jurisdictic officers) 
+   externally. This is a restricted administrative function.
+
+   Endpoint: POST /api/personnel
+   RBAC Rule: Access allowed ONLY for 'Jurisdictic' role.
+   
+   Request Body:
+   {
+     "national_id": "1111111111111",      // 13 digits
+     "full_name": "Pongsak Sansook",
+     "phone": "0810001234",
+     "email": "pongsak@vivorn.com",
+     "role": "Jurisdictic",               // 'Jurisdictic' or 'Technician'
+     "face_image_url": "https://..."      // Optional
+   }
+
+2. Automated Security Logic:
+   - Initial Password: The system automatically sets the user's initial password 
+     to their 13-digit National ID (per FE-05 requirement).
+   - First Login Flag: 'is_first_login' is set to 1 (true) for all new personnel.
+   - Username: Generated as 'full_name_last4ID' (e.g., pongsak_sansook_1111).
+
+3. Mult-Role Login Flow (SysT-4):
+   - When a new staff logs in with their Email and National ID:
+     Backend returns status_code: "REQUIRE_PIN_SETUP"
+   - Front-end MUST route them to the 6-digit PIN setup screen immediately.
+   - After PIN setup, 'is_first_login' becomes 0.
+
+4. Backend Response JSON (Standardized):
+   Use these codes in your Flutter App Logic:
+
+   | Endpoint          | status_code              | HTTP | Requirement |
+   | :---              | :---                     | :--- | :---        |
+   | /api/personnel    | PERSONNEL_ADD_SUCCESS    | 201  | FE-05       |
+   | /api/personnel    | ALREADY_REGISTERED       | 409  | Conflict    |
+   | /api/personnel    | ACCESS_DENIED            | 403  | RBAC        |
+   | /api/auth/login   | REQUIRE_PIN_SETUP        | 200  | FE-04       |
+   | /api/auth/login   | AUTH_SUCCESS             | 200  | FE-04       |
+
+5. Role Constraints:
+   Roles are strictly: 'Resident', 'Technician', 'Jurisdictic'.
+
+Backend Dev Team
+2026-03-07
+v5.0 Signal Level: Ready

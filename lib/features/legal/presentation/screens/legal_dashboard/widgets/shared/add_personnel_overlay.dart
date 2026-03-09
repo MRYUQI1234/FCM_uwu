@@ -416,7 +416,7 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                 decoration: BoxDecoration(color: DashboardTheme.error.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: DashboardTheme.error.withOpacity(0.3))),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline_rounded, color: DashboardTheme.error, size: 20),
+                    const Icon(Icons.error_outline_rounded, color: DashboardTheme.error, size: 20),
                     const SizedBox(width: 12),
                     Expanded(child: Text(_errorMessage!, style: GoogleFonts.notoSans(color: DashboardTheme.error, fontSize: 13, fontWeight: FontWeight.w600))),
                   ],

@@ -1,10 +1,7 @@
-import 'dart:ui';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_stats_widgets.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_painters.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 
@@ -43,8 +40,8 @@ class _StatisticsViewState extends State<StatisticsView> {
     final workingCount = allTasks.where((t) => t['status'] == "WORKING").length;
     final doneCount = allTasks.where((t) => t['status'] == "DONE").length;
 
-    final totalHistorical = 4281;
-    final resolvedHistorical = 4127;
+    const totalHistorical = 4281;
+    const resolvedHistorical = 4127;
     final globalVolumeTotal = totalHistorical + allTasks.length;
     final resolvedTotal = resolvedHistorical + doneCount;
     final successRate = (resolvedTotal / globalVolumeTotal);

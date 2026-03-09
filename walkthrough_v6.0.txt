@@ -1,0 +1,36 @@
+# Frontend Walkthrough - AI Chat Assistant & Request Preview
+
+This document summarizes the UI/UX overhauls and new functional modules added to the Vivorn Villa resident assistant.
+
+## Key Changes
+
+### AI Chat UI Refinements
+- **Branding**: Changed the AI FAB to use a bold "V" branding and titled it "Chat with AI" across all languages.
+- **History & Search**: 
+    - Replaced the static search placeholder with a live **TextField**.
+    - Implemented real-time filtering of the conversation history list.
+    - Fixed the "New Chat" (+) button to open a proper blank chat area instead of returning to the sidebar.
+    - Adjusted the History icon in the chat area to correctly return to the history sidebar.
+- **Visual Polish**: 
+    - Matched the search box border style with the main message input field.
+    - Improved the delete icon hitbox and hover effects in the history list.
+
+### Request Preview System
+- **[ParsedTask Model](lib/shared/models/parsed_task_model.dart)**: Created a shared data structure for maintenance tasks parsed from AI conversation.
+- **[RepairRequestPreviewCard](lib/shared/widgets/repair_request_preview_card.dart)**: 
+    - A modular, gold-themed card that appears inside the chat area.
+    - Displays object type, damage description, date/time, and urgency.
+    - Includes "Confirm" and "Cancel" actions.
+- **Integration**: Wired into `AIChatPanel.dart` to automatically extract tasks from the AI's intent results.
+
+### Translation & Internationalization
+- **Multi-language Support**: Fully translated the panel into **Thai**, **English**, and **Chinese**.
+- **Live Updates**: Wrapped the UI in a `ValueListenableBuilder` so the language switches instantly when changed in Settings, without requiring a restart.
+
+## Known Issues
+- **Request Preview Stability**: The `request_preview` card may not appear in every scenario if the AI response format varies slightly. Refinement of the extraction regex or backend JSON consistency is ongoing.
+
+## Verification
+- Test by sending "Toilet is broken" in a chat.
+- Switch languages in Settings to verify panel translation.
+- Use the sidebar search to find previous threads.

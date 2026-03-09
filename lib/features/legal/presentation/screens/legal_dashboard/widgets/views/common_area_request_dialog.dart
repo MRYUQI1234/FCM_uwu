@@ -4,10 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/technician_schedule_card.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class CommonAreaRequestDialog extends StatefulWidget {
   final VoidCallback? onDismiss;
@@ -28,7 +25,7 @@ class _CommonAreaRequestDialogState extends State<CommonAreaRequestDialog> {
   bool _isUrgent = false;
   String? _selectedTechId;
   
-  String _selectedZone = "Public Park";
+  final String _selectedZone = "Public Park";
   final Set<String> _selectedTechnicians = {}; // Multi-selection
   final List<XFile> _attachedFiles = [];
   final ImagePicker _picker = ImagePicker();
@@ -287,7 +284,7 @@ class _CommonAreaRequestDialogState extends State<CommonAreaRequestDialog> {
                                   Switch(
                                     value: _isUrgent,
                                     onChanged: (val) => setState(() => _isUrgent = val),
-                                    activeColor: DashboardTheme.error,
+                                    activeThumbColor: DashboardTheme.error,
                                     activeTrackColor: DashboardTheme.error.withOpacity(0.2),
                                   ),
                                 ],
@@ -434,7 +431,7 @@ class _CommonAreaRequestDialogState extends State<CommonAreaRequestDialog> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                                  const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                                   const SizedBox(width: 12),
                                   Text("SUBMIT REQUEST", style: GoogleFonts.notoSans(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1)),
                                 ],

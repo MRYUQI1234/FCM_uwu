@@ -8,7 +8,6 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/views/profile_view.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/views/settings_view.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/hover_sidebar.dart';
 import 'package:fcm_app/core/data/auth_repository.dart';
 
@@ -234,7 +233,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           border: Border.all(
                               color: DashboardTheme.error.withOpacity(0.2)),
                         ),
-                        child: Icon(Icons.power_settings_new_rounded,
+                        child: const Icon(Icons.power_settings_new_rounded,
                             color: DashboardTheme.error, size: 48),
                       ),
                       const SizedBox(height: 24),

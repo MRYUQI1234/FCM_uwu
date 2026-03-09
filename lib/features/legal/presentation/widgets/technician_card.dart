@@ -40,7 +40,7 @@ class _TechnicianCardState extends State<TechnicianCard> {
     final Color currentColor = widget.statusColor;
     final String currentStatus = widget.isSelected ? "SELECTED" : (widget.isActive ? "ACTIVE" : "INACTIVE");
     // SRS: Green highlight color when selected
-    final Color selectedGreen = const Color(0xFF00E676);
+    const Color selectedGreen = Color(0xFF00E676);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),

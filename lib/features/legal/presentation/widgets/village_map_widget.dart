@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
@@ -110,7 +109,7 @@ class _VillageMapWidgetState extends State<VillageMapWidget>
                     color: task['status'] == 'URGENT' ? DashboardTheme.error : (task['status'] == 'WORKING' ? DashboardTheme.success : DashboardTheme.primary),
                     house: (task['house'] as String).replaceFirst('UNIT-', ''),
                     issue: (task['title'] as String).length > 30 
-                      ? (task['title'] as String).substring(0, 30) + "..."
+                      ? "${(task['title'] as String).substring(0, 30)}..."
                       : task['title'] as String,
                     requester: task['requester'] ?? "Admin",
                     category: task['category'] ?? "Maintenance",

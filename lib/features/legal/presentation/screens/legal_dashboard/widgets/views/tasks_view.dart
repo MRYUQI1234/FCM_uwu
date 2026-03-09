@@ -160,8 +160,8 @@ class _TasksViewState extends State<TasksView> {
                       onTap: () {
                         final allTasks = DashboardData.tasks;
                         final doneCount = allTasks.where((t) => t['status'] == "DONE").length;
-                        final totalHistorical = 4281;
-                        final resolvedHistorical = 4127;
+                        const totalHistorical = 4281;
+                        const resolvedHistorical = 4127;
                         final globalVolumeTotal = totalHistorical + allTasks.length;
                         final resolvedTotal = resolvedHistorical + doneCount;
                         final successRate = (resolvedTotal / globalVolumeTotal);
@@ -185,7 +185,7 @@ class _TasksViewState extends State<TasksView> {
                             child: LinearProgressIndicator(
                               value: 0.942,
                               backgroundColor: DashboardTheme.border,
-                              valueColor: AlwaysStoppedAnimation<Color>(DashboardTheme.success),
+                              valueColor: const AlwaysStoppedAnimation<Color>(DashboardTheme.success),
                               minHeight: 6,
                             ),
                           ),

@@ -134,8 +134,11 @@ class RadarChartPainter extends CustomPainter {
         final angle = j * angleStep - pi / 2;
         final x = centerX + currentRadius * cos(angle);
         final y = centerY + currentRadius * sin(angle);
-        if (j == 0) polyPath.moveTo(x, y);
-        else polyPath.lineTo(x, y);
+        if (j == 0) {
+          polyPath.moveTo(x, y);
+        } else {
+          polyPath.lineTo(x, y);
+        }
       }
       polyPath.close();
       canvas.drawPath(polyPath, axisPaint);
@@ -155,8 +158,11 @@ class RadarChartPainter extends CustomPainter {
       final x = centerX + radius * val * cos(angle);
       final y = centerY + radius * val * sin(angle);
       points.add(Offset(x, y));
-      if (j == 0) statPath.moveTo(x, y);
-      else statPath.lineTo(x, y);
+      if (j == 0) {
+        statPath.moveTo(x, y);
+      } else {
+        statPath.lineTo(x, y);
+      }
     }
     statPath.close();
 

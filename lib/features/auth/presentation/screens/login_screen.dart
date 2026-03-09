@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
   final _idCardController = TextEditingController();
-  final _houseIdController = TextEditingController();
+
   final _phoneController = TextEditingController();
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
@@ -31,7 +31,8 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isLoginMode = true; // Added back for in-place toggle
   bool _isPanelOpen = false;
   bool _isPasswordVisible = false;
-  bool _isButtonHovered = false;
+  String? _errorMessage; // Inline error message above buttons
+
   bool _isAccessButtonHovered = false; // Added for top-right button
   bool _isSwitchHovered = false; // Added for bottom toggle links
   bool _isCloseHovered = false; // Added for top-right close button
@@ -147,17 +148,36 @@ class _LoginScreenState extends State<LoginScreen>
     _confirmPasswordController.dispose();
     _nameController.dispose();
     _idCardController.dispose();
-    _houseIdController.dispose();
+
     _phoneController.dispose();
     _weatherController.dispose();
     _seasonTransitionController.dispose();
     super.dispose();
   }
 
+  /// Maps backend status_code to Thai user-facing messages
+  String _statusCodeToMessage(String? statusCode) {
+    switch (statusCode) {
+      case 'INVALID_CREDENTIALS':
+        return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+      case 'ID_NOT_FOUND':
+        return 'เลขบัตรประชาชนไม่ถูกต้องกรุณาลองอีกครั้ง';
+      case 'ALREADY_REGISTERED':
+        return 'อีเมลนี้ถูกใช้งานแล้ว';
+      case 'VALIDATION_ERROR':
+        return 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง';
+      default:
+        return 'เกิดข้อผิดพลาด กรุณาลองอีกครั้ง';
+    }
+  }
+
   Future<void> _handleAuth() async {
     final formKey = _isLoginMode ? _loginFormKey : _registerFormKey;
     if (formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null; // Clear previous error
+      });
 
       final email = _emailController.text.trim();
       final password = _passwordController.text;
@@ -167,50 +187,74 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() => _isLoading = false);
         if (result['success']) {
           if (mounted) {
-            final role = result['data']['role'];
-            if (role == 'legal') {
+            final user = result['user'];
+            final role = user != null ? user['role'] : '';
+
+            // REQUIRE_PIN_SETUP is handled by home pages via profile check.
+            // Just proceed to role routing regardless.
+            if (role == 'Jurisdictic') {
               Navigator.pushReplacementNamed(context, '/legal');
-            } else if (role == 'technician') {
+            } else if (role == 'Technician') {
               Navigator.pushReplacementNamed(context, '/technician');
             } else {
               Navigator.pushReplacementNamed(context, '/3d_model');
             }
           }
         } else {
-          if (mounted) _showError(result['error']);
+          if (mounted) {
+            setState(() {
+              _errorMessage = _statusCodeToMessage(result['status_code']);
+            });
+          }
         }
       } else {
-        // Quick Success for Sign Up
+        // Sign Up
+        final result = await AuthRepository.instance.register(
+          nationalId: _idCardController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+        );
+
         setState(() => _isLoading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('สมัครสมาชิกสำเร็จ!',
-                  style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
-          // Clear register fields
-          _idCardController.clear();
-          _houseIdController.clear();
-          _nameController.clear();
-          _phoneController.clear();
-          _confirmPasswordController.clear();
-          setState(() => _isLoginMode = true);
+
+        if (result['success']) {
+          // v4.1: No PIN setup on signup. Just redirect to login.
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('ลงทะเบียนสำเร็จ! กรุณาลงชื่อเข้าใช้',
+                    style: GoogleFonts.kanit()),
+                backgroundColor: Colors.green));
+            _idCardController.clear();
+            _nameController.clear();
+            _phoneController.clear();
+            _emailController.clear();
+            _passwordController.clear();
+            _confirmPasswordController.clear();
+            setState(() {
+              _isLoginMode = true;
+              _errorMessage = null;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _errorMessage = _statusCodeToMessage(result['status_code']);
+            });
+          }
         }
       }
     }
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg, style: GoogleFonts.kanit()),
-        backgroundColor: Colors.red));
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 950;
+
+    // No longer auto-opening the panel on mobile based on USER REQUEST.
+    // Users start with the 3D model and taglines and must click "Sign In" to proceed.
 
     return ValueListenableBuilder<bool>(
       valueListenable: DashboardTheme.isDarkMode,
@@ -221,40 +265,52 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               _buildBackground(screenWidth, isMobile),
               // Interaction Shield (Placed above the background/model but below UI)
-              if (!isMobile)
-                Positioned.fill(
-                  child: PointerInterceptor(
-                    intercepting: true,
-                    child: GestureDetector(
-                      onTap: () {},
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(color: Colors.transparent),
-                    ),
+              Positioned.fill(
+                child: PointerInterceptor(
+                  intercepting: true,
+                  child: GestureDetector(
+                    onTap: () {},
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(color: Colors.transparent),
                   ),
                 ),
-              if (!isMobile && !_isPanelOpen) _buildGeometricAccents(),
-              if (!isMobile && !_isPanelOpen) _buildHeroTagline(),
+              ),
+              if (!_isPanelOpen) _buildGeometricAccents(),
+              if (!_isPanelOpen) _buildHeroTagline(isMobile),
               if (!isMobile) _buildFeatureTicker(),
-              if (!isMobile) _buildSeasonStatus(), // Added to bottom-right
+              if (!_isPanelOpen)
+                _buildSeasonStatus(isMobile), // Added to bottom-right
               Positioned(
                 top: 40,
                 left: isMobile ? 24 : 60,
                 child: _buildBranding(),
               ),
-              if (!isMobile && !_isPanelOpen)
+              // Mobile: Access button at bottom center (80% width)
+              if (isMobile && !_isPanelOpen)
                 Positioned(
-                  right: 60,
+                  bottom: 100, // Offset from bottom border
+                  left: screenWidth * 0.1,
+                  right: screenWidth * 0.1,
+                  child: _buildAccessButton(isFullWidth: true),
+                ),
+              // Header Controls
+              if (!_isPanelOpen)
+                Positioned(
+                  right: isMobile ? 24 : 60,
                   top: 40,
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildThemeToggle(),
-                      const SizedBox(width: 20),
-                      _buildAccessButton(),
+                      if (!isMobile) ...[
+                        const SizedBox(width: 20),
+                        _buildAccessButton(),
+                      ],
                     ],
                   ),
                 ),
-              // Theme toggle for mobile
-              if (isMobile && !_isPanelOpen)
+              // Theme toggle for mobile persistent top-right when panel is open
+              if (isMobile && _isPanelOpen)
                 Positioned(
                   top: 35,
                   right: 20,
@@ -265,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen>
                 curve: Curves.easeInOutCubic,
                 top: 0,
                 bottom: 0,
-                right: _isPanelOpen ? 0 : -500,
+                right: _isPanelOpen ? 0 : (isMobile ? -screenWidth : -500),
                 width: isMobile ? screenWidth : 500,
                 child: _buildPanel(isMobile),
               ),
@@ -288,15 +344,20 @@ class _LoginScreenState extends State<LoginScreen>
               duration: const Duration(milliseconds: 400),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                color: isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.black.withOpacity(0.05),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+                  color: isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.1),
                 ),
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
                 child: Icon(
                   isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
                   key: ValueKey(isDark),
@@ -334,9 +395,12 @@ class _LoginScreenState extends State<LoginScreen>
                         gradient: RadialGradient(
                             center: Alignment.center,
                             radius: 1.5,
-                            colors: DashboardTheme.isDarkMode.value 
-                              ? colors 
-                              : [DashboardTheme.background, DashboardTheme.surfaceSecondaryLight])))),
+                            colors: DashboardTheme.isDarkMode.value
+                                ? colors
+                                : [
+                                    DashboardTheme.background,
+                                    DashboardTheme.surfaceSecondaryLight
+                                  ])))),
             Positioned.fill(
               child: IgnorePointer(
                 child: ModelViewer(
@@ -348,15 +412,17 @@ class _LoginScreenState extends State<LoginScreen>
                   autoPlay: true,
                   cameraControls: false,
                   disableZoom: true,
-                  exposure: 0.8, // Slightly lower to avoid aliasing artifacts
-                  shadowIntensity: 0.2, // Very subtle to keep it Zen
-                  shadowSoftness: 1.0, // Soft for stability
+                  exposure: 0.8,
+                  shadowIntensity: 0.2,
+                  shadowSoftness: 1.0,
                   rotationPerSecond: '10deg',
                   cameraTarget: 'auto 1m auto',
                   cameraOrbit: '45deg 75deg 80%',
                 ),
               ),
             ),
+            // Loading overlay — fades away after model initializes
+            _ModelLoadingOverlay(isDark: DashboardTheme.isDarkMode.value),
             _buildWeatherLayer(
                 previousSeason['weather'], previousSeason['accent'], 1.0 - t),
             _buildWeatherLayer(
@@ -461,10 +527,10 @@ class _LoginScreenState extends State<LoginScreen>
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             color: DashboardTheme.textMain)),
-                        const SizedBox(height: 4),
-                        Text(feature['desc'],
-                            style: GoogleFonts.outfit(
-                                fontSize: 12, color: DashboardTheme.textSecondary))
+                    const SizedBox(height: 4),
+                    Text(feature['desc'],
+                        style: GoogleFonts.outfit(
+                            fontSize: 12, color: DashboardTheme.textSecondary))
                   ])),
             ],
           ),
@@ -473,7 +539,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildAccessButton() {
+  Widget _buildAccessButton({bool isFullWidth = false}) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isAccessButtonHovered = true),
@@ -483,7 +549,9 @@ class _LoginScreenState extends State<LoginScreen>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          width: isFullWidth ? double.infinity : null,
+          padding: EdgeInsets.symmetric(
+              horizontal: isFullWidth ? 40 : 24, vertical: 16),
           transform: Matrix4.identity()
             ..scale(_isAccessButtonHovered ? 1.05 : 1.0),
           decoration: BoxDecoration(
@@ -503,16 +571,17 @@ class _LoginScreenState extends State<LoginScreen>
             ],
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.login_rounded, color: Colors.black, size: 18),
-              const SizedBox(width: 10),
+              const Icon(Icons.login_rounded, color: Colors.black, size: 20),
+              const SizedBox(width: 12),
               Text('Sign In',
                   style: GoogleFonts.outfit(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
-                      letterSpacing: 1)),
+                      letterSpacing: 1.5)),
             ],
           ),
         ),
@@ -551,30 +620,34 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                 ),
-                // Re-positioned button to top of stack and removed !isMobile restriction
-                Positioned(
-                  top: 32,
-                  right: 32,
-                  child: MouseRegion(
-                    onEnter: (_) => setState(() => _isCloseHovered = true),
-                    onExit: (_) => setState(() => _isCloseHovered = false),
-                    cursor: SystemMouseCursors.click,
-                    child: IconButton(
-                      onPressed: () => setState(() {
-                        _isPanelOpen = false;
-                        _isCloseHovered = false;
-                      }),
-                      icon: Icon(
-                        Icons.close_rounded,
-                        color: _isCloseHovered ? accentGold : DashboardTheme.textPale,
-                        size: 24,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: DashboardTheme.textMain.withOpacity(_isCloseHovered ? 0.15 : 0.05),
+                // X close button — always visible as per USER REQUEST
+                if (true) // Just keeping structural consistency
+                  Positioned(
+                    top: 32,
+                    right: 32,
+                    child: MouseRegion(
+                      onEnter: (_) => setState(() => _isCloseHovered = true),
+                      onExit: (_) => setState(() => _isCloseHovered = false),
+                      cursor: SystemMouseCursors.click,
+                      child: IconButton(
+                        onPressed: () => setState(() {
+                          _isPanelOpen = false;
+                          _isCloseHovered = false;
+                        }),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: _isCloseHovered
+                              ? accentGold
+                              : DashboardTheme.textPale,
+                          size: 24,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: DashboardTheme.textMain
+                              .withOpacity(_isCloseHovered ? 0.15 : 0.05),
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -593,15 +666,35 @@ class _LoginScreenState extends State<LoginScreen>
               style: GoogleFonts.playfairDisplay(
                   fontSize: 36,
                   fontWeight: FontWeight.w600,
-                  color: DashboardTheme.textMain)),
+                  color: Colors.white)),
           const SizedBox(height: 8),
           Text('Welcome back. Please enter your credentials.',
-              style: GoogleFonts.outfit(fontSize: 14, color: DashboardTheme.textSecondary)),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.white70)),
           const SizedBox(height: 48),
-          _buildField('Email', _emailController, Icons.email_outlined),
+          _buildValidatedField(
+            label: 'Email',
+            controller: _emailController,
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please enter email';
+              if (!v.contains('@')) return 'Invalid email format';
+              return null;
+            },
+          ),
           const SizedBox(height: 24),
-          _buildField('Password', _passwordController, Icons.lock_outline,
-              isPassword: true),
+          _buildValidatedField(
+            label: 'Password',
+            controller: _passwordController,
+            icon: Icons.lock_outline,
+            isPassword: true,
+            isLastField: true,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please enter password';
+              if (v.length < 6) return 'Password must be at least 6 characters';
+              return null;
+            },
+          ),
           const SizedBox(height: 16),
           Align(
               alignment: Alignment.centerRight,
@@ -609,11 +702,41 @@ class _LoginScreenState extends State<LoginScreen>
                   onPressed: () {},
                   child: const Text('Forgot password?',
                       style: TextStyle(color: accentGold, fontSize: 13)))),
-          const SizedBox(height: 40),
+          // Inline error message
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(_errorMessage!,
+                        style: GoogleFonts.kanit(
+                            fontSize: 13, color: Colors.redAccent)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
           _buildPrimaryButton('Sign In'),
           const SizedBox(height: 32),
-          _buildSwitchMode('Don\'t have an account?', 'Sign Up',
-              () => setState(() => _isLoginMode = false)),
+          _buildSwitchMode(
+              'Don\'t have an account?',
+              'Sign Up',
+              () => setState(() {
+                    _isLoginMode = false;
+                    _errorMessage = null;
+                  })),
         ],
       ),
     );
@@ -629,10 +752,10 @@ class _LoginScreenState extends State<LoginScreen>
               style: GoogleFonts.playfairDisplay(
                   fontSize: 36,
                   fontWeight: FontWeight.w600,
-                  color: DashboardTheme.textMain)),
+                  color: Colors.white)),
           const SizedBox(height: 8),
           Text('Create an account to start managing assets.',
-              style: GoogleFonts.outfit(fontSize: 14, color: DashboardTheme.textSecondary)),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.white70)),
           const SizedBox(height: 36),
 
           // SRS: 13-digit National ID Card
@@ -645,22 +768,26 @@ class _LoginScreenState extends State<LoginScreen>
             validator: (v) {
               if (v == null || v.isEmpty) return 'กรุณากรอกหมายเลขบัตรประชาชน';
               if (v.length != 13) return 'กรุณากรอกให้ครบ 13 หลัก';
-              if (!RegExp(r'^[0-9]{13}').hasMatch(v)) return 'ต้องเป็นตัวเลขเท่านั้น';
+              if (!RegExp(r'^[0-9]{13}').hasMatch(v)) {
+                return 'ต้องเป็นตัวเลขเท่านั้น';
+              }
               return null;
             },
           ),
           const SizedBox(height: 20),
 
-          // SRS: House ID
           _buildValidatedField(
-            label: 'House ID (เช่น 123/45)',
-            controller: _houseIdController,
-            icon: Icons.home_rounded,
-            validator: (v) => (v == null || v.isEmpty) ? 'กรุณากรอก House ID' : null,
+            label: 'Full Name',
+            controller: _nameController,
+            icon: Icons.person_outline,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please enter your full name';
+              if (!v.trim().contains(' ')) {
+                return 'Please enter both first and last name';
+              }
+              return null;
+            },
           ),
-          const SizedBox(height: 20),
-
-          _buildField('Full Name', _nameController, Icons.person_outline),
           const SizedBox(height: 20),
 
           // SRS: Phone (10 digits)
@@ -672,17 +799,37 @@ class _LoginScreenState extends State<LoginScreen>
             keyboardType: TextInputType.phone,
             validator: (v) {
               if (v == null || v.isEmpty) return 'กรุณากรอกเบอร์โทรศัพท์';
-              if (!RegExp(r'^[0-9]{10}').hasMatch(v)) return 'กรุณากรอกเบอร์โทรศัพท์ 10 หลัก';
+              if (!RegExp(r'^[0-9]{10}').hasMatch(v)) {
+                return 'กรุณากรอกเบอร์โทรศัพท์ 10 หลัก';
+              }
               return null;
             },
           ),
           const SizedBox(height: 20),
 
-          _buildField('Email', _emailController, Icons.email_outlined),
+          _buildValidatedField(
+            label: 'Email',
+            controller: _emailController,
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please enter email';
+              if (!v.contains('@')) return 'Invalid email format';
+              return null;
+            },
+          ),
           const SizedBox(height: 20),
-
-          _buildField('Password', _passwordController, Icons.lock_outline,
-              isPassword: true),
+          _buildValidatedField(
+            label: 'Password',
+            controller: _passwordController,
+            icon: Icons.lock_outline,
+            isPassword: true,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please enter password';
+              if (v.length < 6) return 'Password must be at least 6 characters';
+              return null;
+            },
+          ),
           const SizedBox(height: 20),
 
           // SRS: Confirm Password
@@ -691,18 +838,49 @@ class _LoginScreenState extends State<LoginScreen>
             controller: _confirmPasswordController,
             icon: Icons.lock_outline,
             isPassword: true,
+            isLastField: true,
             validator: (v) {
               if (v == null || v.isEmpty) return 'กรุณายืนยันรหัสผ่าน';
               if (v != _passwordController.text) return 'รหัสผ่านไม่ตรงกัน';
               return null;
             },
           ),
-          const SizedBox(height: 36),
+          // Inline error message
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(_errorMessage!,
+                        style: GoogleFonts.kanit(
+                            fontSize: 13, color: Colors.redAccent)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
 
           _buildPrimaryButton('Sign Up'),
           const SizedBox(height: 32),
-          _buildSwitchMode('Already have an account?', 'Sign In',
-              () => setState(() => _isLoginMode = true)),
+          _buildSwitchMode(
+              'Already have an account?',
+              'Sign In',
+              () => setState(() {
+                    _isLoginMode = true;
+                    _errorMessage = null;
+                  })),
         ],
       ),
     );
@@ -724,7 +902,9 @@ class _LoginScreenState extends State<LoginScreen>
               child: AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
-                  color: _isSwitchHovered ? DashboardTheme.textMain : DashboardTheme.primary,
+                  color: _isSwitchHovered
+                      ? DashboardTheme.textMain
+                      : DashboardTheme.primary,
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   decoration: _isSwitchHovered
@@ -744,25 +924,14 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildField(
-      String label, TextEditingController controller, IconData icon,
-      {bool isPassword = false}) {
-    return _HoverField(
-      label: label,
-      controller: controller,
-      icon: icon,
-      isPassword: isPassword,
-      isPasswordVisible: _isPasswordVisible,
-      onTogglePassword: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-    );
-  }
-
   /// SRS-compliant validated field with custom validator, maxLength, keyboardType
+  /// Panel always has dark background, so text/labels use white tones.
   Widget _buildValidatedField({
     required String label,
     required TextEditingController controller,
     required IconData icon,
     bool isPassword = false,
+    bool isLastField = false,
     int? maxLength,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
@@ -770,7 +939,11 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.outfit(fontSize: 13, color: DashboardTheme.textSecondary, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: GoogleFonts.outfit(
+                fontSize: 13,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
@@ -778,31 +951,41 @@ class _LoginScreenState extends State<LoginScreen>
           maxLength: maxLength,
           keyboardType: keyboardType,
           validator: validator,
-          style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontSize: 15),
+          textInputAction:
+              isLastField ? TextInputAction.done : TextInputAction.next,
+          onFieldSubmitted: isLastField ? (_) => _handleAuth() : null,
+          style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
           decoration: InputDecoration(
             counterText: '',
-            prefixIcon: Icon(icon, color: DashboardTheme.textPale, size: 20),
+            prefixIcon: Icon(icon, color: Colors.white38, size: 20),
             suffixIcon: isPassword
                 ? IconButton(
-                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: DashboardTheme.textPale, size: 20),
-                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                    icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.white38,
+                        size: 20),
+                    onPressed: () => setState(
+                        () => _isPasswordVisible = !_isPasswordVisible),
                   )
                 : null,
             filled: true,
-            fillColor: DashboardTheme.textMain.withOpacity(0.06),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: DashboardTheme.textMain.withOpacity(0.1)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: DashboardTheme.textMain.withOpacity(0.1)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: DashboardTheme.primary, width: 1.5),
-      ),
+            fillColor: Colors.white.withOpacity(0.06),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: accentGold, width: 1.5),
+            ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.redAccent, width: 1),
@@ -811,7 +994,8 @@ class _LoginScreenState extends State<LoginScreen>
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
             ),
-            errorStyle: GoogleFonts.notoSans(fontSize: 11, color: Colors.redAccent),
+            errorStyle:
+                GoogleFonts.notoSans(fontSize: 11, color: Colors.redAccent),
           ),
         ),
       ],
@@ -826,25 +1010,27 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildHeroTagline() {
+  Widget _buildHeroTagline(bool isMobile) {
     return Positioned(
-      top: 140,
-      right: 60,
-      width: 450,
+      top: isMobile ? 120 : 140,
+      left: isMobile ? 24 : null, // Left alignment on mobile looks better
+      right: isMobile ? 24 : 60,
+      width: isMobile ? null : 450,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment:
+            isMobile ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           Text('Manage Your Property,',
-              textAlign: TextAlign.right,
+              textAlign: isMobile ? TextAlign.left : TextAlign.right,
               style: GoogleFonts.playfairDisplay(
-                  fontSize: 48,
+                  fontSize: isMobile ? 32 : 48,
                   fontWeight: FontWeight.w600,
                   color: DashboardTheme.textMain,
                   height: 1.15)), // Tuned to 1.15 for cohesion
           Text('Effortlessly.',
-              textAlign: TextAlign.right,
+              textAlign: isMobile ? TextAlign.left : TextAlign.right,
               style: GoogleFonts.playfairDisplay(
-                  fontSize: 48,
+                  fontSize: isMobile ? 32 : 48,
                   fontWeight: FontWeight.w600,
                   color: DashboardTheme.primary,
                   height: 1.15)), // Tuned to 1.15 for cohesion
@@ -852,19 +1038,21 @@ class _LoginScreenState extends State<LoginScreen>
               height: 24), // Increased gap to separate hook from info
           Text(
               'One platform, complete control. Monitor repairs and manage assets with precision.',
-              textAlign: TextAlign.right,
+              textAlign: isMobile ? TextAlign.left : TextAlign.right,
               style: GoogleFonts.outfit(
-                  fontSize: 15, color: DashboardTheme.textPale, height: 1.5)),
+                  fontSize: isMobile ? 14 : 15,
+                  color: DashboardTheme.textPale,
+                  height: 1.5)),
         ],
       ),
     );
   }
 
-  Widget _buildSeasonStatus() {
+  Widget _buildSeasonStatus(bool isMobile) {
     final season = _seasons[_currentSeasonIndex];
     return Positioned(
-      bottom: 60,
-      right: 60,
+      bottom: isMobile ? 40 : 60,
+      right: isMobile ? 24 : 60,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -877,10 +1065,10 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(width: 10),
           Text('${season['name']} — ${season['label']}',
               style: GoogleFonts.outfit(
-                  fontSize: 10,
+                  fontSize: isMobile ? 9 : 10,
                   fontWeight: FontWeight.w900,
                   color: season['accent'].withOpacity(0.8),
-                  letterSpacing: 2)),
+                  letterSpacing: isMobile ? 1 : 2)),
         ],
       ),
     );
@@ -911,10 +1099,12 @@ class GeometricAccentPainter extends CustomPainter {
       ..color = color.withOpacity(0.05)
       ..strokeWidth = 0.5
       ..style = PaintingStyle.stroke;
-    for (double i = 0; i < size.width; i += 100)
+    for (double i = 0; i < size.width; i += 100) {
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), dashPaint);
-    for (double i = 0; i < size.height; i += 100)
+    }
+    for (double i = 0; i < size.height; i += 100) {
       canvas.drawLine(Offset(0, i), Offset(size.width, i), dashPaint);
+    }
     canvas.drawLine(
         Offset(size.width * 0.7, 40), Offset(size.width * 0.95, 40), paint);
     canvas.drawLine(
@@ -923,8 +1113,9 @@ class GeometricAccentPainter extends CustomPainter {
     canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.8), 40, paint);
     canvas.drawLine(
         Offset(40, size.height * 0.2), Offset(40, size.height * 0.8), paint);
-    for (double j = size.height * 0.2; j < size.height * 0.8; j += 40)
+    for (double j = size.height * 0.2; j < size.height * 0.8; j += 40) {
       canvas.drawLine(Offset(40, j), Offset(55, j), paint);
+    }
     canvas.drawArc(Rect.fromLTWH(size.width * 0.7, size.height * 0.1, 400, 400),
         0, 1.5, false, paint);
     final diamondPath = Path()
@@ -953,9 +1144,9 @@ class WeatherPainter extends CustomPainter {
       ..strokeWidth = 1.0
       ..style = PaintingStyle.fill;
     final double time = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    if (type == 'rain')
+    if (type == 'rain') {
       _drawRain(canvas, size, paint, time);
-    else if (type == 'snow')
+    } else if (type == 'snow')
       _drawSnow(canvas, size, paint, time);
     else if (type == 'haze') _drawHaze(canvas, size, paint, time);
   }
@@ -1026,16 +1217,13 @@ class _HoverField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final IconData icon;
-  final bool isPassword;
-  final bool isPasswordVisible;
+
   final VoidCallback onTogglePassword;
 
   const _HoverField({
     required this.label,
     required this.controller,
     required this.icon,
-    this.isPassword = false,
-    this.isPasswordVisible = false,
     required this.onTogglePassword,
   });
 
@@ -1080,7 +1268,8 @@ class _HoverFieldState extends State<_HoverField> {
               style: GoogleFonts.outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: isActive ? DashboardTheme.primary : DashboardTheme.textPale,
+                color:
+                    isActive ? DashboardTheme.primary : DashboardTheme.textPale,
               ),
               child: Text(widget.label),
             ),
@@ -1089,10 +1278,13 @@ class _HoverFieldState extends State<_HoverField> {
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
               decoration: BoxDecoration(
-                color: DashboardTheme.textMain.withOpacity(isActive ? 0.08 : 0.05),
+                color:
+                    DashboardTheme.textMain.withOpacity(isActive ? 0.08 : 0.05),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isActive ? DashboardTheme.primary.withOpacity(0.5) : DashboardTheme.textMain.withOpacity(0.08),
+                  color: isActive
+                      ? DashboardTheme.primary.withOpacity(0.5)
+                      : DashboardTheme.textMain.withOpacity(0.08),
                   width: 1,
                 ),
                 boxShadow: _isFocused
@@ -1108,14 +1300,17 @@ class _HoverFieldState extends State<_HoverField> {
               child: TextFormField(
                 controller: widget.controller,
                 focusNode: _focusNode,
-                obscureText: widget.isPassword && !widget.isPasswordVisible,
+                obscureText: false,
                 style: TextStyle(color: DashboardTheme.textMain, fontSize: 15),
                 cursorColor: DashboardTheme.primary,
-                validator: (value) => (value == null || value.isEmpty) ? 'Required' : null,
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? 'Required' : null,
                 decoration: InputDecoration(
                   prefixIcon: Icon(
                     widget.icon,
-                    color: isActive ? DashboardTheme.primary : DashboardTheme.textPale,
+                    color: isActive
+                        ? DashboardTheme.primary
+                        : DashboardTheme.textPale,
                     size: 20,
                   ),
                   // Explicitly disable ALL borders from theme to avoid default gold flash or thick borders
@@ -1125,17 +1320,9 @@ class _HoverFieldState extends State<_HoverField> {
                   errorBorder: InputBorder.none,
                   focusedErrorBorder: InputBorder.none,
                   disabledBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                  suffixIcon: widget.isPassword
-                      ? IconButton(
-                          icon: Icon(
-                            widget.isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                            color: isActive ? DashboardTheme.primary.withOpacity(0.7) : DashboardTheme.textPale,
-                            size: 18,
-                          ),
-                          onPressed: widget.onTogglePassword,
-                        )
-                      : null,
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  suffixIcon: null,
                 ),
               ),
             ),
@@ -1192,8 +1379,14 @@ class _HoverButtonState extends State<_HoverButton> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: _isHovered
-                      ? [DashboardTheme.primary, DashboardTheme.primary.withOpacity(0.8)]
-                      : [DashboardTheme.primary.withOpacity(0.7), DashboardTheme.primary.withOpacity(0.8)],
+                      ? [
+                          DashboardTheme.primary,
+                          DashboardTheme.primary.withOpacity(0.8)
+                        ]
+                      : [
+                          DashboardTheme.primary.withOpacity(0.7),
+                          DashboardTheme.primary.withOpacity(0.8)
+                        ],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
@@ -1210,7 +1403,8 @@ class _HoverButtonState extends State<_HoverButton> {
                     ? SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(color: DashboardTheme.surface, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                            color: DashboardTheme.surface, strokeWidth: 2),
                       )
                     : Text(
                         widget.text,
@@ -1221,6 +1415,69 @@ class _HoverButtonState extends State<_HoverButton> {
                           letterSpacing: 1,
                         ),
                       ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Loading overlay: hides ModelViewer until WebGL warms up ──────────────────
+class _ModelLoadingOverlay extends StatefulWidget {
+  final bool isDark;
+  const _ModelLoadingOverlay({required this.isDark});
+
+  @override
+  State<_ModelLoadingOverlay> createState() => _ModelLoadingOverlayState();
+}
+
+class _ModelLoadingOverlayState extends State<_ModelLoadingOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800));
+    _opacity = Tween(begin: 1.0, end: 0.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+
+    // Wait for WebGL to initialize then fade out
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _opacity,
+      builder: (_, __) => Opacity(
+        opacity: _opacity.value,
+        child: IgnorePointer(
+          ignoring: _opacity.value < 0.01,
+          child: Container(
+            color: widget.isDark
+                ? const Color(0xFF0D0D0E)
+                : const Color(0xFFF5F5F5),
+            child: const Center(
+              child: SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFFC5A059),
+                ),
               ),
             ),
           ),

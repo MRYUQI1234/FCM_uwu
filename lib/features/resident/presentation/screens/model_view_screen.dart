@@ -3,11 +3,8 @@ import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/custom_sidebar.dart';
 import '../widgets/floating_repair_panel.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
-import 'package:fcm_app/core/data/repair_repository.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:js' as js;
 import 'package:fcm_app/core/data/auth_repository.dart';
@@ -28,7 +25,7 @@ class _ModelViewScreenState extends State<ModelViewScreen> with TickerProviderSt
   late Animation<Offset> _textSlideAnim;
   late Animation<double> _uiOpacityAnim; 
 
-  bool _animationFinished = false;
+  final bool _animationFinished = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Key for Drawer
 
   // Image Picker
@@ -44,7 +41,7 @@ class _ModelViewScreenState extends State<ModelViewScreen> with TickerProviderSt
   // Floating Repair Panel State
   bool _isRepairPanelOpen = false;
   // Pending repair items for the floating panel
-  List<PendingRepairItem> _pendingRepairItems = [];
+  final List<PendingRepairItem> _pendingRepairItems = [];
 
   // User Data
   String _displayUsername = '';
@@ -468,7 +465,7 @@ class _ModelViewScreenState extends State<ModelViewScreen> with TickerProviderSt
                             // AbsorbPointer blocks when sidebar dialog or repair popup is open
                             AbsorbPointer(
                               absorbing: _isDialogOpen || _isRepairPopupOpen,
-                              child: ModelViewer(
+                              child: const ModelViewer(
                                 src: 'gulli_bulli_house.glb',
                                 alt: "A 3D model of the house",
                                 ar: true,

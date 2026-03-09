@@ -29,7 +29,7 @@ class FloatingRepairPanel extends StatefulWidget {
 }
 
 class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
-  int _requestNumber = 4; // Mock request number
+  final int _requestNumber = 4; // Mock request number
 
   void _submitRepair() {
     if (widget.pendingItems.isEmpty) {
@@ -81,9 +81,9 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
           // Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF252525),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            decoration: const BoxDecoration(
+              color: Color(0xFF252525),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [

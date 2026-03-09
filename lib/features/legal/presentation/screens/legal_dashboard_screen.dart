@@ -19,7 +19,6 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/core/data/auth_repository.dart';
 
-
 class LegalDashboardScreen extends StatefulWidget {
   const LegalDashboardScreen({super.key});
 
@@ -68,8 +67,15 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
     if (mounted) _sidebarAnim.animateTo(1.0, curve: Curves.easeOutCubic);
   }
 
-  void _onSidebarHoverEnter() { _isHovering = true; _showSidebar(); }
-  void _onSidebarHoverExit() { _isHovering = false; _startHideTimer(); }
+  void _onSidebarHoverEnter() {
+    _isHovering = true;
+    _showSidebar();
+  }
+
+  void _onSidebarHoverExit() {
+    _isHovering = false;
+    _startHideTimer();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +117,30 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                           },
                           onLogout: () => _showLogoutConfirmation(context),
                           items: const [
-                            SidebarItem(index: 0, icon: Icons.dashboard_rounded, label: "OVERVIEW"),
-                            SidebarItem(index: 1, icon: Icons.assignment_rounded, label: "REQUESTS"),
-                            SidebarItem(index: 2, icon: Icons.engineering_rounded, label: "STAFF"),
-                            SidebarItem(index: 4, icon: Icons.analytics_rounded, label: "ANALYTICS"),
-                            SidebarItem(index: 5, icon: Icons.person_rounded, label: "ACCOUNT"),
-                            SidebarItem(index: 3, icon: Icons.settings_rounded, label: "SETTINGS"),
+                            SidebarItem(
+                                index: 0,
+                                icon: Icons.dashboard_rounded,
+                                label: "OVERVIEW"),
+                            SidebarItem(
+                                index: 1,
+                                icon: Icons.assignment_rounded,
+                                label: "REQUESTS"),
+                            SidebarItem(
+                                index: 2,
+                                icon: Icons.engineering_rounded,
+                                label: "STAFF"),
+                            SidebarItem(
+                                index: 4,
+                                icon: Icons.analytics_rounded,
+                                label: "ANALYTICS"),
+                            SidebarItem(
+                                index: 5,
+                                icon: Icons.person_rounded,
+                                label: "ACCOUNT"),
+                            SidebarItem(
+                                index: 3,
+                                icon: Icons.settings_rounded,
+                                label: "SETTINGS"),
                           ],
                         ),
                       ),
@@ -130,7 +154,9 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                             child: _buildMainContent(),
                           ),
                           Positioned(
-                            top: 0, left: 0, right: 0,
+                            top: 0,
+                            left: 0,
+                            right: 0,
                             child: _buildHeader(),
                           ),
                         ],
@@ -141,7 +167,10 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
               ),
               // Left edge hover zone
               Positioned(
-                top: 0, left: 0, bottom: 0, width: 16,
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: 16,
                 child: MouseRegion(
                   opaque: false,
                   onEnter: (_) => _onSidebarHoverEnter(),
@@ -167,7 +196,8 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
             margin: const EdgeInsets.symmetric(horizontal: 24),
             decoration: DashboardTheme.cardDecoration().copyWith(
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: DashboardTheme.error.withOpacity(0.3), width: 1.5),
+              border: Border.all(
+                  color: DashboardTheme.error.withOpacity(0.3), width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: DashboardTheme.error.withOpacity(0.1),
@@ -205,12 +235,17 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                         decoration: BoxDecoration(
                           color: DashboardTheme.error.withOpacity(0.1),
                           shape: BoxShape.circle,
-                          border: Border.all(color: DashboardTheme.error.withOpacity(0.2)),
+                          border: Border.all(
+                              color: DashboardTheme.error.withOpacity(0.2)),
                         ),
-                        child: Icon(Icons.power_settings_new_rounded, color: DashboardTheme.error, size: 48),
+                        child: const Icon(Icons.power_settings_new_rounded,
+                            color: DashboardTheme.error, size: 48),
                       ),
                       const SizedBox(height: 24),
-                      terminalText("SESSION TERMINATION", color: DashboardTheme.error, fontSize: 18, letterSpacing: 2),
+                      terminalText("SESSION TERMINATION",
+                          color: DashboardTheme.error,
+                          fontSize: 18,
+                          letterSpacing: 2),
                       const SizedBox(height: 12),
                       Text(
                         "Are you sure you want to end your active session on the FCM Platform?",
@@ -224,7 +259,7 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                     ],
                   ),
                 ),
-                
+
                 // Action Buttons
                 Padding(
                   padding: const EdgeInsets.fromLTRB(32, 0, 32, 32),
@@ -245,7 +280,8 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                           onTap: () async {
                             await AuthRepository.instance.logout();
                             if (mounted) {
-                              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                              Navigator.pushNamedAndRemoveUntil(
+                                  context, '/login', (route) => false);
                             }
                           },
                           color: DashboardTheme.error,
@@ -263,7 +299,12 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
     );
   }
 
-  Widget _dialogButton({required String label, required VoidCallback onTap, required Color color, bool isPrimary = false, bool isGlassy = false}) {
+  Widget _dialogButton(
+      {required String label,
+      required VoidCallback onTap,
+      required Color color,
+      bool isPrimary = false,
+      bool isGlassy = false}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -272,12 +313,20 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
         child: Ink(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: isPrimary ? DashboardTheme.error.withOpacity(0.15) : (isGlassy ? DashboardTheme.surfaceSecondary : Colors.transparent),
+            color: isPrimary
+                ? DashboardTheme.error.withOpacity(0.15)
+                : (isGlassy
+                    ? DashboardTheme.surfaceSecondary
+                    : Colors.transparent),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: color.withOpacity(0.2)),
           ),
           child: Center(
-            child: terminalText(label, color: color, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1),
+            child: terminalText(label,
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1),
           ),
         ),
       ),
@@ -285,7 +334,9 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
   }
 
   Widget _buildHeader() {
-    if (_selectedIndex == 1) return const SizedBox.shrink(); // Hide on Request screen as per original design
+    if (_selectedIndex == 1)
+      return const SizedBox
+          .shrink(); // Hide on Request screen as per original design
     return Container(
       decoration: const BoxDecoration(
         color: Colors.transparent, // Removed background as requested
@@ -375,7 +426,7 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
       case 4:
         return const StatisticsView();
       case 5:
-        return ProfileView(
+        return const ProfileView(
           name: "Admin Zeta",
           email: "admin@gmail.com",
           phone: "+66 88 777 9999",
@@ -386,5 +437,4 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
         return const OverviewView();
     }
   }
-
 }

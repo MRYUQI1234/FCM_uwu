@@ -1,6 +1,4 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/widgets/village_map_widget.dart';
 import 'package:fcm_app/features/legal/presentation/widgets/technician_card.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';

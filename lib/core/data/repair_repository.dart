@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:fcm_app/core/data/auth_repository.dart';
 
 class RepairRequest {
   final String id;
@@ -10,7 +13,7 @@ class RepairRequest {
   final List<String> imagePaths;
   final String? rejectionReason;
   final String? rejectionTemplate;
-  
+
   // V11 Compliance Fields
   final DateTime? appointmentDate;
   final TimeOfDay? appointmentTime;
@@ -18,7 +21,7 @@ class RepairRequest {
   final bool isEmergency;
   final bool isWarranty;
   final double estimatedCost;
-  
+
   // Assessment fields (FE-03)
   final int? rating;
   final String? assessmentComment;
@@ -146,25 +149,97 @@ class RepairRepository {
   static final RepairRepository instance = RepairRepository._internal();
   RepairRepository._internal();
 
+  final String _baseUrl = 'http://localhost:3000/api';
+
   // ── Repairs ──
-  final ValueNotifier<List<RepairRequest>> repairsNotifier = ValueNotifier([
-    RepairRequest(
-      id: '1',
-      title: 'Air Conditioner leaking',
-      description: 'Water is dripping from the indoor unit onto the floor.',
-      date: '02/03/2569',
-      status: 'In Progress',
-      statusColor: Colors.blue,
-      technicianName: 'Somsak',
-      assignedStaff: ['Jib'],
-      appointmentDate: DateTime.now().add(const Duration(days: 1)),
-      appointmentTime: const TimeOfDay(hour: 10, minute: 30),
-      appointmentSlot: 'AM',
-      requesterName: 'Resident A',
-      requesterEmail: 'resident@gmail.com',
-      requesterHouse: 'UNIT-B12',
-    ),
-  ]);
+  final ValueNotifier<List<RepairRequest>> repairsNotifier = ValueNotifier([]);
+
+  /// Fetch repair history from backend API
+  Future<void> fetchHistory() async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('$_baseUrl/repair/history'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          final List data = result['data'] ?? [];
+          repairsNotifier.value = data.map<RepairRequest>((r) {
+            // Build title from first task description or fallback
+            final tasks = (r['tasks'] as List?) ?? [];
+            final firstTask = tasks.isNotEmpty ? tasks[0] : null;
+            final title = firstTask != null
+                ? '${firstTask['category'] ?? ''} - ${firstTask['object_name'] ?? ''}'
+                    .trim()
+                : 'Repair Request';
+            final description = firstTask?['description'] ?? '';
+            final urgency = firstTask?['urgency'] ?? 'Normal';
+
+            // Status color mapping
+            Color statusColor;
+            final status = (r['status'] ?? 'Created').toString();
+            switch (status.toLowerCase()) {
+              case 'completed':
+              case 'reviewed':
+                statusColor = Colors.green;
+                break;
+              case 'in progress':
+              case 'inprogress':
+                statusColor = Colors.blue;
+                break;
+              case 'denied':
+                statusColor = Colors.red;
+                break;
+              default:
+                statusColor = Colors.orange;
+            }
+
+            // Parse dates
+            DateTime? completedAt;
+            if (r['completed_at'] != null) {
+              completedAt = DateTime.tryParse(r['completed_at'].toString());
+            }
+            DateTime? createdAt;
+            if (r['created_at'] != null) {
+              createdAt = DateTime.tryParse(r['created_at'].toString());
+            }
+            DateTime? preferDate;
+            if (firstTask?['prefer_date'] != null) {
+              preferDate =
+                  DateTime.tryParse(firstTask['prefer_date'].toString());
+            }
+
+            final dateStr = createdAt != null
+                ? '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}'
+                : '';
+
+            return RepairRequest(
+              id: r['id']?.toString() ?? '',
+              title: title.replaceAll(RegExp(r'^\s*-\s*'), ''),
+              description: description,
+              date: dateStr,
+              status: status,
+              statusColor: statusColor,
+              technicianName: r['technician_name']?.toString(),
+              completionDate: completedAt,
+              appointmentDate: preferDate,
+              isEmergency: urgency.toString().toLowerCase() == 'emergency',
+            );
+          }).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('FCM: Error fetching repair history: $e');
+    }
+  }
 
   // ── Team Presets ──
   final ValueNotifier<List<TeamPreset>> teamPresetsNotifier = ValueNotifier([
@@ -197,8 +272,9 @@ class RepairRepository {
     String? requesterHouse,
   }) {
     final now = DateTime.now();
-    final dateStr = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year + 543}";
-    
+    final dateStr =
+        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year + 543}";
+
     final newRequest = RepairRequest(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
@@ -222,11 +298,13 @@ class RepairRepository {
   }
 
   void deleteRequest(String id) {
-    repairsNotifier.value = repairsNotifier.value.where((item) => item.id != id).toList();
+    repairsNotifier.value =
+        repairsNotifier.value.where((item) => item.id != id).toList();
   }
 
   void updateRequest(RepairRequest updatedItem) {
-    final index = repairsNotifier.value.indexWhere((item) => item.id == updatedItem.id);
+    final index =
+        repairsNotifier.value.indexWhere((item) => item.id == updatedItem.id);
     if (index != -1) {
       final List<RepairRequest> newList = List.from(repairsNotifier.value);
       newList[index] = updatedItem;
@@ -282,7 +360,10 @@ class RepairRepository {
 
   // ── Team Preset Methods ──
 
-  void addTeamPreset({required String name, required List<String> memberNames, IconData icon = Icons.folder_rounded}) {
+  void addTeamPreset(
+      {required String name,
+      required List<String> memberNames,
+      IconData icon = Icons.folder_rounded}) {
     final preset = TeamPreset(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
@@ -293,6 +374,7 @@ class RepairRepository {
   }
 
   void deleteTeamPreset(String id) {
-    teamPresetsNotifier.value = teamPresetsNotifier.value.where((p) => p.id != id).toList();
+    teamPresetsNotifier.value =
+        teamPresetsNotifier.value.where((p) => p.id != id).toList();
   }
 }

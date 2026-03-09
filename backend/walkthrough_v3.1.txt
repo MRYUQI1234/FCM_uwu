@@ -1,0 +1,26 @@
+- Version: 3.1 (Resident-Verification Flow)
+- Alignment: STP V1.4 FE-01 Normal Flow
+
+1. Decoupled AI & Persistence:
+    Following the Software Test Plan, we no longer save to the database as soon 
+    as the AI finishes. The system is now a Two-Phase process:
+    - Phase A (/intent): AI analyzes NLP input and returns a "Preview" object.
+    - Phase B (/confirm): The actual database save happens ONLY after the resident 
+      clicks 'Send' (ส่ง).
+
+2. User Verification Strategy:
+    In Phase A, the AI provides a `request_preview`. This allows the frontend to 
+    show the resident exactly what the AI found (e.g., "Kitchen Sink - Leaking"). 
+    The resident can then verify this or the system can prompt for missing info 
+    using the `follow_up_message` extracted from the AI.
+
+3. Path Reliability Fix:
+    Fixed a critical pathing issue in the database engine. We now use `process.cwd()` 
+    to locate the `schema.sql` and SQLite DB file, ensuring the server starts 
+    correctly when run via `npm run dev` from the project root.
+
+4. Scalable Creation:
+    The `/confirm` endpoint accepts the structured JSON object from the frontend. 
+    It then uses a robust SQLite Transaction to create the master container 
+    (`request`) and multiple individual repair entries (`task`) in one atomic 
+    operation.

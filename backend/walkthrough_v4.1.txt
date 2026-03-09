@@ -1,0 +1,44 @@
+ Vivorn Villa FCM - Backend Walkthrough v4.1
+-----------------------------------------
+Focus: Multi-Account Support & PK Transition
+
+1. Multi-Account Requirement:
+   - A single individual (one National ID) can now have multiple resident accounts.
+   - Each account must be associated with a unique email (acting as the logical Primary Key/Identifier for the account).
+   - National ID is no longer unique in the 'users' table.
+
+2. Updated Auth Status Codes:
+
+   A. POST /api/auth/login
+   - AUTH_SUCCESS (Status 200):
+     Login successful. User has already set up their PIN.
+     Action: Redirect to Home/Dashboard.
+   
+   - REQUIRE_PIN_SETUP (Status 200):
+     Credentials valid, but this is the user's first login for this specific email account.
+     Action: Redirect to 6-digit PIN setup screen.
+   
+   - INVALID_CREDENTIALS (Status 401):
+     Email or Password incorrect.
+     Action: Show error "อีเมลหรือรหัสผ่านไม่ถูกต้อง".
+
+   B. POST /api/auth/register
+   - REGISTRATION_SUCCESS (Status 201):
+     Account created.
+     Action: Redirect to Login page.
+   
+   - ID_NOT_FOUND (Status 403):
+     The provided National ID is not in our real estate records.
+     Action: Show error "เลขบัตรประชาชนไม่ถูกต้องกรุณาลองอีกครั้ง".
+   
+   - ALREADY_REGISTERED (Status 409):
+     This specific Email is already registered.
+     Action: Show error "อีเมลนี้ถูกใช้งานแล้ว".
+
+3. Role Home Page Logic:
+   - Every home page (Resident, Technician, Jurisdictic) must verify if the user has completed PIN setup.
+   - If 'is_first_login' is true, force redirect to PIN setup.
+
+Status: Current Standard.
+2026-03-08
+v4.1 Multi-Account Update

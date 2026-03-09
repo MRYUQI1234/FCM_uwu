@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
-import 'features/auth/presentation/screens/register_screen.dart';
+
 import 'features/resident/presentation/screens/resident_dashboard_screen.dart';
 import 'features/legal/presentation/screens/legal_dashboard_screen.dart';
 import 'features/technician/presentation/screens/technician_view_screen.dart';
@@ -10,8 +10,25 @@ import 'package:fcm_app/core/data/auth_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final isLoggedIn = await AuthRepository.instance.isLoggedIn();
-  runApp(FcmApp(initialRoute: isLoggedIn ? '/legal' : '/login'));
+
+  String initialRoute = '/login';
+  final auth = AuthRepository.instance;
+
+  if (await auth.isLoggedIn()) {
+    final profile = await auth.getProfile();
+    if (profile['success']) {
+      final role = profile['data']['role'];
+      if (role == 'Jurisdictic') {
+        initialRoute = '/legal';
+      } else if (role == 'Technician') {
+        initialRoute = '/technician';
+      } else if (role == 'Resident') {
+        initialRoute = '/3d_model';
+      }
+    }
+  }
+
+  runApp(FcmApp(initialRoute: initialRoute));
 }
 
 class FcmApp extends StatelessWidget {
@@ -61,10 +78,46 @@ class FcmApp extends StatelessWidget {
       initialRoute: initialRoute,
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/legal': (context) => const LegalDashboardScreen(),
-        '/technician': (context) => const TechnicianViewScreen(),
-        '/3d_model': (context) => const ResidentDashboardScreen(),
+        '/legal': (context) => const AuthGuard(child: LegalDashboardScreen()),
+        '/technician': (context) =>
+            const AuthGuard(child: TechnicianViewScreen()),
+        '/3d_model': (context) =>
+            const AuthGuard(child: ResidentDashboardScreen()),
+      },
+    );
+  }
+}
+
+/// AuthGuard: "ยาม" ตรวจสอบสิทธิ์ก่อนเข้าหน้าต่างๆ
+class AuthGuard extends StatelessWidget {
+  final Widget child;
+  const AuthGuard({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: AuthRepository.instance.isLoggedIn(),
+      builder: (context, snapshot) {
+        // ขณะกำลังเช็คสถานะ ให้แสดงหน้า Loading สวยๆ
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF121212),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+            ),
+          );
+        }
+
+        // ถ้ามี Session (Token) อยู่จริง ให้เข้าหน้าหน้าได้
+        if (snapshot.hasData && snapshot.data == true) {
+          return child;
+        }
+
+        // ถ้าไม่มี Session ให้เตะกลับไปหน้า Login ทันที
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacementNamed(context, '/login');
+        });
+        return const SizedBox.shrink();
       },
     );
   }

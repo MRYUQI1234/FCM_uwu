@@ -4,15 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
+import 'package:fcm_app/core/services/translation_service.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/resident/presentation/widgets/resident_shared_widgets.dart';
 
 class ResidentHistoryView extends StatefulWidget {
   final bool isDark;
+  final VoidCallback? onMenuTap;
 
   const ResidentHistoryView({
     super.key,
     required this.isDark,
+    this.onMenuTap,
   });
 
   @override
@@ -21,126 +23,191 @@ class ResidentHistoryView extends StatefulWidget {
 
 class _ResidentHistoryViewState extends State<ResidentHistoryView> {
   String _activeFilter = 'all';
-  RepairRequest? _expandedTicket; // Track ticket for detail overlay
+  RepairRequest? _expandedTicket;
+  final _ts = TranslationService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    RepairRepository.instance.fetchHistory();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: DashboardTheme.isDarkMode,
-      builder: (context, isDark, _) {
-        return ValueListenableBuilder<List<RepairRequest>>(
-          valueListenable: RepairRepository.instance.repairsNotifier,
-          builder: (context, repairs, _) {
-            // Calculate real-time counts for the header tabs
-            final totalCount = repairs.length;
-            final pendingCount = repairs.where((r) {
-              final s = r.status.toLowerCase();
-              return s == 'pending' || s == 'รอ' || s == 'รอดำเนินการ';
-            }).length;
-            final workingCount = repairs.where((r) {
-              final s = r.status.toLowerCase();
-              return s == 'in progress' || s == 'ดำเนินการ';
-            }).length;
-            final doneCount = repairs.where((r) {
-              final s = r.status.toLowerCase();
-              return s == 'completed' || s == 'เสร็จสิ้น';
-            }).length;
+        valueListenable: DashboardTheme.isDarkMode,
+        builder: (context, isDark, _) {
+          return ValueListenableBuilder<List<RepairRequest>>(
+              valueListenable: RepairRepository.instance.repairsNotifier,
+              builder: (context, repairs, _) {
+                // Calculate real-time counts for the header tabs
+                final totalCount = repairs.length;
+                final pendingCount = repairs.where((r) {
+                  final s = r.status.toLowerCase();
+                  return s == 'pending' || s == 'รอ' || s == 'รอดำเนินการ';
+                }).length;
+                final workingCount = repairs.where((r) {
+                  final s = r.status.toLowerCase();
+                  return s == 'in progress' || s == 'ดำเนินการ';
+                }).length;
+                final doneCount = repairs.where((r) {
+                  final s = r.status.toLowerCase();
+                  return s == 'completed' || s == 'เสร็จสิ้น';
+                }).length;
 
-            final filtered = repairs.where((r) {
-              if (_activeFilter == 'all') return true;
-              final s = r.status.toLowerCase();
-              if (_activeFilter == 'pending') return s == 'pending' || s == 'รอ' || s == 'รอดำเนินการ';
-              if (_activeFilter == 'working') return s == 'in progress' || s == 'ดำเนินการ';
-              if (_activeFilter == 'done') return s == 'completed' || s == 'เสร็จสิ้น';
-              return true;
-            }).toList();
+                final filtered = repairs.where((r) {
+                  if (_activeFilter == 'all') return true;
+                  final s = r.status.toLowerCase();
+                  if (_activeFilter == 'pending') {
+                    return s == 'pending' || s == 'รอ' || s == 'รอดำเนินการ';
+                  }
+                  if (_activeFilter == 'working') {
+                    return s == 'in progress' || s == 'ดำเนินการ';
+                  }
+                  if (_activeFilter == 'done') {
+                    return s == 'completed' || s == 'เสร็จสิ้น';
+                  }
+                  return true;
+                }).toList();
 
-            return Stack(
-              children: [
-                Container(
-                  color: DashboardTheme.background,
-                  padding: const EdgeInsets.all(60),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
+                return Stack(
+                  children: [
+                    Container(
+                      color: DashboardTheme.background,
+                      padding: const EdgeInsets.fromLTRB(40, 72, 40, 40),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Service History',
-                            style: GoogleFonts.outfit(
-                              fontSize: 42,
-                              fontWeight: FontWeight.w900,
-                              color: DashboardTheme.textMain,
-                              letterSpacing: -1.5,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  if (widget.onMenuTap != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 16),
+                                      child: GestureDetector(
+                                        onTap: widget.onMenuTap,
+                                        child: Icon(Icons.menu_rounded,
+                                            color: DashboardTheme.primary,
+                                            size: 28),
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: Text(
+                                      _ts.t('history_title'),
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 42,
+                                        fontWeight: FontWeight.w900,
+                                        color: DashboardTheme.textMain,
+                                        letterSpacing: -1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _ts.t('history_subtitle'),
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16,
+                                  color: DashboardTheme.textPale,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                              // Admin-Style Standardized Filter Bar - Now Left Aligned
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: DashboardTheme.surfaceSecondary,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border:
+                                      Border.all(color: DashboardTheme.border),
+                                ),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildModernTab(
+                                          _ts.t('filter_all'),
+                                          "$totalCount",
+                                          _activeFilter == 'all',
+                                          () => setState(
+                                              () => _activeFilter = 'all')),
+                                      _buildModernTab(
+                                          _ts.t('filter_pending'),
+                                          "$pendingCount",
+                                          _activeFilter == 'pending',
+                                          () => setState(
+                                              () => _activeFilter = 'pending')),
+                                      _buildModernTab(
+                                          _ts.t('filter_active'),
+                                          "$workingCount",
+                                          _activeFilter == 'working',
+                                          () => setState(
+                                              () => _activeFilter = 'working')),
+                                      _buildModernTab(
+                                          _ts.t('filter_completed'),
+                                          "$doneCount",
+                                          _activeFilter == 'done',
+                                          () => setState(
+                                              () => _activeFilter = 'done')),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Track and manage your property maintenance records with precision.',
-                            style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              color: DashboardTheme.textPale,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          // Admin-Style Standardized Filter Bar - Now Left Aligned
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: DashboardTheme.surfaceSecondary,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: DashboardTheme.border),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildModernTab("All", "$totalCount", _activeFilter == 'all', () => setState(() => _activeFilter = 'all')),
-                                _buildModernTab("Pending", "$pendingCount", _activeFilter == 'pending', () => setState(() => _activeFilter = 'pending')),
-                                _buildModernTab("Active", "$workingCount", _activeFilter == 'working', () => setState(() => _activeFilter = 'working')),
-                                _buildModernTab("Completed", "$doneCount", _activeFilter == 'done', () => setState(() => _activeFilter = 'done')),
-                              ],
-                            ),
+                          const SizedBox(height: 40),
+                          Expanded(
+                            child: filtered.isEmpty
+                                ? _buildEmptyState()
+                                : ListView.separated(
+                                    padding: const EdgeInsets.only(bottom: 120),
+                                    itemCount: filtered.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 16),
+                                    itemBuilder: (context, index) {
+                                      String displayStatus =
+                                          filtered[index].status.toUpperCase();
+                                      if (displayStatus.contains('รอ') ||
+                                          displayStatus == 'PENDING') {
+                                        displayStatus = 'PENDING';
+                                      }
+                                      if (displayStatus.contains('ดำเนิน') ||
+                                          displayStatus == 'IN PROGRESS') {
+                                        displayStatus = 'IN PROGRESS';
+                                      }
+                                      if (displayStatus.contains('เสร็จ') ||
+                                          displayStatus == 'COMPLETED') {
+                                        displayStatus = 'COMPLETED';
+                                      }
+
+                                      return _PremiumServiceCard(
+                                        item: filtered[index],
+                                        displayStatus: displayStatus,
+                                        onTap: () => setState(() =>
+                                            _expandedTicket = filtered[index]),
+                                        onAction: () => _showAssessmentDialog(
+                                            filtered[index]),
+                                        actionWidget:
+                                            _buildActionCell(filtered[index]),
+                                      );
+                                    },
+                                  ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 40),
-                      
-                      Expanded(
-                        child: filtered.isEmpty 
-                            ? _buildEmptyState()
-                            : ListView.separated(
-                                padding: const EdgeInsets.only(bottom: 120),
-                                itemCount: filtered.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                                itemBuilder: (context, index) {
-                                  String displayStatus = filtered[index].status.toUpperCase();
-                                  if (displayStatus.contains('รอ') || displayStatus == 'PENDING') displayStatus = 'PENDING';
-                                  if (displayStatus.contains('ดำเนิน') || displayStatus == 'IN PROGRESS') displayStatus = 'IN PROGRESS';
-                                  if (displayStatus.contains('เสร็จ') || displayStatus == 'COMPLETED') displayStatus = 'COMPLETED';
-              
-                                  return _PremiumServiceCard(
-                                    item: filtered[index],
-                                    displayStatus: displayStatus,
-                                    onTap: () => setState(() => _expandedTicket = filtered[index]),
-                                    onAction: () => _showAssessmentDialog(filtered[index]),
-                                    actionWidget: _buildActionCell(filtered[index]),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_expandedTicket != null)
-                  _buildDetailOverlay(_expandedTicket!),
-              ],
-            );
-          }
-        );
-      }
-    );
+                    ),
+                    if (_expandedTicket != null)
+                      _buildDetailOverlay(_expandedTicket!),
+                  ],
+                );
+              });
+        });
   }
 
   Widget _buildEmptyState() {
@@ -148,12 +215,13 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined, size: 64, color: DashboardTheme.textPale.withOpacity(0.1)),
+          Icon(Icons.inventory_2_outlined,
+              size: 64, color: DashboardTheme.textPale.withOpacity(0.1)),
           const SizedBox(height: 24),
           Text(
-            'No records found in this registry',
+            _ts.t('empty_records'),
             style: GoogleFonts.outfit(
-              fontSize: 16, 
+              fontSize: 16,
               fontWeight: FontWeight.w500,
               color: DashboardTheme.textPale.withOpacity(0.4),
             ),
@@ -163,7 +231,8 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
     );
   }
 
-  Widget _buildModernTab(String label, String count, bool isActive, VoidCallback onTap) {
+  Widget _buildModernTab(
+      String label, String count, bool isActive, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -171,16 +240,22 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? DashboardTheme.primary.withOpacity(0.15) : Colors.transparent,
+          color: isActive
+              ? DashboardTheme.primary.withOpacity(0.15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isActive ? DashboardTheme.primary.withOpacity(0.3) : Colors.transparent),
+          border: Border.all(
+              color: isActive
+                  ? DashboardTheme.primary.withOpacity(0.3)
+                  : Colors.transparent),
         ),
         child: Row(
           children: [
             Text(
               label,
               style: GoogleFonts.outfit(
-                color: isActive ? DashboardTheme.primary : DashboardTheme.textPale,
+                color:
+                    isActive ? DashboardTheme.primary : DashboardTheme.textPale,
                 fontSize: 14,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
               ),
@@ -189,9 +264,12 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: isActive ? DashboardTheme.primary : DashboardTheme.surface,
+                color:
+                    isActive ? DashboardTheme.primary : DashboardTheme.surface,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: isActive ? Colors.transparent : DashboardTheme.border),
+                border: Border.all(
+                    color:
+                        isActive ? Colors.transparent : DashboardTheme.border),
               ),
               child: Text(
                 count,
@@ -219,7 +297,8 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
         builder: (context, setDialogState) {
           return Dialog(
             backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: TweenAnimationBuilder<double>(
               duration: const Duration(milliseconds: 500),
               tween: Tween(begin: 0.0, end: 1.0),
@@ -260,7 +339,8 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Feedback submitted successfully!', style: GoogleFonts.outfit()),
+                      content: Text('Feedback submitted successfully!',
+                          style: GoogleFonts.outfit()),
                       backgroundColor: DashboardTheme.success,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -281,32 +361,43 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
       builder: (context) => AlertDialog(
         backgroundColor: DashboardTheme.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16), 
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: DashboardTheme.error.withOpacity(0.3)),
         ),
-        title: Text('Cancel Request?', style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to retract this repair request? This action cannot be undone.', style: GoogleFonts.outfit(color: DashboardTheme.textSecondary)),
+        title: Text(_ts.t('cancel_confirm_title'),
+            style: GoogleFonts.outfit(
+                color: DashboardTheme.textMain, fontWeight: FontWeight.bold)),
+        content: Text(_ts.t('cancel_confirm_body'),
+            style: GoogleFonts.outfit(color: DashboardTheme.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('GO BACK', style: GoogleFonts.outfit(color: DashboardTheme.textPale, fontWeight: FontWeight.bold)),
+            child: Text(_ts.t('go_back'),
+                style: GoogleFonts.outfit(
+                    color: DashboardTheme.textPale,
+                    fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
             onPressed: () {
               RepairRepository.instance.deleteRequest(item.id);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Request cancelled successfully', style: GoogleFonts.outfit()), backgroundColor: DashboardTheme.error),
+                SnackBar(
+                    content: Text(_ts.t('request_cancelled'),
+                        style: GoogleFonts.outfit()),
+                    backgroundColor: DashboardTheme.error),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: DashboardTheme.error.withOpacity(0.1), 
+              backgroundColor: DashboardTheme.error.withOpacity(0.1),
               foregroundColor: DashboardTheme.error,
               elevation: 0,
               side: BorderSide(color: DashboardTheme.error.withOpacity(0.3)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text('CONFIRM CANCEL', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            child: Text(_ts.t('confirm_cancel'),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -315,16 +406,17 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
 
   Widget _buildActionCell(RepairRequest item) {
     final s = item.status.toLowerCase();
-    
+
     // Case 1: Pending (Allow Cancellation)
     if (s == 'pending' || s == 'รอดำเนินการ' || s == 'รอ') {
       return TextButton.icon(
         onPressed: () => _showHistoryCancelConfirmation(item),
         icon: const Icon(Icons.close_rounded, size: 16),
-        label: const Text('Cancel'),
+        label: Text(_ts.t('cancel')),
         style: TextButton.styleFrom(
           foregroundColor: Colors.redAccent.withOpacity(0.7),
-          textStyle: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600),
+          textStyle:
+              GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       );
     }
@@ -363,23 +455,35 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
     return TextButton.icon(
       onPressed: () => _showAssessmentDialog(item),
       icon: const Icon(Icons.rate_review_rounded, size: 16),
-      label: const Text('Assess'),
+      label: Text(_ts.t('assess')),
       style: TextButton.styleFrom(
         foregroundColor: DashboardTheme.primary,
-        textStyle: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600),
+        textStyle:
+            GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600),
       ),
     );
   }
 
   Widget _buildDetailOverlay(RepairRequest t) {
-    final idStr = t.id.toString().padLeft(4, '0');
+    final idStr = t.id.toString().length > 8
+        ? t.id.toString().substring(0, 8)
+        : t.id.toString().padLeft(4, '0');
     final displayStatus = t.status.toUpperCase();
-    final dateStr = t.appointmentDate != null ? DateFormat('MMM dd, yyyy').format(t.appointmentDate!) : 'N/A';
-    final timeStr = t.appointmentTime != null ? t.appointmentTime!.format(context) : 'N/A';
+    final dateStr = t.appointmentDate != null
+        ? DateFormat('MMM dd, yyyy').format(t.appointmentDate!)
+        : 'N/A';
+    final timeStr = t.appointmentTime != null
+        ? t.appointmentTime!.format(context)
+        : (t.appointmentDate != null
+            ? DateFormat('HH:mm').format(t.appointmentDate!)
+            : 'N/A');
 
     return Positioned.fill(
       child: Container(
-        color: (DashboardTheme.isDarkMode.value ? Colors.black : const Color(0xFFFDFBF7)).withOpacity(0.92),
+        color: (DashboardTheme.isDarkMode.value
+                ? Colors.black
+                : const Color(0xFFFDFBF7))
+            .withOpacity(0.92),
         child: Center(
           child: TweenAnimationBuilder<double>(
             duration: const Duration(milliseconds: 300),
@@ -392,78 +496,115 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
               );
             },
             child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: _TactileSlab(
-              child: Padding(
-                padding: const EdgeInsets.all(48),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Service Report #$idStr', style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.bold, color: DashboardTheme.textMain)),
-                          _buildCloseBtn(() => setState(() => _expandedTicket = null)),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                      _ReviewRow(label: 'Subject', value: t.title),
-                      _ReviewRow(label: 'Status', value: displayStatus, isBold: true),
-                      _ReviewRow(label: 'Issue Details', value: t.description),
-                      _ReviewRow(label: 'Location/ID', value: 'HOUSE ${t.id}'),
-                      Divider(color: DashboardTheme.border, height: 48),
-                      Text('Chronology', style: GoogleFonts.shareTechMono(color: DashboardTheme.textPale, fontSize: 13, letterSpacing: 2)),
-                      const SizedBox(height: 16),
-                      _ReviewRow(label: 'Logged On', value: t.date),
-                      _ReviewRow(label: 'Schedule', value: '$dateStr at $timeStr'),
-                      if (t.completionDate != null)
-                        _ReviewRow(label: 'Completed', value: DateFormat('MMM dd, yyyy').format(t.completionDate!), isGreen: true),
-
-                      if (t.technicianName != null) ...[
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: DashboardTheme.primary.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: DashboardTheme.primary.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.engineering_rounded, color: DashboardTheme.primary),
-                              const SizedBox(width: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('ASSIGNED TECHNICIAN', style: GoogleFonts.shareTechMono(fontSize: 11, color: DashboardTheme.primary)),
-                                  Text(t.technicianName!, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: DashboardTheme.textMain)),
-                                ],
-                              ),
-                            ],
-                          ),
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: _TactileSlab(
+                child: Padding(
+                  padding: const EdgeInsets.all(48),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text('${_ts.t('service_report')} #$idStr',
+                                  style: GoogleFonts.outfit(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: DashboardTheme.textMain),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            _buildCloseBtn(
+                                () => setState(() => _expandedTicket = null)),
+                          ],
                         ),
-                      ],
-
-                      if (t.imagePaths.isNotEmpty) ...[
                         const SizedBox(height: 32),
-                        Text('Photo Documentation', style: GoogleFonts.shareTechMono(color: DashboardTheme.textPale, fontSize: 13, letterSpacing: 2)),
+                        _ReviewRow(label: 'Subject', value: t.title),
+                        _ReviewRow(
+                            label: 'Status',
+                            value: displayStatus,
+                            isBold: true),
+                        _ReviewRow(
+                            label: 'Issue Details', value: t.description),
+                        _ReviewRow(label: 'Request ID', value: '#$idStr'),
+                        Divider(color: DashboardTheme.border, height: 48),
+                        Text(_ts.t('chronology'),
+                            style: GoogleFonts.shareTechMono(
+                                color: DashboardTheme.textPale,
+                                fontSize: 13,
+                                letterSpacing: 2)),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          height: 200,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: t.imagePaths.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 12),
-                            itemBuilder: (context, idx) => ClipRRect(
+                        _ReviewRow(label: _ts.t('logged_on'), value: t.date),
+                        _ReviewRow(
+                            label: _ts.t('schedule'),
+                            value: '$dateStr at $timeStr'),
+                        if (t.completionDate != null)
+                          _ReviewRow(
+                              label: _ts.t('completed_label'),
+                              value: DateFormat('MMM dd, yyyy')
+                                  .format(t.completionDate!),
+                              isGreen: true),
+                        if (t.technicianName != null) ...[
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: DashboardTheme.primary.withOpacity(0.05),
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.file(File(t.imagePaths[idx]), width: 300, fit: BoxFit.cover),
+                              border: Border.all(
+                                  color:
+                                      DashboardTheme.primary.withOpacity(0.2)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.engineering_rounded,
+                                    color: DashboardTheme.primary),
+                                const SizedBox(width: 16),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_ts.t('assigned_technician'),
+                                        style: GoogleFonts.shareTechMono(
+                                            fontSize: 11,
+                                            color: DashboardTheme.primary)),
+                                    Text(t.technicianName!,
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: DashboardTheme.textMain)),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                        ],
+                        if (t.imagePaths.isNotEmpty) ...[
+                          const SizedBox(height: 32),
+                          Text(_ts.t('photo_documentation'),
+                              style: GoogleFonts.shareTechMono(
+                                  color: DashboardTheme.textPale,
+                                  fontSize: 13,
+                                  letterSpacing: 2)),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 200,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: t.imagePaths.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (context, idx) => ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(File(t.imagePaths[idx]),
+                                    width: 300, fit: BoxFit.cover),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -471,9 +612,8 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildCloseBtn(VoidCallback onTap) {
     return InkWell(
@@ -485,7 +625,8 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
           shape: BoxShape.circle,
           color: DashboardTheme.textMain.withOpacity(0.05),
         ),
-        child: Icon(Icons.close_rounded, size: 20, color: DashboardTheme.textPale),
+        child:
+            Icon(Icons.close_rounded, size: 20, color: DashboardTheme.textPale),
       ),
     );
   }
@@ -509,9 +650,6 @@ class _TactileFeedbackCard extends StatelessWidget {
     required this.onSubmit,
   });
 
-  static const _gold = Color(0xFFC5A059);
-  static const _goldDim = Color(0xFF8A7038);
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -519,7 +657,8 @@ class _TactileFeedbackCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: DashboardTheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: DashboardTheme.primary.withOpacity(0.15), width: 1),
+        border: Border.all(
+            color: DashboardTheme.primary.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.6),
@@ -544,8 +683,11 @@ class _TactileFeedbackCard extends StatelessWidget {
 
             // Gold accent line at top
             Positioned(
-              top: 0, left: 40, right: 40,
-              child: Container(height: 2, color: DashboardTheme.primary.withOpacity(0.4)),
+              top: 0,
+              left: 40,
+              right: 40,
+              child: Container(
+                  height: 2, color: DashboardTheme.primary.withOpacity(0.4)),
             ),
 
             Padding(
@@ -584,10 +726,12 @@ class _TactileFeedbackCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          border: Border.all(color: DashboardTheme.primary.withOpacity(0.2)),
+                          border: Border.all(
+                              color: DashboardTheme.primary.withOpacity(0.2)),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.apartment_rounded, color: DashboardTheme.primary, size: 22),
+                        child: Icon(Icons.apartment_rounded,
+                            color: DashboardTheme.primary, size: 22),
                       ),
                     ],
                   ),
@@ -599,7 +743,11 @@ class _TactileFeedbackCard extends StatelessWidget {
                     height: 1,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.transparent, DashboardTheme.primary.withOpacity(0.2), Colors.transparent],
+                        colors: [
+                          Colors.transparent,
+                          DashboardTheme.primary.withOpacity(0.2),
+                          Colors.transparent
+                        ],
                       ),
                     ),
                   ),
@@ -657,14 +805,22 @@ class _TactileFeedbackCard extends StatelessWidget {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isSelected ? DashboardTheme.primary.withOpacity(0.12) : Colors.transparent,
+                            color: isSelected
+                                ? DashboardTheme.primary.withOpacity(0.12)
+                                : Colors.transparent,
                             border: Border.all(
-                              color: isSelected ? DashboardTheme.primary.withOpacity(0.3) : DashboardTheme.textPale.withOpacity(0.1),
+                              color: isSelected
+                                  ? DashboardTheme.primary.withOpacity(0.3)
+                                  : DashboardTheme.textPale.withOpacity(0.1),
                             ),
                           ),
                           child: Icon(
-                            isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
-                            color: isSelected ? DashboardTheme.primary : DashboardTheme.textPale.withOpacity(0.3),
+                            isSelected
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: isSelected
+                                ? DashboardTheme.primary
+                                : DashboardTheme.textPale.withOpacity(0.3),
                             size: 36,
                           ),
                         ),
@@ -698,12 +854,16 @@ class _TactileFeedbackCard extends StatelessWidget {
                         ),
                         decoration: InputDecoration(
                           hintText: 'Write your feedback here...',
-                          hintStyle: GoogleFonts.outfit(fontSize: 14, color: DashboardTheme.textPale.withOpacity(0.4)),
+                          hintStyle: GoogleFonts.outfit(
+                              fontSize: 14,
+                              color: DashboardTheme.textPale.withOpacity(0.4)),
                           enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: DashboardTheme.border),
+                            borderSide:
+                                BorderSide(color: DashboardTheme.border),
                           ),
                           focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: DashboardTheme.primary.withOpacity(0.5)),
+                            borderSide: BorderSide(
+                                color: DashboardTheme.primary.withOpacity(0.5)),
                           ),
                         ),
                       ),
@@ -734,15 +894,22 @@ class _TactileFeedbackCard extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: DashboardTheme.primary,
                           foregroundColor: DashboardTheme.surface,
-                          disabledBackgroundColor: DashboardTheme.textPale.withOpacity(0.05),
-                          disabledForegroundColor: DashboardTheme.textPale.withOpacity(0.2),
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          disabledBackgroundColor:
+                              DashboardTheme.textPale.withOpacity(0.05),
+                          disabledForegroundColor:
+                              DashboardTheme.textPale.withOpacity(0.2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 28, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6)),
                           elevation: 0,
                         ),
                         child: Text(
                           'SUBMIT RECORD',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 13),
+                          style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1,
+                              fontSize: 13),
                         ),
                       ),
                     ],
@@ -772,7 +939,11 @@ class _TactileFeedbackCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFE6BE75), Color(0xFFC5A03A), Color(0xFFE6BE75)],
+                        colors: [
+                          Color(0xFFE6BE75),
+                          Color(0xFFC5A03A),
+                          Color(0xFFE6BE75)
+                        ],
                         stops: [0.0, 0.5, 1.0],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -789,7 +960,8 @@ class _TactileFeedbackCard extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.verified_rounded, color: Color(0xFF3D2E0D), size: 24),
+                          const Icon(Icons.verified_rounded,
+                              color: Color(0xFF3D2E0D), size: 24),
                           const SizedBox(height: 2),
                           Text(
                             'EXCELLENT',
@@ -862,10 +1034,13 @@ class _PremiumServiceCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: DashboardTheme.surfaceSecondary,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: DashboardTheme.border.withOpacity(DashboardTheme.isDarkMode.value ? 0.03 : 0.5)),
+          border: Border.all(
+              color: DashboardTheme.border
+                  .withOpacity(DashboardTheme.isDarkMode.value ? 0.03 : 0.5)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(DashboardTheme.isDarkMode.value ? 0.4 : 0.05),
+              color: Colors.black
+                  .withOpacity(DashboardTheme.isDarkMode.value ? 0.4 : 0.05),
               blurRadius: 40,
               offset: const Offset(10, 20),
             ),
@@ -879,10 +1054,11 @@ class _PremiumServiceCard extends StatelessWidget {
               children: [
                 // Minimal Color Indicator
                 Container(width: 4, color: item.statusColor),
-                
+
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 32),
                     child: Row(
                       children: [
                         // ID & Date
@@ -897,7 +1073,8 @@ class _PremiumServiceCard extends StatelessWidget {
                                 style: GoogleFonts.outfit(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: DashboardTheme.textPale.withOpacity(0.4),
+                                  color:
+                                      DashboardTheme.textPale.withOpacity(0.4),
                                   letterSpacing: 1.5,
                                 ),
                               ),
@@ -913,15 +1090,15 @@ class _PremiumServiceCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
+
                         // Divider
                         Container(
-                          width: 1, 
-                          height: 40, 
+                          width: 1,
+                          height: 40,
                           color: DashboardTheme.border,
                           margin: const EdgeInsets.symmetric(horizontal: 20),
                         ),
-                        
+
                         // Subject
                         Expanded(
                           child: Column(
@@ -944,7 +1121,8 @@ class _PremiumServiceCard extends StatelessWidget {
                                   style: GoogleFonts.outfit(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
-                                    color: DashboardTheme.primary.withOpacity(0.5),
+                                    color:
+                                        DashboardTheme.primary.withOpacity(0.5),
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -956,7 +1134,8 @@ class _PremiumServiceCard extends StatelessWidget {
                         // Status & Action
                         Row(
                           children: [
-                            _LuxuryStatusLabel(status: displayStatus, color: item.statusColor),
+                            _LuxuryStatusLabel(
+                                status: displayStatus, color: item.statusColor),
                             const SizedBox(width: 40),
                             SizedBox(
                               width: 120,
@@ -1039,15 +1218,28 @@ class _TactileSlab extends StatelessWidget {
       decoration: BoxDecoration(
         color: DashboardTheme.surfaceSecondary,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: DashboardTheme.border.withOpacity(DashboardTheme.isDarkMode.value ? 0.04 : 0.4)),
+        border: Border.all(
+            color: DashboardTheme.border
+                .withOpacity(DashboardTheme.isDarkMode.value ? 0.04 : 0.4)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(DashboardTheme.isDarkMode.value ? 0.5 : 0.05), blurRadius: 40, offset: const Offset(0, 20)),
-          BoxShadow(color: DashboardTheme.textMain.withOpacity(0.05), blurRadius: 0, spreadRadius: -1, offset: const Offset(-1, -1)),
+          BoxShadow(
+              color: Colors.black
+                  .withOpacity(DashboardTheme.isDarkMode.value ? 0.5 : 0.05),
+              blurRadius: 40,
+              offset: const Offset(0, 20)),
+          BoxShadow(
+              color: DashboardTheme.textMain.withOpacity(0.05),
+              blurRadius: 0,
+              spreadRadius: -1,
+              offset: const Offset(-1, -1)),
         ],
       ),
       child: Stack(
         children: [
-          const Positioned(top: 15, left: 15, child: _Screw()), const Positioned(top: 15, right: 15, child: _Screw()), const Positioned(bottom: 15, left: 15, child: _Screw()), const Positioned(bottom: 15, right: 15, child: _Screw()),
+          const Positioned(top: 15, left: 15, child: _Screw()),
+          const Positioned(top: 15, right: 15, child: _Screw()),
+          const Positioned(bottom: 15, left: 15, child: _Screw()),
+          const Positioned(bottom: 15, right: 15, child: _Screw()),
           child,
         ],
       ),
@@ -1058,28 +1250,80 @@ class _TactileSlab extends StatelessWidget {
 class _Screw extends StatelessWidget {
   const _Screw();
   @override
-  Widget build(BuildContext context) { return Container(width: 4, height: 4, decoration: BoxDecoration(shape: BoxShape.circle, color: DashboardTheme.textPale.withOpacity(0.1))); }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String status; final Color color;
-  const _StatusBadge({required this.status, required this.color});
-  @override
-  Widget build(BuildContext context) { return Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6), border: Border.all(color: color.withOpacity(0.2))), child: Text(status.toUpperCase(), style: GoogleFonts.shareTechMono(color: color, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5))); }
+  Widget build(BuildContext context) {
+    return Container(
+        width: 4,
+        height: 4,
+        decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: DashboardTheme.textPale.withOpacity(0.1)));
+  }
 }
 
 class _ReviewRow extends StatelessWidget {
-  final String label; final String value; final bool isRed; final bool isGreen; final bool isBold;
-  const _ReviewRow({required this.label, required this.value, this.isRed = false, this.isGreen = false, this.isBold = false});
+  final String label;
+  final String value;
+  final bool isRed;
+  final bool isGreen;
+  final bool isBold;
+  const _ReviewRow({
+    required this.label,
+    required this.value,
+    this.isRed = false,
+    this.isGreen = false,
+    this.isBold = false,
+  });
   @override
-  Widget build(BuildContext context) { return Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: GoogleFonts.outfit(color: DashboardTheme.textPale, fontSize: 16)), Text(value.isEmpty ? 'N/A' : value, style: GoogleFonts.outfit(color: isRed ? Colors.redAccent : (isGreen ? Colors.greenAccent : DashboardTheme.textSecondary), fontWeight: isBold ? FontWeight.bold : FontWeight.normal, fontSize: 17))])); }
+  Widget build(BuildContext context) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label,
+              style: GoogleFonts.outfit(
+                  color: DashboardTheme.textPale, fontSize: 16)),
+          Text(value.isEmpty ? 'N/A' : value,
+              style: GoogleFonts.outfit(
+                  color: isRed
+                      ? Colors.redAccent
+                      : (isGreen
+                          ? Colors.greenAccent
+                          : DashboardTheme.textSecondary),
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 17))
+        ]));
+  }
 }
 
 class _OverlayBtn extends StatelessWidget {
-  final String label; final Color color; final VoidCallback onTap; final bool isOutline;
-  const _OverlayBtn({required this.label, required this.color, required this.onTap, this.isOutline = false});
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final bool isOutline;
+  const _OverlayBtn({
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.isOutline = false,
+  });
   @override
-  Widget build(BuildContext context) { return GestureDetector(onTap: onTap, child: Container(height: 60, decoration: BoxDecoration(color: isOutline ? Colors.transparent : color, borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withOpacity(0.3))), alignment: Alignment.center, child: Text(label, style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold, color: isOutline ? DashboardTheme.textPale : Colors.black)))); }
+  Widget build(BuildContext context) {
+    return GestureDetector(
+        onTap: onTap,
+        child: Container(
+            height: 60,
+            decoration: BoxDecoration(
+                color: isOutline ? Colors.transparent : color,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withOpacity(0.3))),
+            alignment: Alignment.center,
+            child: Text(label,
+                style: GoogleFonts.outfit(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isOutline ? DashboardTheme.textPale : Colors.black))));
+  }
 }
 
 class _PhotoPreview extends StatelessWidget {
@@ -1088,9 +1332,15 @@ class _PhotoPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
-      return Image.network(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white10));
+      return Image.network(path,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.broken_image, color: Colors.white10));
     } else {
-      return Image.file(File(path), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white10));
+      return Image.file(File(path),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.broken_image, color: Colors.white10));
     }
   }
 }

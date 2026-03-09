@@ -98,7 +98,7 @@ class TechnicianScheduleCard extends StatelessWidget {
                       ),
                       IconButton(
                         onPressed: onRemove,
-                        icon: Icon(Icons.delete_outline_rounded, color: DashboardTheme.error, size: 20),
+                        icon: const Icon(Icons.delete_outline_rounded, color: DashboardTheme.error, size: 20),
                         tooltip: "Remove Technician",
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),

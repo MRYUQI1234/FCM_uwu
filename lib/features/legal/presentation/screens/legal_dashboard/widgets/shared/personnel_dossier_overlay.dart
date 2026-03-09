@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_painters.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 
 class PersonnelDossierOverlay extends StatelessWidget {
   final Map<String, dynamic> technician;
@@ -130,7 +129,7 @@ class PersonnelDossierOverlay extends StatelessWidget {
                                       children: [
                                         terminalText("OVERALL_ABILITY_HUD", fontSize: 9, color: DashboardTheme.textPale, fontWeight: FontWeight.w900, letterSpacing: 1),
                                         const SizedBox(height: 24),
-                                        Container(
+                                        SizedBox(
                                           width: 220,
                                           height: 220,
                                           child: CustomPaint(

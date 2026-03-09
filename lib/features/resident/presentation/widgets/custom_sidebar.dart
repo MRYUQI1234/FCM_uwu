@@ -100,10 +100,10 @@ class CustomSidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Row(
                 children: [
-                  Container(
+                  const SizedBox(
                     width: 44,
                     height: 44,
-                    child: const Icon(Icons.assignment, color: Color(0xFFC5A059), size: 36),
+                    child: Icon(Icons.assignment, color: Color(0xFFC5A059), size: 36),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -254,7 +254,7 @@ class CustomSidebar extends StatelessWidget {
       context: context,
       barrierDismissible: true, // Allow click outside to close
       builder: (context) {
-        int _rating = 0; // Local state for dialog
+        int rating = 0; // Local state for dialog
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
@@ -279,11 +279,11 @@ class CustomSidebar extends StatelessWidget {
                         return IconButton(
                           onPressed: () {
                             setStateDialog(() {
-                              _rating = index + 1;
+                              rating = index + 1;
                             });
                           },
                           icon: Icon(
-                            index < _rating ? Icons.star : Icons.star_border,
+                            index < rating ? Icons.star : Icons.star_border,
                             color: Colors.amber,
                             size: 32,
                           ),
@@ -398,7 +398,7 @@ class CustomSidebar extends StatelessWidget {
 
   void _showRepairOptions(BuildContext context, RepairRequest item) {
     onDialogVisibilityChanged?.call(true); // Notify open
-    bool _transitioningToEdit = false; // Track if going to edit dialog
+    bool transitioningToEdit = false; // Track if going to edit dialog
     
     showDialog(
       context: context,
@@ -418,7 +418,7 @@ class CustomSidebar extends StatelessWidget {
                  leading: const Icon(Icons.edit, color: Colors.blue),
                  title: Text('แก้ไขรายละเอียด', style: GoogleFonts.kanit(color: Colors.white)),
                  onTap: () {
-                   _transitioningToEdit = true; // Mark as transitioning
+                   transitioningToEdit = true; // Mark as transitioning
                    Navigator.pop(context); // Close options dialog
                    _showEditDialog(context, item); // Open Edit Dialog (will call onDialogVisibilityChanged(true))
                  },
@@ -437,7 +437,7 @@ class CustomSidebar extends StatelessWidget {
       },
     ).then((_) {
       // Only reset if NOT transitioning to edit dialog
-      if (!_transitioningToEdit) {
+      if (!transitioningToEdit) {
         onDialogVisibilityChanged?.call(false);
       }
     });
@@ -447,15 +447,15 @@ class CustomSidebar extends StatelessWidget {
     onDialogVisibilityChanged?.call(true);
     
     // Local controllers for editing
-    TextEditingController _editDescController = TextEditingController(text: item.title);
+    TextEditingController editDescController = TextEditingController(text: item.title);
     // Parse date string (d/m/year_thai) to DateTime
     List<String> parts = item.date.split('/');
-    DateTime _editDate = DateTime.now();
+    DateTime editDate = DateTime.now();
     if (parts.length == 3) {
       int d = int.parse(parts[0]);
       int m = int.parse(parts[1]);
       int y = int.parse(parts[2]) - 543;
-      _editDate = DateTime(y, m, d);
+      editDate = DateTime(y, m, d);
     }
 
     showDialog(
@@ -478,7 +478,7 @@ class CustomSidebar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextField(
-                      controller: _editDescController,
+                      controller: editDescController,
                       style: GoogleFonts.kanit(color: Colors.white),
                       maxLines: 2,
                       decoration: InputDecoration(
@@ -496,7 +496,7 @@ class CustomSidebar extends StatelessWidget {
                       onTap: () async {
                         final DateTime? picked = await showDatePicker(
                           context: context,
-                          initialDate: _editDate,
+                          initialDate: editDate,
                           firstDate: DateTime.now(),
                           lastDate: DateTime(2101),
                           builder: (context, child) {
@@ -507,8 +507,7 @@ class CustomSidebar extends StatelessWidget {
                                   onPrimary: Colors.black,
                                   surface: Color(0xFF151515),
                                   onSurface: Colors.white,
-                                ),
-                                dialogBackgroundColor: const Color(0xFF151515),
+                                ), dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF151515)),
                               ),
                               child: child!,
                             );
@@ -516,7 +515,7 @@ class CustomSidebar extends StatelessWidget {
                         );
                         if (picked != null) {
                           setStateDialog(() {
-                            _editDate = picked;
+                            editDate = picked;
                           });
                         }
                       },
@@ -532,7 +531,7 @@ class CustomSidebar extends StatelessWidget {
                             const Icon(Icons.calendar_month, color: Color(0xFFC5A059), size: 24),
                             const SizedBox(width: 12),
                             Text(
-                              "${_editDate.day}/${_editDate.month}/${_editDate.year + 543}",
+                              "${editDate.day}/${editDate.month}/${editDate.year + 543}",
                               style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
                             ),
                             const Spacer(),
@@ -554,9 +553,9 @@ class CustomSidebar extends StatelessWidget {
                     // Update Logic
                     final updated = RepairRequest(
                         id: item.id,
-                        title: _editDescController.text,
+                        title: editDescController.text,
                         description: item.description,
-                        date: "${_editDate.day}/${_editDate.month}/${_editDate.year + 543}",
+                        date: "${editDate.day}/${editDate.month}/${editDate.year + 543}",
                         status: item.status,
                         statusColor: item.statusColor,
                         imagePaths: item.imagePaths,
