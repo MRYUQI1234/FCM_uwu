@@ -21,7 +21,7 @@ A unified facility management platform combining a Flutter frontend for resident
 
 ## Core Features
 
-- **AI Chat Assistant**: Provides residents with conversational support and extracts maintenance intents into actionable JSON objects.
+- **AI Chat Assistant**: Provides residents with conversational support and extracts maintenance intents into actionable JSON objects. Includes real-time voice dictation with visual sound spectrum feedback and draft persistence.
 - **Automated Request Routing**: Tasks created by the AI are formatted, scheduled, and injected directly into the active SQLite database seamlessly.
 - **Interactive UI**: A modern dashboard containing 3D rendering elements and persistent chat action states.
 

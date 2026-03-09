@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
 import 'package:fcm_app/core/services/translation_service.dart';
@@ -11,6 +12,9 @@ import '../../data/models/ai_conversation_model.dart';
 import '../../data/models/ai_message_model.dart';
 import 'dart:ui';
 import 'dart:convert';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AIChatPanel extends StatefulWidget {
   final VoidCallback onClose;
@@ -33,6 +37,7 @@ class _AIChatPanelState extends State<AIChatPanel> {
   final _msgCtrl = TextEditingController();
   final _searchCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+  final _msgFocusNode = FocusNode();
 
   List<AIConversationModel> _conversations = [];
   List<AIMessageModel> _currentMessages = [];
@@ -41,8 +46,16 @@ class _AIChatPanelState extends State<AIChatPanel> {
   bool _isLoadingMessages = false;
   bool _isSending = false;
 
+  // Persistent Draft Text
+  static String _draftText = '';
+
   String _searchQuery = '';
   bool _isNewChat = false;
+
+  final SpeechToText _speechToText = SpeechToText();
+  bool _speechEnabled = false;
+  bool _isListening = false;
+  double _soundLevel = 0.0;
 
   AIConversationModel? get _activeConversation {
     try {
@@ -55,9 +68,117 @@ class _AIChatPanelState extends State<AIChatPanel> {
   @override
   void initState() {
     super.initState();
+    _msgCtrl.text = _draftText;
+    _msgCtrl.addListener(() {
+      _draftText = _msgCtrl.text;
+    });
+
     _loadConversations();
+    _initSpeech();
     _searchCtrl.addListener(() {
       setState(() => _searchQuery = _searchCtrl.text.trim().toLowerCase());
+    });
+  }
+
+  Future<void> _initSpeech() async {
+    _speechEnabled = await _speechToText.initialize(
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          setState(() {
+            _isListening = false;
+          });
+        }
+      },
+      onError: (errorNotification) {
+        print('Speech recognition error: ${errorNotification.errorMsg}');
+
+        String? message;
+        if (errorNotification.errorMsg == 'error_network') {
+          message = 'Speech connection failed. Try again or check internet.';
+        } else if (errorNotification.errorMsg == 'error_no_match') {
+          message = 'No speech detected.';
+        } else if (errorNotification.errorMsg == 'error_speech_timeout') {
+          message = 'Recording timed out.';
+        }
+
+        if (message != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+
+        setState(() {
+          _isListening = false;
+        });
+      },
+    );
+    setState(() {});
+  }
+
+  Future<void> _startListening() async {
+    final status = await Permission.microphone.request();
+    print('Mic permission status: $status');
+    if (status != PermissionStatus.granted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(TranslationService.instance.t('mic_permission_denied'))),
+        );
+      }
+      return;
+    }
+
+    if (!_speechEnabled) {
+      await _initSpeech();
+    }
+
+    if (_speechEnabled) {
+      try {
+        await _speechToText.listen(
+          onResult: _onSpeechResult,
+          onSoundLevelChange: _onSoundLevelChange,
+          localeId: 'th_TH',
+        );
+        _msgFocusNode.unfocus();
+        setState(() {
+          _isListening = true;
+          _soundLevel = 0.0;
+        });
+      } catch (e) {
+        print('Listen error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Cannot start recording: $e')),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speech recognition not available.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopListening() async {
+    await _speechToText.stop();
+    setState(() {
+      _isListening = false;
+    });
+  }
+
+  void _onSpeechResult(SpeechRecognitionResult result) {
+    setState(() {
+      _msgCtrl.text = result.recognizedWords;
+    });
+  }
+
+  void _onSoundLevelChange(double level) {
+    setState(() {
+      _soundLevel = level;
     });
   }
 
@@ -70,7 +191,13 @@ class _AIChatPanelState extends State<AIChatPanel> {
       _conversations = threads;
       _isLoadingThreads = false;
       if (threads.isNotEmpty) {
-        _setActiveConversation(threads.first.id);
+        if (threads.first.isArchived) {
+          // Unsent logic dictates archived threads should default to new thread view
+          _currentMessages = [];
+          _activeConversationId = null;
+        } else {
+          _setActiveConversation(threads.first.id);
+        }
       } else {
         // Start a fresh thread
         _currentMessages = [];
@@ -99,6 +226,10 @@ class _AIChatPanelState extends State<AIChatPanel> {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
 
+    if (_isListening) {
+      await _stopListening();
+    }
+
     setState(() {
       _isSending = true;
       // Optimistic update
@@ -110,6 +241,7 @@ class _AIChatPanelState extends State<AIChatPanel> {
         createdAt: DateTime.now(),
       ));
       _msgCtrl.clear();
+      _draftText = '';
     });
     _scrollToBottom();
 
@@ -395,14 +527,17 @@ class _AIChatPanelState extends State<AIChatPanel> {
       _repo.clearPendingTasks();
       _isNewChat = true;
       _searchCtrl.clear();
+      _msgCtrl.clear();
     });
   }
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
+    _msgFocusNode.dispose();
     _msgCtrl.dispose();
+    _searchCtrl.dispose();
     _scrollCtrl.dispose();
+    _speechToText.stop();
     super.dispose();
   }
 
@@ -627,14 +762,20 @@ class _AIChatPanelState extends State<AIChatPanel> {
           Expanded(
             child: TextField(
               controller: _msgCtrl,
+              focusNode: _msgFocusNode,
               style: GoogleFonts.outfit(
                   color: DashboardTheme.textMain, fontSize: 14),
               decoration: InputDecoration(
-                hintText: TranslationService.instance.t('ai_panel_input_hint'),
+                hintText: _isListening
+                    ? TranslationService.instance.t('ai_panel_listening')
+                    : TranslationService.instance.t('ai_panel_input_hint'),
                 hintStyle: GoogleFonts.outfit(
-                    color: DashboardTheme.textPale, fontSize: 14),
+                    color: _isListening ? Colors.red : DashboardTheme.textPale,
+                    fontSize: 14),
                 filled: true,
-                fillColor: DashboardTheme.background,
+                fillColor: _isListening
+                    ? Colors.red.withOpacity(0.05)
+                    : DashboardTheme.background,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
@@ -654,7 +795,40 @@ class _AIChatPanelState extends State<AIChatPanel> {
               onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          _isListening
+              ? InkWell(
+                  onTap: _stopListening,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(21),
+                    ),
+                    child: Center(
+                      child: VoiceSpectrumWidget(
+                          soundLevel: _soundLevel, color: Colors.white),
+                    ),
+                  ),
+                )
+              : InkWell(
+                  onTap: _startListening,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: DashboardTheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mic_none,
+                      color: Colors.black,
+                      size: 18,
+                    ),
+                  ),
+                ),
+          const SizedBox(width: 8),
           InkWell(
             onTap: _isSending ? null : _sendMessage,
             child: Container(
@@ -964,6 +1138,72 @@ class _HistoryItemState extends State<_HistoryItem> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class VoiceSpectrumWidget extends StatefulWidget {
+  final double soundLevel;
+  final Color? color;
+
+  const VoiceSpectrumWidget({super.key, required this.soundLevel, this.color});
+
+  @override
+  State<VoiceSpectrumWidget> createState() => _VoiceSpectrumWidgetState();
+}
+
+class _VoiceSpectrumWidgetState extends State<VoiceSpectrumWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(15, (index) {
+            double height;
+            if (widget.soundLevel > 0) {
+              // Real-time amplitude
+              height = 3 + (widget.soundLevel.abs() * 2);
+              height = height.clamp(3, 24);
+            } else {
+              // Web Fallback Animation
+              final phase = (index / 15) * 2 * pi;
+              final t = _controller.value * 2 * pi;
+              height = 8 + 6 * sin(t + phase) + _random.nextDouble() * 4;
+            }
+
+            return Container(
+              width: 3,
+              height: height,
+              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+              decoration: BoxDecoration(
+                color: widget.color ?? DashboardTheme.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
