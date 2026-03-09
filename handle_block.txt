@@ -1,0 +1,64 @@
+  void _handleObjectClick(dynamic rawData) {
+    if (rawData is String) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (rawData.isEmpty) return;
+
+      String name = '';
+      String focusPos = '';
+
+      try {
+        if (rawData.startsWith('{')) {
+          final data = jsonDecode(rawData);
+          name = data['name'] ?? '';
+          focusPos = data['focus'] ?? '';
+        } else {
+          name = rawData;
+        }
+      } catch (e) {
+        name = rawData;
+      }
+
+      if (name.isEmpty) return;
+
+      String shortName = name.split(' [').first;
+      String displayName = _formatObjectName(shortName);
+
+      // Map to category
+      String objLower = displayName.toLowerCase();
+      String newCategory = '';
+      _objectCategoryMap.forEach((key, value) {
+        if (objLower.contains(key)) newCategory = value;
+      });
+
+      try {
+        // Show immersive repair popup
+        setState(() {
+          _selectedObjectName = displayName;
+          _selectedObjectRaw = shortName;
+          _titleCtrl.text = displayName;
+          _detailCtrl.clear();
+          _isUrgent = false;
+          _isSubmitting = false;
+          _showSuccess = false;
+          _showRepairPopup = true;
+          _selectedCategory = newCategory;
+          _selectedDate = null;
+          _selectedTime = null;
+          _attachedImages = [];
+          _showConfirmation = false;
+          _popupOffset.value = Offset.zero; // Reset position for new selection
+
+          // ★ Focus camera on object — TARGET + Subtle Zoom (Force NO Rotation)
+          if (focusPos.isNotEmpty) {
+            _cameraTarget = focusPos;
+            // Pass a multiplier (0.7 = zoom in 30%) to the JS helper
+            js.context.callMethod('fcmFocus', [_cameraTarget, 0.7]);
+          }
+        });
+        _popupAnim.forward(from: 0.0);
+      } catch (e) {
+        js.context.callMethod('fcmDebugLog', ["Dart Selection Error: ${e.toString()}"]);
+      }
+    }
+  }
+

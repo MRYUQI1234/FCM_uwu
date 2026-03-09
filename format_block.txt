@@ -1,0 +1,293 @@
+  String _formatObjectName(String rawName) {
+    final lower = rawName.toLowerCase();
+
+    // 0. Handle exact keywords which are specific to certain objects
+    // without catching every '.00x' variations in the detailed map
+    if (lower == 'plane') return 'MainbedroomWall3';
+    if (lower == 'floor' || lower == 'floors') return 'Laundry Floor';
+    
+    // 1. Detailed specific mapping based on extracted GLB node names
+    final Map<String, String> detailedMap = {
+      // Structure & Floors
+      'plane.008': 'SecBedroomWall1',
+      'plane008': 'SecBedroomWall1',
+      'plane.012': 'SecBedroomWall2',
+      'plane012': 'SecBedroomWall2',
+      'plane.007': 'SecBedroomWall3',
+      'plane007': 'SecBedroomWall3',
+      'plane.025': 'SecbedroomWall4',
+      'plane025': 'SecbedroomWall4',
+      'plane.778': 'RightExteriorWall',
+      'plane778': 'RightExteriorWall',
+      'plane.010': 'Left Exterior Wall',
+      'plane010': 'Left Exterior Wall',
+      'plane.011': 'Back Exterior Wall',
+      'plane011': 'Back Exterior Wall',
+      'plane.009': 'Front Exterior Wall 1',
+      'plane009': 'Front Exterior Wall 1',
+      'plane.779': 'Front Exterior Wall 2',
+      'plane779': 'Front Exterior Wall 2',
+      'plane.052': 'Inner Front Wall (Porch)',
+      'plane052': 'Inner Front Wall (Porch)',
+      'plane.020': 'MainbedroomWall4',
+      'plane020': 'MainbedroomWall4',
+      'plane.036': 'MainbedroomWall1',
+      'plane036': 'MainbedroomWall1',
+      'plane.014': 'MainbedroomWall2',
+      'plane014': 'MainbedroomWall2',
+      'plane.017': 'MainbedroomWall5',
+      'plane017': 'MainbedroomWall5',
+      'plane.019': 'MainbedroomWall6',
+      'plane019': 'MainbedroomWall6',
+      'plane.001': 'LivingSwitch',
+      'plane001': 'LivingSwitch',
+      'plane.002': 'BathroomSwitch1',
+      'plane002': 'BathroomSwitch1',
+      'plane.003': 'KitchenSwitch',
+      'plane003': 'KitchenSwitch',
+      'plane.004': 'MainbedroomSwitch',
+      'plane004': 'MainbedroomSwitch',
+      'plane.049': 'SecbedroomSwitch',
+      'plane049': 'SecbedroomSwitch',
+      'plane.015': 'LivingWall1',
+      'plane015': 'LivingWall1',
+      'plane.777': 'LivingWall2',
+      'plane777': 'LivingWall2',
+      'plane.024': 'LivingWall3',
+      'plane024': 'LivingWall3',
+      'plane.018': 'LivingWall4',
+      'plane018': 'LivingWall4',
+      'plane.037': 'LivingWall5',
+      'plane037': 'LivingWall5',
+      'plane.008': 'SecBedroomWall1',
+      'plane008': 'SecBedroomWall1',
+      'plane.012': 'SecBedroomWall2',
+      'plane012': 'SecBedroomWall2',
+      'plane.007': 'SecBedroomWall3',
+      'plane007': 'SecBedroomWall3',
+      'plane.025': 'SecbedroomWall4',
+      'plane025': 'SecbedroomWall4',
+      'plane.021': 'KitchenWall1',
+      'plane021': 'KitchenWall1',
+      'plane.023': 'KitchenWall2',
+      'plane023': 'KitchenWall2',
+      'plane.027': 'KitchenWall3',
+      'plane027': 'KitchenWall3',
+      'plane.038': 'KitchenWall4',
+      'plane038': 'KitchenWall4',
+      'plane.041': '1BathroomWall1',
+      'plane041': '1BathroomWall1',
+      'plane.040': '1BathroomWall2',
+      'plane040': '1BathroomWall2',
+      'plane.042': '1BathroomWall3',
+      'plane042': '1BathroomWall3',
+      'plane.013': '1BathroomWall4',
+      'plane013': '1BathroomWall4',
+      'plane.016': '1BathroomWall5',
+      'plane016': '1BathroomWall5',
+      'plane.022': '1BathroomWall6',
+      'plane022': '1BathroomWall6',
+      'plane.039': 'LivingWall6',
+      'plane039': 'LivingWall6',
+      'cube.032': 'Extension Roof',
+      'cube032': 'Extension Roof',
+      'cube.022': 'RightSideExtension',
+      'cube022': 'RightSideExtension',
+      'house.001': 'Stone Veneer Column',
+      'house001': 'Stone Veneer Column',
+      'roof.001': 'Main Roof',
+      'roof001': 'Main Roof',
+      'cube.016': 'Wooden Louvers1',
+      'cube016': 'Wooden Louvers1',
+      'cube.018': 'Wooden Louvers2',
+      'cube018': 'Wooden Louvers2',
+      'трубаводостcylinder': 'Rain Water Downpipe',
+      'floors.001': 'Living Room Floor',
+      'floors001': 'Living Room Floor',
+      'floors.002': 'MainBedroom Floor',
+      'floors002': 'MainBedroom Floor',
+      'floors.009': 'SecBedroom Floor',
+      'floors009': 'SecBedroom Floor',
+      'floors.003': 'Kitchen Floor',
+      'floors003': 'Kitchen Floor',
+      'floors.004': 'Bathroom Floor1',
+      'floors004': 'Bathroom Floor1',
+      'floors.005': 'SecBedroom Floor',
+      'floors005': 'SecBedroom Floor',
+      'floors.006': 'Bathroom Floor2',
+      'floors006': 'Bathroom Floor2',
+      'strike plate 010.001': 'Smart Door Lock',
+      'strike plate 010001': 'Smart Door Lock',
+      'strike plate 01001': 'Smart Door Lock',
+      'strike_plate_01001': 'Smart Door Lock',
+      
+      // Right Windows
+      'handle.002': 'RightWindow1',
+      'handle002': 'RightWindow1',
+      'windowr.002': 'RightWindow3',
+      'windowr002': 'RightWindow3',
+      
+      // Back Windows
+      'windowframe.007': 'RearWindow1',
+      'windowframe007': 'RearWindow1',
+      'windowl.006': 'RearWindow2',
+      'windowl006': 'RearWindow2',
+      
+      // Left Windows
+      'handle.009': 'LeftWindow1',
+      'handle009': 'LeftWindow1',
+      'windowr.005': 'LeftWindow2',
+      'windowr005': 'LeftWindow2',
+      
+      // Front Windows
+      'windowr.003': 'FrontWindow',
+      'windowr003': 'FrontWindow',
+
+      // Generic Matches (Must be AFTER specific matches)
+      'handle_front.010': 'SecBedroomDoor',
+      'handle_front010': 'SecBedroomDoor',
+      'handle_front.001': 'BathroomDoor1',
+      'handle_front001': 'BathroomDoor1',
+      'handle_back.002': 'MainBedroomDoor',
+      'handle_back002': 'MainBedroomDoor',
+      'handle_front.006': 'BathroomDoor2',
+      'handle_front006': 'BathroomDoor2',
+      'door.006': 'LaundryDoor',
+      'door006': 'LaundryDoor',
+      'handle': 'RightWindow2',
+      
+      // Appliances & Tech
+      'direction.001': 'Air Conditioner1',
+      'direction001': 'Air Conditioner1',
+      'direction.002': 'Air Conditioner2',
+      'direction002': 'Air Conditioner2',
+      'air conditioner split midea': 'Air Conditioner (Indoor)',
+      'air conditioner outdoor unit': 'Air Conditioner (Outdoor)',
+      'remote for air conditioning unit': 'AC Remote',
+      'digital door lock': 'Digital Door Lock',
+      'light switch a': 'Light Switch',
+      'qbic': 'Smart Panel PC',
+      'washingmachine': 'Washing Machine',
+      'dryer': 'Dryer',
+      'fridge': 'Refrigerator',
+      'refrigerator': 'Refrigerator',
+      
+      // Lighting (Specific Types)
+      'lampbase.002': 'LivingLight',
+      'lampbase002': 'LivingLight',
+      'lampbase.007': 'KitchenLight',
+      'lampbase007': 'KitchenLight',
+      'lampbase.003': 'MainBedroomLight',
+      'lampbase003': 'MainBedroomLight',
+      'lampbase.001': 'SecBedroomLight',
+      'lampbase001': 'SecBedroomLight',
+      'double_spot_light.002': 'LaundryLight',
+      'double_spot_light002': 'LaundryLight',
+      'double_spot_light.001': 'BathroomLight1',
+      'double_spot_light001': 'BathroomLight1',
+      'double_spot_light.004': 'BathroomLight2',
+      'double_spot_light004': 'BathroomLight2',
+      'spot light.001': 'BathroomLight1',
+      'spot light001': 'BathroomLight1',
+      'spot light.002': 'LaundryLight',
+      'spot light002': 'LaundryLight',
+      'spot light.004': 'BathroomLight2',
+      'spot light004': 'BathroomLight2',
+      'cube.024': 'Condenser1',
+      'cube024': 'Condenser1',
+      '円柱.003': 'Condenser2',
+      '円柱003': 'Condenser2',
+      'modern ceiling light 01': 'Ceiling Light',
+      'double spot light': 'Spot Light',
+      'bollard lighting': 'Bollard Garden Light',
+      'cube.017': 'Outdoor Light',
+      'cube017': 'Outdoor Light',
+      
+      // Furniture
+      'couchdouble': 'Sofa (Living)',
+      'coffeetable': 'Coffee Table',
+      'designer carpet': 'Carpet/Rug',
+      'closetr': 'Bedroom Closet',
+      'closettv': 'TV Cabinet',
+      'nightstand': 'Nightstand',
+      'floorcabinet001': 'Floor Cabinet 1',
+      'floorcabinet.001': 'Floor Cabinet 1',
+      'floorcabinet002': 'Floor Cabinet 2',
+      'floorcabinet.002': 'Floor Cabinet 2',
+      'floorcabinet003': 'Floor Cabinet 3',
+      'floorcabinet.003': 'Floor Cabinet 3',
+      'floorcabinet': 'Floor Cabinet',
+      'wallcabinet2': 'Wall Cabinet 1',
+      'wallcabinet.002': 'Wall Cabinet 1',
+      'wallcabinet4002': 'Wall Cabinet 2',
+      'wallcabinet.4002': 'Wall Cabinet 2',
+      'wallcabinet4001': 'Wall Cabinet 3',
+      'wallcabinet.4001': 'Wall Cabinet 3',
+      'wallcabinet4': 'Wall Cabinet 4',
+      'wallcabinet.004': 'Wall Cabinet 4',
+      'wallcabinet': 'Wall Cabinet',
+      'kitchensinkl': 'Kitchen Sink',
+      'cube023': 'Wall Tablet',
+      'stover': 'Kitchen Stove',
+      
+      // Bathroom
+      'sink001': 'Bathroom Sink2',
+      'sink.001': 'Bathroom Sink2',
+      'sink': 'Bathroom Sink1',
+      'toilet001': 'Toilet2',
+      'toilet.001': 'Toilet2',
+      'toilet2': 'Toilet2',
+      'toilet': 'Toilet1',
+      'tub2': 'Bathtub2',
+      'tub.002': 'Bathtub2',
+      'tub': 'Bathtub1',
+      'mirror': 'Bathroom Mirror',
+      'basin': 'Bathroom Basin',
+    };
+
+    // Check for specific matches first
+    for (final entry in detailedMap.entries) {
+      if (lower.contains(entry.key)) {
+        String base = entry.value;
+        // If it has a suffix like .001, preserve it as a readable number
+        if (rawName.contains('.')) {
+          final suffix = rawName.split('.').last;
+          if (RegExp(r'^\d+$').hasMatch(suffix)) {
+            return '$base ${int.parse(suffix)}';
+          }
+        }
+        return base;
+      }
+    }
+
+    // 2. Fallback: Systematic cleanup
+    String cleaned = rawName.replaceAll(RegExp(r'[_.]'), ' ').trim();
+    
+    // Convert "Modern Ceiling Light 01.002" -> "Ceiling Light 2"
+    cleaned = cleaned.replaceAll(RegExp(r'Modern Ceiling Light 01', caseSensitive: false), 'Ceiling Light');
+    cleaned = cleaned.replaceAll(RegExp(r'Double spot light', caseSensitive: false), 'Spot Light');
+    
+    // General numeric split: "Plane014" -> "Plane 014"
+    cleaned = cleaned.replaceAllMapped(RegExp(r'([a-zA-Z])(\d)'), (m) => '${m[1]} ${m[2]}');
+    
+    // Replace "Plane" with "Wall"
+    cleaned = cleaned.replaceAll(RegExp(r'plane', caseSensitive: false), 'Wall');
+    
+    // Standardize Lighting numbers
+    if (lower.startsWith('light') || lower.startsWith('point') || lower.startsWith('spot')) {
+      cleaned = cleaned.replaceAll(RegExp(r'light|point|spot', caseSensitive: false), 'Light Fixture');
+    }
+
+    // Title Case
+    if (cleaned.isNotEmpty) {
+      cleaned = cleaned.split(' ').map((word) {
+        if (word.isEmpty) return '';
+        final w = word.toLowerCase();
+        // Keep small words lowercase unless it's the first word
+        return word[0].toUpperCase() + word.substring(1).toLowerCase();
+      }).join(' ');
+    }
+    
+    return cleaned;
+  }
+

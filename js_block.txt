@@ -1,0 +1,349 @@
+// ── JS INTEROP: V13.0 Flex-Match & Debug Bridge ──
+    try {
+      js.context['onHomeObjectClicked'] = (dynamic name) {
+        if (mounted) _handleObjectClick(name);
+      };
+      
+      js.context['fcmDebugLog'] = (dynamic msg) {
+        print("★★★ FCM_DEBUG_HOME: $msg ★★★");
+      };
+
+      js.context.callMethod('eval', [
+        r"""
+        (function() {
+          // ── V15.0 — Precision Selection Rewrite (NDC Ray + Möller-Trumbore + Overlay) ──
+
+          const getScene = (mv) => {
+             const syms = Object.getOwnPropertySymbols(mv);
+             for (const s of syms) {
+                const v = mv[s];
+                if (v && (v.type === 'Scene' || v.scene?.type === 'Scene')) return v.scene || v;
+             }
+             return null;
+          };
+
+          // ── Safe overlay cleanup ──
+          function fcmCleanup() {
+              if (window._fcmOverlays && window._fcmOverlays.length) {
+                  window._fcmOverlays.forEach(ov => {
+                      try {
+                          if (ov && ov.parent) ov.parent.remove(ov);
+                          if (ov && ov.material) ov.material.dispose();
+                      } catch(_) {}
+                  });
+              }
+              window._fcmOverlays = [];
+          }
+
+          // ── Camera Helpers ──
+          window.fcmFocus = function(target, zoomFactor) {
+              const mv = document.getElementById('fcmHouseModel');
+              if (mv) {
+                  console.log('[FCM] focus target ->', target);
+                  if (target) mv.cameraTarget = target;
+                  
+                  // Zoom without rotating: Get current orbit, keep theta/phi, change ONLY radius
+                  const currentOrbit = mv.getCameraOrbit(); // {theta, phi, radius}
+                  if (currentOrbit && zoomFactor) {
+                      const newRadius = currentOrbit.radius * zoomFactor;
+                      mv.cameraOrbit = `${currentOrbit.theta}rad ${currentOrbit.phi}rad ${newRadius}m`;
+                  }
+              }
+          };
+
+          window.fcmReset = function() {
+              const mv = document.getElementById('fcmHouseModel');
+              console.log('[FCM] RESET CALL:', { mvFound: !!mv });
+              if (mv) {
+                  mv.cameraTarget = 'auto 1.2m auto';
+                  mv.cameraOrbit = '45deg 60deg 90%';
+              }
+          };
+
+          // ── Create highlight material from reference ──
+          function fcmMakeHighlight(refMat) {
+              try {
+                  const C = refMat.constructor;
+                  return new C({
+                      color: 0xff7700, transparent: true, opacity: 0.75,
+                      emissive: 0xaa4400, emissiveIntensity: 2.0,
+                      depthTest: true, depthWrite: false,
+                      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+                      side: 2
+                  });
+              } catch(_) {
+                  try {
+                      const m = refMat.clone();
+                      if (m.color) m.color.setHex(0xff7700);
+                      m.transparent = true; m.opacity = 0.75; m.depthWrite = false;
+                      return m;
+                  } catch(__) { return null; }
+              }
+          }
+
+          // ── Create overlay for one mesh ──
+          function fcmOverlay(mesh) {
+              if (!mesh || !mesh.isMesh || !mesh.geometry) return null;
+              try {
+                  const ref = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+                  const mat = fcmMakeHighlight(ref);
+                  if (!mat) return null;
+                  const ov = new mesh.constructor(mesh.geometry, mat);
+                  ov.position.copy(mesh.position);
+                  ov.quaternion.copy(mesh.quaternion);
+                  ov.scale.copy(mesh.scale);
+                  ov.renderOrder = 999;
+                  ov.matrixAutoUpdate = true;
+                  if (mesh.parent) { mesh.parent.add(ov); return ov; }
+              } catch(e) { console.warn('[FCM] overlay err:', e); }
+              return null;
+          }
+
+          // ── Roof toggle ──
+          window.toggleRoof = function() {
+              if (window._fcmRoofVis === undefined) window._fcmRoofVis = true;
+              window._fcmRoofVis = !window._fcmRoofVis;
+              const state = window._fcmRoofVis;
+              const isProtected = n => {
+                  let c = n; while(c) { const nm=(c.name||'').toLowerCase();
+                      if(nm.includes('couch')||nm.includes('sofa')||nm.includes('door')||nm.includes('gate')||nm.includes('window'))return true;
+                      c=c.parent; } return false;
+              };
+              document.querySelectorAll('model-viewer').forEach(mv => {
+                  const scene = getScene(mv); if(!scene)return;
+                  scene.traverse(node => {
+                      if(isProtected(node))return;
+                      const l=(node.name||'').toLowerCase().trim();
+                      if(l.includes('cube032')||l.includes('cube_032')||l.includes('cube.032')||l.includes('roof')) node.visible=state;
+                  });
+              });
+          };
+
+          window.hideBadNodes = function() {
+              document.querySelectorAll('model-viewer').forEach(mv => {
+                  const scene = getScene(mv);
+                  if (scene) scene.traverse(n => { 
+                      const nm = (n.name||'').toLowerCase();
+                      if(nm === 'door001' || nm.includes('tapis')) n.visible=false; 
+                  });
+              });
+          };
+
+          // ── Unproject helper: NDC → world space ──
+          function fcmUnproject(nx, ny, nz, cam) {
+              const pi = cam.projectionMatrixInverse.elements;
+              const cw = cam.matrixWorld.elements;
+              // NDC → camera space
+              const w = pi[3]*nx + pi[7]*ny + pi[11]*nz + pi[15];
+              const cx = (pi[0]*nx + pi[4]*ny + pi[8]*nz + pi[12]) / w;
+              const cy = (pi[1]*nx + pi[5]*ny + pi[9]*nz + pi[13]) / w;
+              const cz = (pi[2]*nx + pi[6]*ny + pi[10]*nz + pi[14]) / w;
+              // camera space → world space
+              return {
+                  x: cw[0]*cx + cw[4]*cy + cw[8]*cz + cw[12],
+                  y: cw[1]*cx + cw[5]*cy + cw[9]*cz + cw[13],
+                  z: cw[2]*cx + cw[6]*cy + cw[10]*cz + cw[14]
+              };
+          }
+
+          // ── Main selection ──
+          window.setupFcmSelection = function() {
+              document.querySelectorAll('model-viewer').forEach(mv => {
+                  if (mv._fcmV15) return;
+                  mv._fcmV15 = true;
+
+                  mv.addEventListener('click', (event) => {
+                      try {
+                          const materialObj = mv.materialFromPoint(event.clientX, event.clientY);
+                          const hitData = mv.positionAndNormalFromPoint(event.clientX, event.clientY);
+
+                          // Always clean previous
+                          fcmCleanup();
+
+                          if (!materialObj || !hitData || !hitData.position) {
+                              if (window.onHomeObjectClicked) window.onHomeObjectClicked('');
+                              return;
+                          }
+
+                          const scene = getScene(mv);
+                          if (!scene) return;
+
+                          // Get Three.js camera
+                          let camera = null;
+                          Object.getOwnPropertySymbols(mv).forEach(s => {
+                              if (mv[s] && mv[s].camera) camera = mv[s].camera;
+                          });
+                          if (!camera) return;
+
+                          // ★ Proper NDC ray from screen coordinates
+                          const rect = mv.getBoundingClientRect();
+                          const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                          const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                          camera.updateMatrixWorld(true);
+
+                          const nearPt = fcmUnproject(ndcX, ndcY, -1, camera);
+                          const farPt  = fcmUnproject(ndcX, ndcY,  1, camera);
+                          const rayOrigin = camera.position;
+                          let rdx = farPt.x - nearPt.x;
+                          let rdy = farPt.y - nearPt.y;
+                          let rdz = farPt.z - nearPt.z;
+                          const rLen = Math.sqrt(rdx*rdx + rdy*rdy + rdz*rdz);
+                          if (rLen < 1e-10) return;
+                          rdx /= rLen; rdy /= rLen; rdz /= rLen;
+
+
+                          let targetMesh = null;
+                          let closestDist = Infinity;
+
+                          // ★ Möller-Trumbore: test ALL visible meshes (no material filter)
+                          scene.traverse(node => {
+                              if (!node.isMesh || !node.material || !node.geometry) return;
+                              // Check entire parent chain — if ANY ancestor is hidden, skip
+                              let anc = node; while(anc) { if (!anc.visible) return; anc = anc.parent; }
+                              if ((node.name||'').toLowerCase() === 'walls') return;
+
+                              node.updateMatrixWorld(true);
+                              const inv = node.matrixWorld.clone().invert();
+                              const el = inv.elements;
+
+                              // Ray origin → local space
+                              const loX = rayOrigin.x*el[0]+rayOrigin.y*el[4]+rayOrigin.z*el[8]+el[12];
+                              const loY = rayOrigin.x*el[1]+rayOrigin.y*el[5]+rayOrigin.z*el[9]+el[13];
+                              const loZ = rayOrigin.x*el[2]+rayOrigin.y*el[6]+rayOrigin.z*el[10]+el[14];
+                              // Ray direction → local space (no translation)
+                              const ldx = rdx*el[0]+rdy*el[4]+rdz*el[8];
+                              const ldy = rdx*el[1]+rdy*el[5]+rdz*el[9];
+                              const ldz = rdx*el[2]+rdy*el[6]+rdz*el[10];
+
+                              const pos = node.geometry.attributes.position;
+                              if (!pos) return;
+                              const arr = pos.array;
+                              const idx = node.geometry.index;
+                              let minT = Infinity;
+
+                              const tri = (i0,i1,i2) => {
+                                  const v0x=arr[i0*3],v0y=arr[i0*3+1],v0z=arr[i0*3+2];
+                                  const v1x=arr[i1*3],v1y=arr[i1*3+1],v1z=arr[i1*3+2];
+                                  const v2x=arr[i2*3],v2y=arr[i2*3+1],v2z=arr[i2*3+2];
+                                  const e1x=v1x-v0x,e1y=v1y-v0y,e1z=v1z-v0z;
+                                  const e2x=v2x-v0x,e2y=v2y-v0y,e2z=v2z-v0z;
+                                  const hx=ldy*e2z-ldz*e2y,hy=ldz*e2x-ldx*e2z,hz=ldx*e2y-ldy*e2x;
+                                  const a=e1x*hx+e1y*hy+e1z*hz;
+                                  if(a>-1e-6&&a<1e-6)return;
+                                  const f=1.0/a;
+                                  const sx=loX-v0x,sy=loY-v0y,sz=loZ-v0z;
+                                  const u=f*(sx*hx+sy*hy+sz*hz);
+                                  if(u<0||u>1)return;
+                                  const qx=sy*e1z-sz*e1y,qy=sz*e1x-sx*e1z,qz=sx*e1y-sy*e1x;
+                                  const v=f*(ldx*qx+ldy*qy+ldz*qz);
+                                  if(v<0||u+v>1)return;
+                                  const t=f*(e2x*qx+e2y*qy+e2z*qz);
+                                  if(t>1e-6&&t<minT)minT=t;
+                              };
+
+                              if(idx){const a=idx.array;for(let i=0;i<a.length;i+=3)tri(a[i],a[i+1],a[i+2]);}
+                              else{for(let i=0;i<arr.length/3;i+=3)tri(i,i+1,i+2);}
+
+                              if (minT < Infinity && minT < closestDist) {
+                                  closestDist = minT;
+                                  targetMesh = node;
+                              }
+                          });
+
+                          if (!targetMesh) {
+                              if (window.onHomeObjectClicked) window.onHomeObjectClicked('');
+                              return;
+                          }
+
+                          // Group logic — Blender splits multi-material objects into child meshes
+                          let bestName = targetMesh.name || 'Mesh';
+                          let bestNode = targetMesh;
+                          const hierarchySkip = ['scene', 'target', 'root', 'model', 'house'];
+                          const selectionIgnore = ['wall', 'floor', 'ceiling', 'bed', 'vase', 'plant', 'table', 'carpet', 'rug', 'curtain', 'blind', 'glass', 'stone', 'louvers', 'pillar', 'beam', 'brick', 'stair', 'grass', 'ground', 'sky', 'fence'];
+                          const interactive = ['ac', 'conditioner', 'toilet', 'sink', 'bathtub', 'stove', 'fridge', 'refrigerator', 'panel', 'door', 'window', 'light', 'fixture', 'switch', 'washing', 'dryer', 'smart', 'pump', 'condenser', 'lock', 'handle', 'faucet', 'shower', 'cabinet', 'closet', 'sensor', 'intercom', 'unit'];
+                          const propIds = ['plane046', 'plane045', 'plane043', 'cube015', 'cube046', 'cube047'];
+                          
+                          let curr = targetMesh.parent;
+                          while (curr && curr.type !== 'Scene') {
+                              if (curr.name) {
+                                  const cName = curr.name.toLowerCase();
+                                  // Stop walking up if we hit a structural/scene node
+                                  if (hierarchySkip.some(s => cName.includes(s))) break;
+                                  
+                                  bestName = curr.name;
+                                  bestNode = curr;
+                              }
+                              curr = curr.parent;
+                          }
+
+                           // ★ Final selectable check (JS side)
+                           const checkName = (bestName || '').toLowerCase();
+                           const isInteractive = interactive.some(s => checkName.includes(s));
+                           const shouldIgnore = selectionIgnore.some(s => checkName.includes(s));
+                           
+                           // If it's not explicitly interactive AND (matches an ignore keyword OR is a specific prop ID), block it
+                           if ((!isInteractive && shouldIgnore) || propIds.some(id => checkName.includes(id))) {
+                               console.log('[FCM] Ignoring non-selectable highlight:', bestName);
+                               // No highlight, no popup, no camera move
+                               if (window.onHomeObjectClicked) window.onHomeObjectClicked('');
+                               return;
+                           }
+
+                           // ★ Overlay highlight (no material bleed)
+                           window._fcmOverlays = [];
+                           if (bestNode.isMesh) {
+                               const o = fcmOverlay(bestNode);
+                               if (o) window._fcmOverlays.push(o);
+                           } else {
+                               bestNode.traverse(ch => {
+                                   if (ch.isMesh && ch.visible) {
+                                       const o = fcmOverlay(ch);
+                                       if (o) window._fcmOverlays.push(o);
+                                   }
+                               });
+                           }
+
+                          // Hierarchy dump
+                          let path = targetMesh.name;
+                          let p = targetMesh.parent; let d = 0;
+                          while(p && p.type !== 'Scene' && d < 4) { path = (p.name||p.type)+'>'+path; p=p.parent; d++; }
+
+                          if (window.onHomeObjectClicked) {
+                              const pos = hitData.position;
+                              const focus = pos.x.toFixed(3) + 'm ' + pos.y.toFixed(3) + 'm ' + pos.z.toFixed(3) + 'm';
+                              console.log('[FCM] CLICK HIT EVENT:', { 
+                                  mesh: targetMesh.name, 
+                                  node: bestName,
+                                  hitPos: focus,
+                                  worldPos: pos
+                              });
+                              
+                              window.onHomeObjectClicked(JSON.stringify({
+                                  name: bestName + ' [' + path + ']',
+                                  focus: focus
+                              }));
+                          }
+                          console.log('[FCM] เลือก:', bestName, '| dist:', closestDist.toFixed(4));
+
+                      } catch (e) {
+                          console.error('[FCM] Selection Error:', e);
+                      }
+                  });
+              });
+          };
+
+          const poll = setInterval(() => {
+              if (document.querySelector('model-viewer')) {
+                  window.setupFcmSelection();
+                  window.hideBadNodes();
+                  clearInterval(poll);
+              }
+          }, 500);
+        })();
+        """
+      ]);
+    } catch (e) {
+      print("FCM JS Init Error: $e");
+    }
+  }
