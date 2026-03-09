@@ -15,13 +15,11 @@ app.use(express.json());
 
 // Routes Registration
 import authRouter from "./routes/auth.routes";
-import personnelRouter from "./routes/personnel.routes";
 import devRouter from "./routes/dev.routes";
 import repairRouter from "./routes/repair.routes";
 import chatRouter from "./routes/chat.routes"; // Added Chat Router
 
 app.use("/api/auth", authRouter);
-app.use("/api/personnel", personnelRouter);
 app.use("/api/dev", devRouter);
 app.use("/api/repair", repairRouter);
 app.use("/api/chat", chatRouter);
@@ -33,3 +31,5 @@ app.get("/health", (req, res) => res.status(200).json({ status: "OK", time: new 
 app.listen(PORT, () => {
     console.log(`FCM [Backend Server] is running on http://localhost:${PORT}`);
 });
+
+// Trigger backend restart

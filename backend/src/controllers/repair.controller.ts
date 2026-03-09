@@ -129,21 +129,29 @@ export class RepairController {
     const requestId = uuidv4();
 
     try {
-      const { request, ai_raw } = req.body;
+      const { request, ai_raw, message_id } = req.body;
+
+      if (!request || !request.tasks || !Array.isArray(request.tasks)) {
+        return res.status(400).json({ success: false, status_code: "INVALID_REQUEST", message: "Missing or invalid tasks array" });
+      }
 
       db.transaction(() => {
+        if (message_id) {
+          db.prepare("UPDATE ai_messages SET action_state = 'confirmed' WHERE id = ?").run(message_id);
+        }
         db.prepare(`
           INSERT INTO request (id, resident_id, property_id, status)
           VALUES (?, ?, ?, ?)
         `).run(requestId, residentId, propertyId, 'Created');
 
         const insertTask = db.prepare(`
-          INSERT INTO task (id, request_id, object_id, object_type, description, urgency, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO task (id, request_id, object_id, object_type, description, urgency, status, prefer_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         for (const task of request.tasks) {
-          insertTask.run(uuidv4(), requestId, task.object_id, task.object_type, task.description, task.urgency, 'Pending');
+          const preferDateStr = task.prefer_date ? `${task.prefer_date}${task.prefer_time ? ' ' + task.prefer_time : ''}` : null;
+          insertTask.run(uuidv4(), requestId, task.object_id, task.object_type, task.description, task.urgency, 'Pending', preferDateStr);
         }
 
         if (ai_raw) {
@@ -156,8 +164,9 @@ export class RepairController {
 
       return res.status(201).json({ success: true, request_id: requestId, status_code: "REQUEST_CREATED" });
 
-    } catch (error) {
-      return res.status(500).json({ success: false, status_code: "DATABASE_ERROR" });
+    } catch (error: any) {
+      console.error("[RepairController] confirmRequest Error:", error);
+      return res.status(500).json({ success: false, status_code: "DATABASE_ERROR", details: error.message });
     }
   }
 

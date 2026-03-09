@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
     resident_id TEXT NOT NULL,
     title TEXT,                      -- e.g. "Request: Kitchen Leak"
     last_message TEXT,
+    is_archived BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (resident_id) REFERENCES users(id)
@@ -129,8 +130,10 @@ CREATE TABLE IF NOT EXISTS ai_messages (
     conversation_id TEXT NOT NULL,
     sender_type TEXT CHECK(sender_type IN ('USER', 'AI')), 
     content TEXT NOT NULL,
+    action_data TEXT,
+    action_state TEXT DEFAULT 'none',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id)
+    FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation ON ai_messages(conversation_id);

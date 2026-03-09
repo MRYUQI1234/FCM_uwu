@@ -73,12 +73,12 @@ export class AIService {
       2. TIME SLOTS: Normalized to 09:30:00 or 13:00:00.
       3. prefer_date cannot be in the past. If null, ask for clarification.
       4. LANGUAGE: follow_up_message and descriptions MUST match Input language.
-      5. Mapping: Use Context IDs. object_type from Category.
+      5. Mapping: Use Context IDs. object_type from Category. Include object_name from Name.
       6. CLARIFICATION: If the user mentions a problem but the description is vague (e.g., 'broken', 'not working', 'ชำรุด'), you MUST ask for specific details about the issue before finalizing the JSON request. Do NOT return the "tasks" array if you do not have a clear description of the damage.
 
       JSON:
       {
-        "request": { "status": "Created", "tasks": [...] },
+        "request": { "status": "Created", "tasks": [ {"object_id": "...", "object_name": "...", "object_type": "...", "description": "...", "urgency": "normal"} ] },
         "follow_up_message": "...",
         "confidence_score": 0.9
       }
