@@ -401,23 +401,29 @@ class _LoginScreenState extends State<LoginScreen>
                                     DashboardTheme.background,
                                     DashboardTheme.surfaceSecondaryLight
                                   ])))),
+            // 3D Model
             Positioned.fill(
               child: IgnorePointer(
                 child: ModelViewer(
-                  key: const ValueKey('fcm_house_model_stable'),
+                  key: const ValueKey('fcm_house_vivorn'),
                   backgroundColor: Colors.transparent,
-                  src: 'assets/models/house.glb',
-                  alt: 'FCM House Model',
+                  src: 'assets/models/VivornFinal8.4.glb',
+                  alt: 'Vivorn Smart House',
                   autoRotate: true,
                   autoPlay: true,
                   cameraControls: false,
                   disableZoom: true,
-                  exposure: 0.8,
-                  shadowIntensity: 0.2,
+                  exposure: (lerpDouble(
+                    previousSeason['exposure'] as double,
+                    currentSeason['exposure'] as double,
+                    t,
+                  ) ?? 1.0),
+                  shadowIntensity: 1.0,
                   shadowSoftness: 1.0,
                   rotationPerSecond: '10deg',
-                  cameraTarget: 'auto 1m auto',
-                  cameraOrbit: '45deg 75deg 80%',
+                  cameraTarget: 'auto 1.2m auto',
+                  cameraOrbit: '225deg 80deg 105%',
+                  maxCameraOrbit: 'auto 85deg auto',
                 ),
               ),
             ),

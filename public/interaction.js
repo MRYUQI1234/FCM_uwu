@@ -1,5 +1,6 @@
-// interaction.js
-console.log("FCM: Interaction script loaded.");
+// interaction.js - v1.0.4 (ALERT TEST)
+alert("FCM: Interaction script loaded v1.0.4");
+console.log("FCM: Interaction script loaded v1.0.4");
 
 // Main setup function that logic attaches to the viewer
 function attachInteractionLogic(modelViewer) {
@@ -32,14 +33,22 @@ function attachInteractionLogic(modelViewer) {
         }
 
         // Clean Click Detected!
+        console.log("FCM: Click detected, but logic is DISABLED.");
 
-        // 1. EXECUTE OUR LOGIC FIRST
-        handleClick(event, modelViewer);
+        // 1. EXECUTE OUR LOGIC FIRST (DISABLED)
+        // handleClick(event, modelViewer);
 
         // 2. STOP PROPAGATION IMMEDIATELY
         event.stopPropagation();
         event.preventDefault();
     }, true); // Capture phase
+
+    // block basic click event too
+    modelViewer.addEventListener('click', (event) => {
+        console.log("FCM: Blocked native click.");
+        event.stopPropagation();
+        event.preventDefault();
+    }, true);
 
     // Separate click handler logic
     function handleClick(event, modelViewer) {
@@ -64,15 +73,14 @@ function attachInteractionLogic(modelViewer) {
 
             // Toggle Logic
             if (material.isHighlighted) {
-                // Revert to original
-                material.pbrMetallicRoughness.setBaseColorFactor(material.originalColor);
+                // material.pbrMetallicRoughness.setBaseColorFactor(material.originalColor);
                 material.isHighlighted = false;
-                console.log("FCM: Un-highlighted");
+                console.log("FCM: Selection cleared");
             } else {
-                // Highlight Blue
-                material.pbrMetallicRoughness.setBaseColorFactor([0.2, 0.4, 1.0, 1.0]);
+                // No longer highlighting blue visually
+                // material.pbrMetallicRoughness.setBaseColorFactor([0.2, 0.4, 1.0, 1.0]);
                 material.isHighlighted = true;
-                console.log("FCM: Highlighted");
+                console.log("FCM: Material selected (no visual highlight)");
             }
         } else {
             console.log("FCM: Clicked on background (no material)");

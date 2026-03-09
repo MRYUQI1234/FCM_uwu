@@ -1,0 +1,14 @@
+.dart_tool/
+.packages
+.pub/
+.idea/
+.vscode/
+build/
+*.log
+*.jks
+*.keystore
+*.p12
+*.key
+*.mobileprovision
+node_modules/
+.env*
