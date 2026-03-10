@@ -42,32 +42,23 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
               builder: (context, repairs, _) {
                 // Calculate real-time counts for the header tabs
                 final totalCount = repairs.length;
-                final pendingCount = repairs.where((r) {
-                  final s = r.status.toLowerCase();
-                  return s == 'pending' || s == 'รอ' || s == 'รอดำเนินการ';
-                }).length;
-                final workingCount = repairs.where((r) {
-                  final s = r.status.toLowerCase();
-                  return s == 'in progress' || s == 'ดำเนินการ';
-                }).length;
-                final doneCount = repairs.where((r) {
-                  final s = r.status.toLowerCase();
-                  return s == 'completed' || s == 'เสร็จสิ้น';
-                }).length;
+                final awaitingCount = repairs
+                    .where((r) => r.status == 'AWAITING APPROVAL')
+                    .length;
+                final pendingCount =
+                    repairs.where((r) => r.status == 'PENDING').length;
+                final progressCount =
+                    repairs.where((r) => r.status == 'IN PROGRESS').length;
+                final completedCount =
+                    repairs.where((r) => r.status == 'COMPLETED').length;
+                final rejectedCount =
+                    repairs.where((r) => r.status == 'REJECTED').length;
 
                 final filtered = repairs.where((r) {
                   if (_activeFilter == 'all') return true;
-                  final s = r.status.toLowerCase();
-                  if (_activeFilter == 'pending') {
-                    return s == 'pending' || s == 'รอ' || s == 'รอดำเนินการ';
-                  }
-                  if (_activeFilter == 'working') {
-                    return s == 'in progress' || s == 'ดำเนินการ';
-                  }
-                  if (_activeFilter == 'done') {
-                    return s == 'completed' || s == 'เสร็จสิ้น';
-                  }
-                  return true;
+                  return r.status.toLowerCase() == _activeFilter.toLowerCase() ||
+                      r.status.replaceAll(' ', '').toLowerCase() ==
+                          _activeFilter.toLowerCase();
                 }).toList();
 
                 return Stack(
@@ -132,29 +123,42 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       _buildModernTab(
-                                          _ts.t('filter_all'),
+                                          'ALL',
                                           "$totalCount",
                                           _activeFilter == 'all',
                                           () => setState(
                                               () => _activeFilter = 'all')),
                                       _buildModernTab(
-                                          _ts.t('filter_pending'),
+                                          'AWAITING APPROVAL',
+                                          "$awaitingCount",
+                                          _activeFilter == 'AWAITING APPROVAL',
+                                          () => setState(() =>
+                                              _activeFilter =
+                                                  'AWAITING APPROVAL')),
+                                      _buildModernTab(
+                                          'PENDING',
                                           "$pendingCount",
-                                          _activeFilter == 'pending',
-                                          () => setState(
-                                              () => _activeFilter = 'pending')),
+                                          _activeFilter == 'PENDING',
+                                          () => setState(() =>
+                                              _activeFilter = 'PENDING')),
                                       _buildModernTab(
-                                          _ts.t('filter_active'),
-                                          "$workingCount",
-                                          _activeFilter == 'working',
-                                          () => setState(
-                                              () => _activeFilter = 'working')),
+                                          'IN PROGRESS',
+                                          "$progressCount",
+                                          _activeFilter == 'IN PROGRESS',
+                                          () => setState(() =>
+                                              _activeFilter = 'IN PROGRESS')),
                                       _buildModernTab(
-                                          _ts.t('filter_completed'),
-                                          "$doneCount",
-                                          _activeFilter == 'done',
-                                          () => setState(
-                                              () => _activeFilter = 'done')),
+                                          'COMPLETED',
+                                          "$completedCount",
+                                          _activeFilter == 'COMPLETED',
+                                          () => setState(() =>
+                                              _activeFilter = 'COMPLETED')),
+                                      _buildModernTab(
+                                          'REJECTED',
+                                          "$rejectedCount",
+                                          _activeFilter == 'REJECTED',
+                                          () => setState(() =>
+                                              _activeFilter = 'REJECTED')),
                                     ],
                                   ),
                                 ),
@@ -173,18 +177,6 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                                     itemBuilder: (context, index) {
                                       String displayStatus =
                                           filtered[index].status.toUpperCase();
-                                      if (displayStatus.contains('รอ') ||
-                                          displayStatus == 'PENDING') {
-                                        displayStatus = 'PENDING';
-                                      }
-                                      if (displayStatus.contains('ดำเนิน') ||
-                                          displayStatus == 'IN PROGRESS') {
-                                        displayStatus = 'IN PROGRESS';
-                                      }
-                                      if (displayStatus.contains('เสร็จ') ||
-                                          displayStatus == 'COMPLETED') {
-                                        displayStatus = 'COMPLETED';
-                                      }
 
                                       return _PremiumServiceCard(
                                         item: filtered[index],

@@ -172,8 +172,7 @@ class RepairRepository {
         final result = jsonDecode(response.body);
         if (result['success'] == true) {
           final List data = result['data'] ?? [];
-          repairsNotifier.value = data.map<RepairRequest>((r) {
-            // Build title from first task description or fallback
+          final remoteRepairs = data.map<RepairRequest>((r) {
             final tasks = (r['tasks'] as List?) ?? [];
             final firstTask = tasks.isNotEmpty ? tasks[0] : null;
             final title = firstTask != null
@@ -183,26 +182,45 @@ class RepairRepository {
             final description = firstTask?['description'] ?? '';
             final urgency = firstTask?['urgency'] ?? 'Normal';
 
-            // Status color mapping
+            String status = (r['status'] ?? 'PENDING').toString().toUpperCase();
             Color statusColor;
-            final status = (r['status'] ?? 'Created').toString();
-            switch (status.toLowerCase()) {
-              case 'completed':
-              case 'reviewed':
-                statusColor = Colors.green;
+
+            if (status.contains('รออนุมัติ')) status = 'AWAITING APPROVAL';
+            if (status.contains('รอดำเนินการ')) status = 'PENDING';
+            if (status.contains('ดำเนินการ')) status = 'IN PROGRESS';
+            if (status.contains('เสร็จสิ้น')) status = 'COMPLETED';
+            if (status.contains('ถูกปฏิเสธ')) status = 'REJECTED';
+
+            switch (status) {
+              case 'CREATED':
+              case 'AWAITING APPROVAL':
+                status = 'AWAITING APPROVAL';
+                statusColor = Colors.orange;
                 break;
-              case 'in progress':
-              case 'inprogress':
+              case 'WAIT':
+              case 'PENDING':
+                status = 'PENDING';
+                statusColor = Colors.orange;
+                break;
+              case 'IN PROGRESS':
+              case 'INPROGRESS':
+                status = 'IN PROGRESS';
                 statusColor = Colors.blue;
                 break;
-              case 'denied':
+              case 'COMPLETED':
+              case 'REVIEWED':
+                status = 'COMPLETED';
+                statusColor = Colors.green;
+                break;
+              case 'DENIED':
+              case 'REJECTED':
+                status = 'REJECTED';
                 statusColor = Colors.red;
                 break;
               default:
                 statusColor = Colors.orange;
             }
 
-            // Parse dates
             DateTime? completedAt;
             if (r['completed_at'] != null) {
               completedAt = DateTime.tryParse(r['completed_at'].toString());
@@ -234,6 +252,16 @@ class RepairRepository {
               isEmergency: urgency.toString().toLowerCase() == 'emergency',
             );
           }).toList();
+
+          // Merge: Keep local requests that aren't in the remote list yet
+          final localOnly = repairsNotifier.value.where((local) {
+            // If it's a numeric ID (timestamp from addRequest), it's likely local-only
+            bool isNewLocal = double.tryParse(local.id) != null && local.id.length > 10;
+            bool existsRemotely = remoteRepairs.any((remote) => remote.id == local.id);
+            return isNewLocal && !existsRemotely;
+          }).toList();
+
+          repairsNotifier.value = [...localOnly, ...remoteRepairs];
         }
       }
     } catch (e) {
@@ -280,7 +308,7 @@ class RepairRepository {
       title: title,
       description: description,
       date: dateStr,
-      status: 'Pending',
+      status: 'AWAITING APPROVAL',
       statusColor: Colors.orange,
       imagePaths: imagePaths,
       appointmentDate: appointmentDate,
