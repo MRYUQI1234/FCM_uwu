@@ -14,17 +14,21 @@ class ProfileView extends StatefulWidget {
   final String email;
   final String phone;
   final String role;
+  final String? position;
   final String imagePath;
   final VoidCallback? onMenuTap;
+  final VoidCallback? onProfileUpdated;
 
   const ProfileView({
     super.key,
-    this.name = "Admin Vivorn",
-    this.email = "admin.vivorn@gmail.com",
-    this.phone = "+66 88 777 9999",
-    this.role = "Admin",
-    this.imagePath = 'assets/resident_profile.png',
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.role,
+    this.position,
+    required this.imagePath,
     this.onMenuTap,
+    this.onProfileUpdated,
   });
 
   @override
@@ -32,27 +36,44 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  late String _name;
-  late String _email;
-  late String _phone;
   XFile? _pickedImage;
   final ImagePicker _picker = ImagePicker();
   final _ts = TranslationService.instance;
 
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _positionController;
+  bool _isEditing = false;
+  bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
-    _name = widget.name;
-    _email = widget.email;
-    _phone = widget.phone;
+    _nameController = TextEditingController(text: widget.name);
+    _emailController = TextEditingController(text: widget.email);
+    _phoneController = TextEditingController(text: widget.phone);
+    _positionController = TextEditingController(text: widget.position ?? "");
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _positionController.dispose();
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant ProfileView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.name != widget.name) _name = widget.name;
-    if (oldWidget.email != widget.email) _email = widget.email;
-    if (oldWidget.phone != widget.phone) _phone = widget.phone;
+    if (oldWidget.name != widget.name) _nameController.text = widget.name;
+    if (oldWidget.email != widget.email) _emailController.text = widget.email;
+    if (oldWidget.phone != widget.phone) _phoneController.text = widget.phone;
+    if (oldWidget.position != widget.position) {
+      _positionController.text = widget.position ?? "";
+    }
   }
 
   Future<void> _pickProfileImage() async {
@@ -61,7 +82,6 @@ class _ProfileViewState extends State<ProfileView> {
           source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
       if (image != null && mounted) {
         setState(() => _pickedImage = image);
-        _showSavedSnackbar(_ts.t('profile_name'));
       }
     } catch (e) {
       debugPrint('Image picker error: $e');
@@ -86,7 +106,9 @@ class _ProfileViewState extends State<ProfileView> {
           color: DashboardTheme.primary.withOpacity(0.2),
           child: Center(
             child: Text(
-              _name.isNotEmpty ? _name[0].toUpperCase() : '?',
+              _nameController.text.isNotEmpty
+                  ? _nameController.text[0].toUpperCase()
+                  : '?',
               style: GoogleFonts.outfit(
                   fontSize: 40,
                   fontWeight: FontWeight.w700,
@@ -97,6 +119,61 @@ class _ProfileViewState extends State<ProfileView> {
       );
     }
     return imageWidget;
+  }
+
+  Future<void> _saveProfileChanges() async {
+    setState(() => _isSaving = true);
+    final result = await AuthRepository.instance.updateProfile({
+      'name': _nameController.text,
+      'email': _emailController.text,
+      'phone': _phoneController.text,
+      'position': _positionController.text,
+    });
+
+    if (result['success'] == true && mounted) {
+      widget.onProfileUpdated?.call();
+      setState(() {
+        _isEditing = false;
+        _isSaving = false;
+      });
+      _showSavedSnackbar(_ts.t('profile_account'));
+    } else if (mounted) {
+      setState(() => _isSaving = false);
+      // Optionally show an error snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_ts.t('profile_update_failed')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildInfoField(String label, TextEditingController controller,
+      {bool enabled = false, IconData? icon, String? hint}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: GoogleFonts.notoSans(
+                color: DashboardTheme.textMain,
+                fontSize: 16,
+                fontWeight: FontWeight.w500)),
+        const SizedBox(height: 12),
+        TextField(
+          controller: controller,
+          enabled: enabled,
+          style: TextStyle(color: DashboardTheme.textSecondary, fontSize: 14),
+          decoration: _inputDecoration(hint ?? label).copyWith(
+            prefixIcon: icon != null
+                ? Icon(icon, color: DashboardTheme.textPale, size: 20)
+                : null,
+            prefixIconConstraints:
+                icon != null ? BoxConstraints.tight(const Size(48, 20)) : null,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -133,6 +210,43 @@ class _ProfileViewState extends State<ProfileView> {
                         ),
                       ),
                     ),
+                    if (!_isEditing)
+                      IconButton(
+                        icon: Icon(Icons.edit_rounded,
+                            color: DashboardTheme.primary),
+                        onPressed: () => setState(() => _isEditing = true),
+                      ),
+                    if (_isEditing)
+                      IconButton(
+                        icon: Icon(Icons.close_rounded,
+                            color: DashboardTheme.textPale),
+                        onPressed: () {
+                          setState(() {
+                            _isEditing = false;
+                            _nameController.text = widget.name;
+                            _emailController.text = widget.email;
+                            _phoneController.text = widget.phone;
+                            _positionController.text = widget.position ?? "";
+                          });
+                        },
+                      ),
+                    if (_isEditing)
+                      _isSaving
+                          ? Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: DashboardTheme.primary)),
+                            )
+                          : IconButton(
+                              icon: Icon(Icons.check_rounded,
+                                  color: DashboardTheme.success),
+                              onPressed: _saveProfileChanges,
+                            ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -213,7 +327,7 @@ class _ProfileViewState extends State<ProfileView> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _name,
+                          _nameController.text,
                           style: GoogleFonts.notoSans(
                             color: DashboardTheme.textMain,
                             fontSize: 36,
@@ -223,7 +337,7 @@ class _ProfileViewState extends State<ProfileView> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          _email,
+                          _emailController.text,
                           style: GoogleFonts.notoSans(
                               color: DashboardTheme.textSecondary,
                               fontSize: 14),
@@ -233,130 +347,42 @@ class _ProfileViewState extends State<ProfileView> {
                   ],
                 ),
                 const SizedBox(height: 60),
-                Row(
+                Column(
                   children: [
-                    Expanded(
-                      child: _HoverInputField(
-                        label: _ts.t('profile_name'),
-                        value: _name,
-                        onEdit: () => _showEditDialog(_ts.t('profile_name'),
-                            _name, (v) => setState(() => _name = v)),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildInfoField(
+                              _ts.t('profile_name'), _nameController,
+                              enabled: _isEditing, icon: Icons.person_rounded),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: _buildInfoField(
+                              _ts.t('profile_email'), _emailController,
+                              enabled: _isEditing, icon: Icons.email_rounded),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _HoverInputField(
-                        label: _ts.t('profile_email'),
-                        value: _email,
-                        onEdit: () => _showEditDialog(_ts.t('profile_email'),
-                            _email, (v) => setState(() => _email = v)),
-                      ),
-                    ),
+                    const SizedBox(height: 32),
+                    _buildInfoField(_ts.t('profile_phone'), _phoneController,
+                        enabled: _isEditing, icon: Icons.phone_rounded),
+                    const SizedBox(height: 32),
+                    if (widget.role == 'Technician' ||
+                        widget.role == 'Admin' ||
+                        widget.role == 'Jurisdictic')
+                      _buildInfoField(
+                          _ts.t('profile_position'), _positionController,
+                          enabled: _isEditing,
+                          icon: Icons.work_rounded,
+                          hint: _ts.t('profile_position_hint')),
+                    const SizedBox(height: 32),
                   ],
                 ),
-                const SizedBox(height: 32),
-                _HoverInputField(
-                  label: _ts.t('profile_phone'),
-                  value: _phone,
-                  onEdit: () => _showEditDialog(_ts.t('profile_phone'), _phone,
-                      (v) => setState(() => _phone = v)),
-                ),
-                const SizedBox(height: 32),
                 _HoverActionCard(
                   title: _ts.t('change_password'),
                   icon: Icons.lock_outline_rounded,
                   onTap: () => _showChangePasswordDialog(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showEditDialog(
-      String label, String currentValue, ValueChanged<String> onSave) {
-    final controller = TextEditingController(text: currentValue);
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: DashboardTheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: DashboardTheme.border),
-          ),
-          child: Container(
-            width: 400,
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("${_ts.t('edit_dialog_title')} $label",
-                    style: GoogleFonts.notoSans(
-                        color: DashboardTheme.textMain,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900)),
-                const SizedBox(height: 24),
-                Text(label,
-                    style: GoogleFonts.notoSans(
-                        color: DashboardTheme.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  style:
-                      TextStyle(color: DashboardTheme.textMain, fontSize: 14),
-                  decoration: _inputDecoration(label),
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                        child: TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(_ts.t('cancel_action'),
-                                style: GoogleFonts.notoSans(
-                                    color: DashboardTheme.textPale)))),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final v = controller.text.trim();
-                          if (v.isNotEmpty) {
-                            onSave(v);
-                            // Determine field key for API
-                            final nameLabel = _ts.t('profile_name');
-                            final emailLabel = _ts.t('profile_email');
-                            final phoneLabel = _ts.t('profile_phone');
-                            String? apiKey;
-                            if (label == nameLabel) apiKey = 'name';
-                            if (label == emailLabel) apiKey = 'email';
-                            if (label == phoneLabel) apiKey = 'phone';
-                            if (apiKey != null) {
-                              await AuthRepository.instance
-                                  .updateProfile({apiKey: v});
-                            }
-                          }
-                          Navigator.pop(ctx);
-                          _showSavedSnackbar(label);
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: DashboardTheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(vertical: 16)),
-                        child: Text(_ts.t('save_changes'),
-                            style: GoogleFonts.notoSans(
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -475,6 +501,7 @@ class _ProfileViewState extends State<ProfileView> {
                               if (result['success'] == true) {
                                 Navigator.pop(ctx);
                                 _showSavedSnackbar(_ts.t('change_password'));
+                                widget.onProfileUpdated?.call();
                               } else {
                                 setDialogState(() => errorMessage =
                                     result['error'] ?? 'Update failed');
@@ -540,93 +567,6 @@ class _ProfileViewState extends State<ProfileView> {
         margin: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
         duration: const Duration(seconds: 2),
       ),
-    );
-  }
-}
-
-class _HoverInputField extends StatefulWidget {
-  final String label;
-  final String value;
-  final VoidCallback onEdit;
-  _HoverInputField(
-      {required this.label, required this.value, required this.onEdit});
-  @override
-  State<_HoverInputField> createState() => _HoverInputFieldState();
-}
-
-class _HoverInputFieldState extends State<_HoverInputField> {
-  bool _hovered = false;
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(widget.label,
-            style: GoogleFonts.notoSans(
-                color: DashboardTheme.textMain,
-                fontSize: 16,
-                fontWeight: FontWeight.w500)),
-        const SizedBox(height: 12),
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: GestureDetector(
-            onTap: widget.onEdit,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: double.infinity,
-              height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: _hovered
-                    ? DashboardTheme.surface
-                    : DashboardTheme.surface.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: _hovered
-                        ? DashboardTheme.primary.withOpacity(0.4)
-                        : DashboardTheme.border),
-                boxShadow: _hovered
-                    ? [
-                        BoxShadow(
-                            color: DashboardTheme.primary.withOpacity(0.06),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4))
-                      ]
-                    : [],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                      child: Text(widget.value,
-                          style: GoogleFonts.notoSans(
-                              color: DashboardTheme.textSecondary,
-                              fontSize: 14))),
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: _hovered ? 1.0 : 0.3,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: _hovered
-                              ? DashboardTheme.primary.withOpacity(0.1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.edit_rounded,
-                          color: _hovered
-                              ? DashboardTheme.primary
-                              : DashboardTheme.textPale,
-                          size: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

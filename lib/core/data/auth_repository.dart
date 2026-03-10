@@ -148,6 +148,32 @@ class AuthRepository {
     return prefs.getString('auth_token');
   }
 
+  // Get list of all personnel
+  Future<List<Map<String, dynamic>>> getPersonnel() async {
+    print('FCM: Fetching personnel via API...');
+    try {
+      final token = await getToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/personnel'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final result = jsonDecode(response.body);
+      if (response.statusCode == 200 && result['success'] == true) {
+        return List<Map<String, dynamic>>.from(result['data']);
+      }
+      return [];
+    } catch (e) {
+      print('FCM: Error fetching personnel: $e');
+      return [];
+    }
+  }
+
   // Get current user profile from API
   Future<Map<String, dynamic>> getProfile() async {
     print('FCM: Fetching profile via API...');
@@ -205,6 +231,37 @@ class AuthRepository {
         };
       }
     } catch (e) {
+      return {'success': false, 'error': 'Connection Error: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> requestPasswordReset(String email) async {
+    print('FCM: Requesting password reset for $email...');
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      print('FCM: Server Response Status: ${response.statusCode}');
+      print('FCM: Server Response Body: ${response.body}');
+      final result = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': result['message'] ??
+              'Link for password reset has been sent to your email.'
+        };
+      } else {
+        return {
+          'success': false,
+          'error': result['message'] ?? 'Failed to send reset email'
+        };
+      }
+    } catch (e) {
+      print('FCM Auth Error: $e');
       return {'success': false, 'error': 'Connection Error: $e'};
     }
   }

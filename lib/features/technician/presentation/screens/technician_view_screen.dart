@@ -62,7 +62,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     const SidebarItem(
         index: 1, icon: Icons.calendar_month_outlined, label: "SCHEDULE"),
     const SidebarItem(index: 2, icon: Icons.person_outline, label: "PROFILE"),
-    const SidebarItem(index: 3, icon: Icons.settings_outlined, label: "SETTINGS"),
+    const SidebarItem(
+        index: 3, icon: Icons.settings_outlined, label: "SETTINGS"),
   ];
 
   @override
@@ -97,8 +98,15 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     if (mounted) _sidebarAnim.animateTo(1.0, curve: Curves.easeOutCubic);
   }
 
-  void _onSidebarHoverEnter() { _isHovering = true; _showSidebar(); }
-  void _onSidebarHoverExit() { _isHovering = false; _startHideTimer(); }
+  void _onSidebarHoverEnter() {
+    _isHovering = true;
+    _showSidebar();
+  }
+
+  void _onSidebarHoverExit() {
+    _isHovering = false;
+    _startHideTimer();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +143,10 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         child: HoverSidebar(
                           selectedIndex: _selectedNavIndex,
                           onIndexChanged: (i) {
-                            setState(() { _selectedNavIndex = i; _selectedTask = null; });
+                            setState(() {
+                              _selectedNavIndex = i;
+                              _selectedTask = null;
+                            });
                             _startHideTimer();
                           },
                           onLogout: () => _showLogoutConfirmation(context),
@@ -165,7 +176,10 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
               ),
               // Left edge hover zone
               Positioned(
-                top: 0, left: 0, bottom: 0, width: 16,
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: 16,
                 child: MouseRegion(
                   opaque: false,
                   onEnter: (_) => _onSidebarHoverEnter(),
@@ -267,7 +281,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             side: BorderSide(
-                                color: DashboardTheme.textPale.withOpacity(0.2)),
+                                color:
+                                    DashboardTheme.textPale.withOpacity(0.2)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16)),
                           ),
@@ -321,7 +336,10 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
   Widget _buildHeader() {
     final assignedTasks = _getAssignedTasks();
     final todayTasks = assignedTasks
-        .where((t) => t['status'] == "WORKING" || t['status'] == "URGENT" || t['status'] == "PENDING")
+        .where((t) =>
+            t['status'] == "WORKING" ||
+            t['status'] == "URGENT" ||
+            t['status'] == "PENDING")
         .length;
 
     return Container(
@@ -366,7 +384,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
       case 1:
         return _buildCalendarPage();
       case 2:
-        final wichai = DashboardData.technicians.firstWhere((t) => t['name'] == _techName);
+        final wichai =
+            DashboardData.technicians.firstWhere((t) => t['name'] == _techName);
         return ProfileView(
           name: wichai['name'],
           email: wichai['email'],
@@ -405,9 +424,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
           final rawTasks = _getAssignedTasks();
           final filteredTasks = rawTasks.where((t) {
             if (_selectedTaskFilter == "All") return true;
-            if (_selectedTaskFilter == "Working") return t['status'] == "WORKING";
-            if (_selectedTaskFilter == "Pending") return t['status'] == "PENDING" || t['status'] == "URGENT";
-            if (_selectedTaskFilter == "Completed") return t['status'] == "DONE";
+            if (_selectedTaskFilter == "Working")
+              return t['status'] == "WORKING";
+            if (_selectedTaskFilter == "Pending")
+              return t['status'] == "PENDING" || t['status'] == "URGENT";
+            if (_selectedTaskFilter == "Completed")
+              return t['status'] == "DONE";
             return true;
           }).toList();
 
@@ -435,10 +457,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
               final t = filteredTasks[index];
               // Map DashboardData status to UI status
               final uiStatus = t['status'].toString().toLowerCase();
-              final displayStatus = t['status'] == "URGENT" ? "Urgent" : 
-                                   (t['status'] == "WORKING" ? "Working" : 
-                                   (t['status'] == "DONE" ? "Completed" : "Pending"));
-              
+              final displayStatus = t['status'] == "URGENT"
+                  ? "Urgent"
+                  : (t['status'] == "WORKING"
+                      ? "Working"
+                      : (t['status'] == "DONE" ? "Completed" : "Pending"));
+
               final mappedTask = {
                 ...t,
                 "uiStatus": uiStatus,
@@ -547,7 +571,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
   Widget _calendarDay(int day) {
     bool isSelected = _selectedCalendarDay == day;
-    
+
     final assignedTasks = _getAssignedTasks();
     final dayTasks = assignedTasks.where((t) {
       final dateStr = t['date'] as String;
@@ -555,7 +579,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
       return dayPart == day;
     }).toList();
 
-    bool isBusy = dayTasks.any((t) => t['status'] == "WORKING" || t['status'] == "URGENT");
+    bool isBusy = dayTasks
+        .any((t) => t['status'] == "WORKING" || t['status'] == "URGENT");
     bool hasPending = dayTasks.any((t) => t['status'] == "PENDING");
     bool isAvailable = !isBusy && !hasPending && !isSelected;
 
@@ -671,12 +696,15 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
             return Column(
               children: dayTasks.map((t) {
-                final displayStatus = t['status'] == "URGENT" ? "Urgent" : 
-                                     (t['status'] == "WORKING" ? "Working" : 
-                                     (t['status'] == "DONE" ? "Completed" : "Pending"));
+                final displayStatus = t['status'] == "URGENT"
+                    ? "Urgent"
+                    : (t['status'] == "WORKING"
+                        ? "Working"
+                        : (t['status'] == "DONE" ? "Completed" : "Pending"));
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _compactTaskTile(t['title'], displayStatus, t['house'], t['id']),
+                  child: _compactTaskTile(
+                      t['title'], displayStatus, t['house'], t['id']),
                 );
               }).toList(),
             );
@@ -686,7 +714,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _compactTaskTile(String title, String status, String house, String id) {
+  Widget _compactTaskTile(
+      String title, String status, String house, String id) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -751,7 +780,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
     if (upcomingItems.isEmpty) {
       return Center(
-        child: Text("No upcoming tasks", style: GoogleFonts.kanit(color: _textMuted)),
+        child: Text("No upcoming tasks",
+            style: GoogleFonts.kanit(color: _textMuted)),
       );
     }
 
@@ -813,8 +843,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
             children: [
               Icon(Icons.west_rounded, size: 18, color: _textMuted),
               const SizedBox(width: 10),
-              Text("BACK", style: GoogleFonts.kanit(
-                  color: _textMuted, fontSize: 12, letterSpacing: 3, fontWeight: FontWeight.w600)),
+              Text("BACK",
+                  style: GoogleFonts.kanit(
+                      color: _textMuted,
+                      fontSize: 12,
+                      letterSpacing: 3,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -826,7 +860,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
           children: [
             // Thick status accent bar
             Container(
-              width: 6, height: 72,
+              width: 6,
+              height: 72,
               margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
                 color: statusColor,
@@ -839,16 +874,23 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Tiny label
-                  Text("${task['id'] ?? ''}  ·  ${task['category'] ?? ''}".toUpperCase(),
+                  Text(
+                      "${task['id'] ?? ''}  ·  ${task['category'] ?? ''}"
+                          .toUpperCase(),
                       style: GoogleFonts.kanit(
-                          fontSize: 11, color: _textMuted,
-                          letterSpacing: 3, fontWeight: FontWeight.w500)),
+                          fontSize: 11,
+                          color: _textMuted,
+                          letterSpacing: 3,
+                          fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   // MASSIVE title
                   Text(task['title'] ?? "Task Detail",
                       style: GoogleFonts.kanit(
-                          fontSize: 42, fontWeight: FontWeight.w900,
-                          color: _textMain, height: 1.1, letterSpacing: -0.5)),
+                          fontSize: 42,
+                          fontWeight: FontWeight.w900,
+                          color: _textMain,
+                          height: 1.1,
+                          letterSpacing: -0.5)),
                 ],
               ),
             ),
@@ -863,7 +905,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   style: GoogleFonts.kanit(
                       color: statusColor == _gold ? Colors.black : Colors.white,
                       fontWeight: FontWeight.w800,
-                      fontSize: 12, letterSpacing: 2)),
+                      fontSize: 12,
+                      letterSpacing: 2)),
             ),
           ],
         ),
@@ -885,12 +928,14 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                     children: [
                       // Simple avatar — no double ring, no gradient
                       Container(
-                        width: 64, height: 64,
+                        width: 64,
+                        height: 64,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: _gold, width: 2.5),
                           image: DecorationImage(
-                            image: AssetImage(task['requesterImage'] ?? 'assets/images/profile_placeholder_2.jpg'),
+                            image: AssetImage(task['requesterImage'] ??
+                                'assets/images/profile_placeholder_2.jpg'),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -902,12 +947,16 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           children: [
                             Text(task['requester'] ?? "Unknown",
                                 style: GoogleFonts.kanit(
-                                    fontSize: 20, fontWeight: FontWeight.w700,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
                                     color: _textMain)),
                             const SizedBox(height: 4),
-                            Text("${task['house'] ?? ''}  ·  ${task['requesterAccount'] ?? ''}  ·  ${task['date'] ?? ''}",
+                            Text(
+                                "${task['house'] ?? ''}  ·  ${task['requesterAccount'] ?? ''}  ·  ${task['date'] ?? ''}",
                                 style: GoogleFonts.kanit(
-                                    fontSize: 13, color: _textMuted, letterSpacing: 0.3)),
+                                    fontSize: 13,
+                                    color: _textMuted,
+                                    letterSpacing: 0.3)),
                           ],
                         ),
                       ),
@@ -917,28 +966,36 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   const SizedBox(height: 40),
 
                   // ▌ REPORT — Raw typography, no frame
-                  Text("REPORT", style: GoogleFonts.kanit(
-                      fontSize: 11, color: _gold,
-                      letterSpacing: 4, fontWeight: FontWeight.w700)),
+                  Text("REPORT",
+                      style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: _gold,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   Text(
                     task['report'] ?? "No details provided.",
                     style: GoogleFonts.kanit(
                       color: _textMain.withOpacity(0.85),
-                      fontSize: 16, height: 1.8,
+                      fontSize: 16,
+                      height: 1.8,
                       fontWeight: FontWeight.w300,
                     ),
                   ),
                   // Thin gold line
                   const SizedBox(height: 32),
-                  Container(height: 1, width: 80, color: _gold.withOpacity(0.4)),
+                  Container(
+                      height: 1, width: 80, color: _gold.withOpacity(0.4)),
 
                   const SizedBox(height: 40),
 
                   // ▌ 3D VIEW — Clean, dark
-                  Text("REPAIR AREA", style: GoogleFonts.kanit(
-                      fontSize: 11, color: _gold,
-                      letterSpacing: 4, fontWeight: FontWeight.w700)),
+                  Text("REPAIR AREA",
+                      style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: _gold,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   Container(
                     height: 300,
@@ -957,22 +1014,27 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                               Icon(Icons.view_in_ar_rounded,
                                   size: 56, color: _gold.withOpacity(0.2)),
                               const SizedBox(height: 12),
-                              Text("3D MODEL", style: GoogleFonts.kanit(
-                                  color: _textMuted.withOpacity(0.5),
-                                  fontSize: 12, letterSpacing: 3)),
+                              Text("3D MODEL",
+                                  style: GoogleFonts.kanit(
+                                      color: _textMuted.withOpacity(0.5),
+                                      fontSize: 12,
+                                      letterSpacing: 3)),
                             ],
                           ),
                         ),
                         Positioned(
-                          top: 16, right: 16,
+                          top: 16,
+                          right: 16,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: _bgSidebar,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text("📍 ${task['house']}",
-                                style: GoogleFonts.kanit(fontSize: 12, color: _textMuted)),
+                                style: GoogleFonts.kanit(
+                                    fontSize: 12, color: _textMuted)),
                           ),
                         ),
                       ],
@@ -991,16 +1053,25 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ▌ JOB STATUS — Ultra-minimal stepper
-                  Text("STATUS", style: GoogleFonts.kanit(
-                      fontSize: 11, color: _gold,
-                      letterSpacing: 4, fontWeight: FontWeight.w700)),
+                  Text("STATUS",
+                      style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: _gold,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 24),
                   _stepper([
                     _StepData("Assigned", task['date'] ?? 'N/A', true),
-                    _StepData("On-Site", "Arrived at location",
-                        task['status'] == 'WORKING' || task['status'] == 'DONE'),
-                    _StepData("In Progress", "Work underway",
-                        task['status'] == 'WORKING' || task['status'] == 'DONE'),
+                    _StepData(
+                        "On-Site",
+                        "Arrived at location",
+                        task['status'] == 'WORKING' ||
+                            task['status'] == 'DONE'),
+                    _StepData(
+                        "In Progress",
+                        "Work underway",
+                        task['status'] == 'WORKING' ||
+                            task['status'] == 'DONE'),
                     _StepData("Completed", "Pending review",
                         task['status'] == 'DONE'),
                   ]),
@@ -1020,13 +1091,24 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           context: context,
                           builder: (ctx) => AlertDialog(
                             backgroundColor: DashboardTheme.surface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            title: Text("ยืนยันเริ่มงาน", style: GoogleFonts.notoSans(color: DashboardTheme.textMain, fontSize: 18, fontWeight: FontWeight.w900)),
-                            content: Text("เริ่มงาน ${task['title']}?", style: GoogleFonts.notoSans(color: DashboardTheme.textSecondary, fontSize: 13)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20)),
+                            title: Text("ยืนยันเริ่มงาน",
+                                style: GoogleFonts.notoSans(
+                                    color: DashboardTheme.textMain,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900)),
+                            content: Text("เริ่มงาน ${task['title']}?",
+                                style: GoogleFonts.notoSans(
+                                    color: DashboardTheme.textSecondary,
+                                    fontSize: 13)),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx),
-                                child: Text("ยกเลิก", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontWeight: FontWeight.bold)),
+                                child: Text("ยกเลิก",
+                                    style: GoogleFonts.notoSans(
+                                        color: DashboardTheme.textPale,
+                                        fontWeight: FontWeight.bold)),
                               ),
                               ElevatedButton(
                                 onPressed: () {
@@ -1034,18 +1116,27 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                   setState(() => task['status'] = 'WORKING');
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text("เริ่มงานเรียบร้อย — สถานะเปลี่ยนเป็น 'กำลังดำเนินการ'", style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
+                                      content: Text(
+                                          "เริ่มงานเรียบร้อย — สถานะเปลี่ยนเป็น 'กำลังดำเนินการ'",
+                                          style: GoogleFonts.notoSans(
+                                              fontWeight: FontWeight.w600)),
                                       backgroundColor: DashboardTheme.success,
                                       behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
                                     ),
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFF59E0B),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
                                 ),
-                                child: Text("เริ่มงาน", style: GoogleFonts.notoSans(color: Colors.black, fontWeight: FontWeight.w900)),
+                                child: Text("เริ่มงาน",
+                                    style: GoogleFonts.notoSans(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w900)),
                               ),
                             ],
                           ),
@@ -1063,17 +1154,27 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           decoration: BoxDecoration(
                             color: DashboardTheme.primary.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: DashboardTheme.primary.withOpacity(0.2)),
+                            border: Border.all(
+                                color: DashboardTheme.primary.withOpacity(0.2)),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.assignment_turned_in_rounded, color: DashboardTheme.primary, size: 20),
+                              Icon(Icons.assignment_turned_in_rounded,
+                                  color: DashboardTheme.primary, size: 20),
                               const SizedBox(width: 12),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("TURN-IN REPORT", style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                                  Text("กรอกรายงานแล้วส่งงาน", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontSize: 10)),
+                                  Text("TURN-IN REPORT",
+                                      style: GoogleFonts.notoSans(
+                                          color: DashboardTheme.primary,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.5)),
+                                  Text("กรอกรายงานแล้วส่งงาน",
+                                      style: GoogleFonts.notoSans(
+                                          color: DashboardTheme.textPale,
+                                          fontSize: 10)),
                                 ],
                               ),
                             ],
@@ -1091,41 +1192,68 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                               context: context,
                               builder: (ctx) => AlertDialog(
                                 backgroundColor: DashboardTheme.surface,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                title: Text("ส่งรายงานการซ่อม", style: GoogleFonts.notoSans(color: DashboardTheme.textMain, fontSize: 18, fontWeight: FontWeight.w900)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                title: Text("ส่งรายงานการซ่อม",
+                                    style: GoogleFonts.notoSans(
+                                        color: DashboardTheme.textMain,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900)),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("ยืนยันการส่งงาน ${task['title']}?", style: GoogleFonts.notoSans(color: DashboardTheme.textSecondary, fontSize: 13)),
+                                    Text("ยืนยันการส่งงาน ${task['title']}?",
+                                        style: GoogleFonts.notoSans(
+                                            color: DashboardTheme.textSecondary,
+                                            fontSize: 13)),
                                     const SizedBox(height: 12),
                                     if (_attachedImages.isNotEmpty)
-                                      Text("📎 ${_attachedImages.length} รูปแนบ", style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 12)),
+                                      Text(
+                                          "📎 ${_attachedImages.length} รูปแนบ",
+                                          style: GoogleFonts.notoSans(
+                                              color: DashboardTheme.primary,
+                                              fontSize: 12)),
                                   ],
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx),
-                                    child: Text("ยกเลิก", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontWeight: FontWeight.bold)),
+                                    child: Text("ยกเลิก",
+                                        style: GoogleFonts.notoSans(
+                                            color: DashboardTheme.textPale,
+                                            fontWeight: FontWeight.bold)),
                                   ),
                                   ElevatedButton(
                                     onPressed: () {
                                       Navigator.pop(ctx);
                                       setState(() => task['status'] = 'DONE');
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
-                                          content: Text("ส่งรายงานเรียบร้อย — สถานะเปลี่ยนเป็น 'เสร็จสิ้น'", style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
-                                          backgroundColor: const Color(0xFF10B981),
+                                          content: Text(
+                                              "ส่งรายงานเรียบร้อย — สถานะเปลี่ยนเป็น 'เสร็จสิ้น'",
+                                              style: GoogleFonts.notoSans(
+                                                  fontWeight: FontWeight.w600)),
+                                          backgroundColor:
+                                              const Color(0xFF10B981),
                                           behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
                                         ),
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF10B981),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
                                     ),
-                                    child: Text("ส่งงาน", style: GoogleFonts.notoSans(color: Colors.white, fontWeight: FontWeight.w900)),
+                                    child: Text("ส่งงาน",
+                                        style: GoogleFonts.notoSans(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w900)),
                                   ),
                                 ],
                               ),
@@ -1139,27 +1267,34 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                        border: Border.all(
+                            color: const Color(0xFF10B981).withOpacity(0.3)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
-                        child: Text("COMPLETED ✓", style: GoogleFonts.kanit(
-                            color: const Color(0xFF10B981),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14, letterSpacing: 2)),
+                        child: Text("COMPLETED ✓",
+                            style: GoogleFonts.kanit(
+                                color: const Color(0xFF10B981),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                letterSpacing: 2)),
                       ),
                     ),
 
                   const SizedBox(height: 48),
 
                   // ▌ NOTES — Clean input
-                  Text("NOTES", style: GoogleFonts.kanit(
-                      fontSize: 11, color: _gold,
-                      letterSpacing: 4, fontWeight: FontWeight.w700)),
+                  Text("NOTES",
+                      style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: _gold,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   TextField(
                     maxLines: 5,
-                    style: GoogleFonts.kanit(color: _textMain, fontSize: 14, height: 1.6),
+                    style: GoogleFonts.kanit(
+                        color: _textMain, fontSize: 14, height: 1.6),
                     decoration: InputDecoration(
                       hintText: "Repair observations...",
                       hintStyle: GoogleFonts.kanit(
@@ -1184,9 +1319,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   const SizedBox(height: 20),
 
                   // ▌ ATTACHMENTS — Image upload area
-                  Text("ATTACHMENTS", style: GoogleFonts.kanit(
-                      fontSize: 11, color: _gold,
-                      letterSpacing: 4, fontWeight: FontWeight.w700)),
+                  Text("ATTACHMENTS",
+                      style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: _gold,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   // Attached image preview grid
                   if (_attachedImages.isNotEmpty)
@@ -1199,30 +1337,37 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           return Stack(
                             children: [
                               Container(
-                                width: 72, height: 72,
+                                width: 72,
+                                height: 72,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(10),
                                   color: _bgSidebar,
-                                  border: Border.all(color: _border.withOpacity(0.5)),
+                                  border: Border.all(
+                                      color: _border.withOpacity(0.5)),
                                   image: DecorationImage(
                                     image: kIsWeb
-                                        ? NetworkImage(e.value.path) as ImageProvider
+                                        ? NetworkImage(e.value.path)
+                                            as ImageProvider
                                         : FileImage(File(e.value.path)),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
                               Positioned(
-                                top: 2, right: 2,
+                                top: 2,
+                                right: 2,
                                 child: InkWell(
-                                  onTap: () => setState(() => _attachedImages.removeAt(e.key)),
+                                  onTap: () => setState(
+                                      () => _attachedImages.removeAt(e.key)),
                                   child: Container(
-                                    width: 20, height: 20,
+                                    width: 20,
+                                    height: 20,
                                     decoration: BoxDecoration(
                                       color: Colors.black.withOpacity(0.7),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                    child: const Icon(Icons.close,
+                                        size: 12, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -1250,9 +1395,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           Icon(Icons.add_photo_alternate_outlined,
                               size: 28, color: _textMuted.withOpacity(0.4)),
                           const SizedBox(height: 8),
-                          Text("ATTACH PHOTO", style: GoogleFonts.kanit(
-                              fontSize: 11, color: _textMuted.withOpacity(0.4),
-                              letterSpacing: 2, fontWeight: FontWeight.w600)),
+                          Text("ATTACH PHOTO",
+                              style: GoogleFonts.kanit(
+                                  fontSize: 11,
+                                  color: _textMuted.withOpacity(0.4),
+                                  letterSpacing: 2,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -1265,9 +1413,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text("SAVE NOTE", style: GoogleFonts.kanit(
-                          color: _gold, fontWeight: FontWeight.w600,
-                          fontSize: 12, letterSpacing: 2)),
+                      child: Text("SAVE NOTE",
+                          style: GoogleFonts.kanit(
+                              color: _gold,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              letterSpacing: 2)),
                     ),
                   ),
                 ],
@@ -1295,7 +1446,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
           backgroundColor: color,
           foregroundColor: textColor,
           padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
         child: Row(
@@ -1303,8 +1455,11 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
           children: [
             Icon(icon, size: 18),
             const SizedBox(width: 10),
-            Text(label, style: GoogleFonts.kanit(
-                fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 2)),
+            Text(label,
+                style: GoogleFonts.kanit(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    letterSpacing: 2)),
           ],
         ),
       ),
@@ -1369,9 +1524,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     String category = t['category'] ?? "General";
 
     Color statusColor = const Color(0xFFF59E0B); // Pending (Gold)
-    if (t['uiStatus'] == 'working') statusColor = const Color(0xFF10B981); // Working (Green)
-    if (t['uiStatus'] == 'done') statusColor = const Color(0xFF3B82F6); // Done (Blue)
-    if (t['uiStatus'] == 'urgent') statusColor = const Color(0xFFFF3333); // Urgent (Red)
+    if (t['uiStatus'] == 'working')
+      statusColor = const Color(0xFF10B981); // Working (Green)
+    if (t['uiStatus'] == 'done')
+      statusColor = const Color(0xFF3B82F6); // Done (Blue)
+    if (t['uiStatus'] == 'urgent')
+      statusColor = const Color(0xFFFF3333); // Urgent (Red)
 
     return InkWell(
       onTap: () => _showTaskDetails(t),
@@ -1389,7 +1547,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
                 color: statusColor.withOpacity(0.05),
-                border: Border(bottom: BorderSide(color: statusColor.withOpacity(0.2))),
+                border: Border(
+                    bottom: BorderSide(color: statusColor.withOpacity(0.2))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1419,7 +1578,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   children: [
                     // Thick accent mark
                     Container(
-                      width: 24, height: 4,
+                      width: 24,
+                      height: 4,
                       color: statusColor,
                       margin: const EdgeInsets.only(bottom: 16),
                     ),
@@ -1433,25 +1593,30 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                             height: 1.2,
                             color: _textMain)),
                     const Spacer(),
-                    
+
                     // Details
                     Row(
                       children: [
-                        Icon(Icons.location_on_rounded, size: 14, color: _textMuted),
+                        Icon(Icons.location_on_rounded,
+                            size: 14, color: _textMuted),
                         const SizedBox(width: 8),
                         Text("${t['house']}",
                             style: GoogleFonts.kanit(
-                                fontSize: 13, color: _textMuted, fontWeight: FontWeight.w500)),
+                                fontSize: 13,
+                                color: _textMuted,
+                                fontWeight: FontWeight.w500)),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.calendar_month_rounded, size: 14, color: _textMuted),
+                        Icon(Icons.calendar_month_rounded,
+                            size: 14, color: _textMuted),
                         const SizedBox(width: 8),
                         Text("${t['date']}",
                             style: GoogleFonts.kanit(
-                                fontSize: 12, color: _textMuted.withOpacity(0.6))),
+                                fontSize: 12,
+                                color: _textMuted.withOpacity(0.6))),
                       ],
                     ),
                   ],
@@ -1464,7 +1629,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
                 color: _bgMain,
-                border: Border(top: BorderSide(color: _border.withOpacity(0.3))),
+                border:
+                    Border(top: BorderSide(color: _border.withOpacity(0.3))),
               ),
               child: Center(
                 child: Row(
@@ -1520,8 +1686,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   height: 28,
                   decoration: BoxDecoration(
                     color: s.done
-                        ? (i == steps.length - 1 ? const Color(0xFF10B981) : _gold)
-                        : (isActive ? _gold.withOpacity(0.15) : Colors.transparent),
+                        ? (i == steps.length - 1
+                            ? const Color(0xFF10B981)
+                            : _gold)
+                        : (isActive
+                            ? _gold.withOpacity(0.15)
+                            : Colors.transparent),
                     border: Border.all(
                         color: s.done
                             ? Colors.transparent
@@ -1529,13 +1699,24 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         width: 2),
                     shape: BoxShape.circle,
                     boxShadow: isActive
-                        ? [BoxShadow(color: _gold.withOpacity(0.35), blurRadius: 10, spreadRadius: 1)]
+                        ? [
+                            BoxShadow(
+                                color: _gold.withOpacity(0.35),
+                                blurRadius: 10,
+                                spreadRadius: 1)
+                          ]
                         : [],
                   ),
                   child: s.done
-                      ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                      ? const Icon(Icons.check_rounded,
+                          size: 16, color: Colors.white)
                       : (isActive
-                          ? Center(child: Container(width: 8, height: 8, decoration: BoxDecoration(color: _gold, shape: BoxShape.circle)))
+                          ? Center(
+                              child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: _gold, shape: BoxShape.circle)))
                           : null),
                 ),
                 if (i < steps.length - 1)
@@ -1568,7 +1749,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                               ? _textMain
                               : (isActive ? _gold : _textMuted))),
                   Text(s.sub,
-                      style: GoogleFonts.kanit(fontSize: 12, color: _textMuted)),
+                      style:
+                          GoogleFonts.kanit(fontSize: 12, color: _textMuted)),
                 ],
               ),
             ),

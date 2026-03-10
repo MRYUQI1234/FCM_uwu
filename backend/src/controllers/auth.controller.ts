@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../database";
+import { EmailService } from "../services/email.service";
 
 const JWT_SECRET = process.env.JWT_SECRET || "vivorn-villa-secret-key-2026";
 
@@ -161,7 +162,7 @@ export class AuthController {
 
       // Get basic user info
       const user = db.prepare(`
-        SELECT u.id, u.email, u.phone, u.role, u.full_name as name, u.is_first_login, r.house_number as houseId
+        SELECT u.id, u.email, u.phone, u.role, u.position, u.full_name as name, u.is_first_login, r.house_number as houseId
         FROM users u
         LEFT JOIN real_estate_records r ON u.national_id = r.national_id
         WHERE u.id = ?
@@ -181,13 +182,35 @@ export class AuthController {
   }
 
   /**
+   * GET /api/auth/personnel
+   * Returns list of all personnel (Technicians & Admins)
+   */
+  static async getPersonnel(req: Request, res: Response) {
+    try {
+      const personnel = db.prepare(`
+        SELECT id, email, phone, role, position, full_name as name, 'assets/resident_profile.png' as image
+        FROM users
+        WHERE role IN ('Technician', 'Village Admin', 'Jurisdictic', 'Admin')
+        ORDER BY full_name ASC
+      `).all();
+
+      return res.status(200).json({
+        success: true,
+        data: personnel
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, status_code: "SERVER_ERROR" });
+    }
+  }
+
+  /**
    * PATCH /api/auth/profile
    * Update current user's profile fields (name, email, phone, password)
    */
   static async updateProfile(req: Request, res: Response) {
     try {
       const userId = (req as any).user.id;
-      const { name, email, phone, password } = req.body;
+      const { name, email, phone, password, position } = req.body;
 
       // Build dynamic update
       const updates: string[] = [];
@@ -227,6 +250,11 @@ export class AuthController {
         values.push(password_hash);
       }
 
+      if (position !== undefined) {
+        updates.push("position = ?");
+        values.push(position ? position.trim() : null);
+      }
+
       if (updates.length === 0) {
         return res.status(400).json({ success: false, status_code: "NO_CHANGES", message: "No valid fields to update" });
       }
@@ -239,6 +267,52 @@ export class AuthController {
       return res.status(200).json({ success: true, status_code: "PROFILE_UPDATED" });
     } catch (error: any) {
       console.error("[FCM Backend] Profile Update Error:", error);
+      return res.status(500).json({ success: false, status_code: "SERVER_ERROR" });
+    }
+  }
+
+  /**
+   * POST /api/auth/forgot-password
+   */
+  static async forgotPassword(req: Request, res: Response) {
+    console.log("[FCM Backend] Forgot Password Request for:", req.body.email);
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+
+      const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+      if (!user) {
+        // Return 200 to avoid revealing if email exists or not (Standard Practice)
+        return res.status(200).json({
+          success: true,
+          status_code: "RESET_LINK_SENT",
+          message: "Link for password reset has been sent to your email."
+        });
+      }
+
+      // Generate a mock reset link (In real app, save token to DB with expiry)
+      const resetToken = uuidv4();
+      const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+      const emailSent = await EmailService.sendResetPasswordEmail(email, resetLink);
+
+      if (!emailSent) {
+        return res.status(500).json({
+          success: false,
+          status_code: "EMAIL_ERROR",
+          message: "Failed to send reset email. Please try again later."
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        status_code: "RESET_LINK_SENT",
+        message: "Link for password reset has been sent to your email."
+      });
+
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, status_code: "VALIDATION_ERROR", errors: error.issues });
+      }
       return res.status(500).json({ success: false, status_code: "SERVER_ERROR" });
     }
   }

@@ -548,7 +548,7 @@ class _TechniciansViewState extends State<TechniciansView> {
   Widget _buildStaffRow(BuildContext context, Map<String, dynamic> tech) {
     bool isHovered = false;
     bool isActive = tech['isActive'] as bool? ?? true;
-    final String techName = tech['name'] as String;
+    final String techName = tech['name']?.toString() ?? 'Unknown';
     final bool isTeamSelected = _teamDraftMembers.contains(techName);
 
     return StatefulBuilder(
@@ -621,13 +621,21 @@ class _TechniciansViewState extends State<TechniciansView> {
                           radius: 20,
                           backgroundColor:
                               DashboardTheme.primary.withOpacity(0.1),
-                          backgroundImage: (tech['image'] as String)
+                          backgroundImage: (tech['image']?.toString() ?? '')
                                   .startsWith('assets/')
-                              ? AssetImage(tech['image'] as String)
+                              ? AssetImage(tech['image']?.toString() ??
+                                      'assets/resident_profile.png')
                                   as ImageProvider
-                              : (kIsWeb
-                                  ? NetworkImage(tech['image'] as String)
-                                  : FileImage(File(tech['image'] as String))),
+                              : (tech['image'] != null &&
+                                      tech['image'].toString().isNotEmpty
+                                  ? (kIsWeb
+                                      ? NetworkImage(tech['image'].toString())
+                                      : FileImage(
+                                              File(tech['image'].toString()))
+                                          as ImageProvider)
+                                  : const AssetImage(
+                                          'assets/resident_profile.png')
+                                      as ImageProvider),
                         ),
                       ),
                     ),
@@ -655,13 +663,13 @@ class _TechniciansViewState extends State<TechniciansView> {
                     ),
                     Expanded(
                         flex: 2,
-                        child: Text(tech['phone'] as String,
+                        child: Text(tech['phone']?.toString() ?? 'N/A',
                             style: GoogleFonts.notoSans(
                                 color: DashboardTheme.textSecondary,
                                 fontSize: 13))),
                     Expanded(
                         flex: 3,
-                        child: Text(tech['email'] as String,
+                        child: Text(tech['email']?.toString() ?? 'N/A',
                             style: GoogleFonts.notoSans(
                                 color: DashboardTheme.textPale, fontSize: 13))),
                     Expanded(
@@ -691,12 +699,17 @@ class _TechniciansViewState extends State<TechniciansView> {
                       ]),
                     ),
                     Expanded(
-                        flex: 2,
-                        child: Text(tech['role'] as String,
-                            style: GoogleFonts.notoSans(
-                                color: DashboardTheme.textSecondary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold))),
+                      flex: 2,
+                      child: Text(
+                          tech['position'] != null &&
+                                  tech['position'].toString().isNotEmpty
+                              ? tech['position'].toString()
+                              : (tech['role']?.toString() ?? 'User'),
+                          style: GoogleFonts.notoSans(
+                              color: DashboardTheme.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500)),
+                    ),
                     Expanded(
                       flex: 2,
                       child: Row(children: [

@@ -59,6 +59,7 @@ class TranslationService {
 
       // AI Chat
       'ai_chat_fab': 'Chat with AI',
+      'v_chat_with_ai': 'V Chat with AI',
 
       // AI Chat Panel UI
       'ai_panel_title': 'Vivorn AI Assistant',
@@ -128,6 +129,8 @@ class TranslationService {
       'profile_name': 'Name',
       'profile_email': 'Email',
       'profile_phone': 'Phone',
+      'profile_position': 'Position',
+      'profile_position_hint': 'e.g. Electrician, Plumber',
       'change_password': 'Change password',
       'edit_dialog_title': 'Edit',
       'new_password': 'New Password',
@@ -173,6 +176,7 @@ class TranslationService {
       'status_all_normal': 'ระบบทั้งหมดปกติ',
       'news_label': 'ข่าวสาร',
       'ai_chat_fab': 'แชทกับ AI',
+      'v_chat_with_ai': 'V คุยกับ AI',
 
       // AI Chat Panel UI
       'ai_panel_title': 'Vivorn AI Assistant',
@@ -234,6 +238,8 @@ class TranslationService {
       'profile_name': 'ชื่อ',
       'profile_email': 'อีเมล',
       'profile_phone': 'โทรศัพท์',
+      'profile_position': 'ตำแหน่ง',
+      'profile_position_hint': 'เช่น ช่างไฟฟ้า, ช่างประปา',
       'change_password': 'เปลี่ยนรหัสผ่าน',
       'edit_dialog_title': 'แก้ไข',
       'new_password': 'รหัสผ่านใหม่',
@@ -275,6 +281,7 @@ class TranslationService {
       'status_all_normal': '所有系统正常',
       'news_label': '新闻',
       'ai_chat_fab': '与AI聊天',
+      'v_chat_with_ai': 'V 与 AI 聊天',
 
       // AI Chat Panel UI
       'ai_panel_title': 'Vivorn AI助手',

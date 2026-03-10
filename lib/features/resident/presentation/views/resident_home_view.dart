@@ -39,7 +39,8 @@ class ResidentHomeView extends StatefulWidget {
   State<ResidentHomeView> createState() => _ResidentHomeViewState();
 }
 
-class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProviderStateMixin {
+class _ResidentHomeViewState extends State<ResidentHomeView>
+    with TickerProviderStateMixin {
   // ── UI State ──
   late Timer _clockTimer;
   String _timeStr = '';
@@ -64,12 +65,13 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
   TimeOfDay? _selectedTime;
   List<String> _attachedImages = [];
   bool _showConfirmation = false;
-  
+
   final ValueNotifier<Offset> _popupOffset = ValueNotifier<Offset>(Offset.zero);
   final ValueNotifier<bool> _isDragging = ValueNotifier<bool>(false);
-  
+
   // Draggable FAB State (Starts at Header position)
-  final ValueNotifier<Offset> _repairFabOffset = ValueNotifier<Offset>(const Offset(40, 110));
+  final ValueNotifier<Offset> _repairFabOffset =
+      ValueNotifier<Offset>(const Offset(40, 110));
   final ValueNotifier<bool> _isRepairFabDragging = ValueNotifier<bool>(false);
 
   // ── Camera State ──
@@ -118,25 +120,50 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
   };
 
   final _categories = [
-    {'group': 'HVAC & Appliances', 'items': ['Air Conditioner', 'Refrigerator', 'Oven', 'Washing Machine']},
-    {'group': 'Infrastructure', 'items': ['Doors/Windows', 'Lighting', 'Plumbing']},
-    {'group': 'Structure & Build', 'items': ['Wall', 'Floor', 'Ceiling', 'Roof']},
-    {'group': 'Furniture & Decor', 'items': ['Sofa/Carpet', 'Closet/Cabinet', 'Bed/Table', 'Wall Tablet']},
+    {
+      'group': 'HVAC & Appliances',
+      'items': ['Air Conditioner', 'Refrigerator', 'Oven', 'Washing Machine']
+    },
+    {
+      'group': 'Infrastructure',
+      'items': ['Doors/Windows', 'Lighting', 'Plumbing']
+    },
+    {
+      'group': 'Structure & Build',
+      'items': ['Wall', 'Floor', 'Ceiling', 'Roof']
+    },
+    {
+      'group': 'Furniture & Decor',
+      'items': ['Sofa/Carpet', 'Closet/Cabinet', 'Bed/Table', 'Wall Tablet']
+    },
   ];
 
   final List<_Announcement> _announcements = const [
-    _Announcement(icon: Icons.water_drop_rounded, color: Color(0xFF60A5FA), text: 'Water Tank Cleaning — Water off 09:00 – 12:00 (Feb 15)'),
-    _Announcement(icon: Icons.bug_report_rounded, color: Color(0xFFFBBF24), text: 'Mosquito Spraying — Close all windows & doors (Feb 20)'),
-    _Announcement(icon: Icons.groups_rounded, color: Color(0xFF34D399), text: 'Annual General Meeting — Clubhouse, 6:00 PM (Feb 25)'),
+    _Announcement(
+        icon: Icons.water_drop_rounded,
+        color: Color(0xFF60A5FA),
+        text: 'Water Tank Cleaning — Water off 09:00 – 12:00 (Feb 15)'),
+    _Announcement(
+        icon: Icons.bug_report_rounded,
+        color: Color(0xFFFBBF24),
+        text: 'Mosquito Spraying — Close all windows & doors (Feb 20)'),
+    _Announcement(
+        icon: Icons.groups_rounded,
+        color: Color(0xFF34D399),
+        text: 'Annual General Meeting — Clubhouse, 6:00 PM (Feb 25)'),
   ];
 
   @override
   void initState() {
     super.initState();
     _updateTime();
-    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) => _updateTime());
-    _tickerAnim = AnimationController(vsync: this, duration: const Duration(seconds: 40))..repeat();
-    _popupAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _clockTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) => _updateTime());
+    _tickerAnim =
+        AnimationController(vsync: this, duration: const Duration(seconds: 40))
+          ..repeat();
+    _popupAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
     _setupJsInterop();
   }
 
@@ -159,7 +186,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
       js.context['onHomeObjectClicked'] = (dynamic name) {
         if (mounted) _handleObjectClick(name);
       };
-      
+
       js.context['fcmDebugLog'] = (dynamic msg) {
         print("★★★ FCM_DEBUG_HOME: $msg ★★★");
       };
@@ -508,7 +535,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
     try {
       String name = '';
       String focusPos = '';
-      
+
       if (raw is String && raw.startsWith('{')) {
         final data = jsonDecode(raw);
         name = data['name'] ?? '';
@@ -518,7 +545,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
       }
 
       if (name.isEmpty) return;
-      
+
       String shortName = name.split(' [').first;
       final displayName = _formatObjectName(shortName);
 
@@ -527,15 +554,15 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
         _cameraTarget = focusPos;
         _repairFabOffset.value = const Offset(40, 110);
         _titleCtrl.text = displayName;
-        
+
         // Auto-select category (Robust matching)
         _selectedCategory = '';
         final lowerDisplay = displayName.toLowerCase();
-        
+
         _objectCategoryMap.forEach((key, value) {
           if (lowerDisplay.contains(key)) _selectedCategory = value;
         });
-        
+
         // Final fallback if the above soft-match fails, try exact group items
         if (_selectedCategory.isEmpty) {
           for (final cat in _categories) {
@@ -559,12 +586,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
       if (focusPos.isNotEmpty) {
         js.context.callMethod('fcmFocus', [_cameraTarget, 0.7]);
       }
-    } catch(e) {}
+    } catch (e) {}
   }
 
   String _formatObjectName(String rawName) {
     final lower = rawName.toLowerCase();
-    
+
     if (lower == 'plane') return 'MainbedroomWall3';
     if (lower == 'floor' || lower == 'floors') return 'Laundry Floor';
 
@@ -792,12 +819,20 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
     }
 
     String cleaned = rawName.replaceAll(RegExp(r'[_.]'), ' ').trim();
-    cleaned = cleaned.replaceAll(RegExp(r'Modern Ceiling Light 01', caseSensitive: false), 'Ceiling Light');
-    cleaned = cleaned.replaceAll(RegExp(r'Double spot light', caseSensitive: false), 'Spot Light');
-    cleaned = cleaned.replaceAllMapped(RegExp(r'([a-zA-Z])(\d)'), (m) => '${m[1]} ${m[2]}');
-    cleaned = cleaned.replaceAll(RegExp(r'plane', caseSensitive: false), 'Wall');
-    if (lower.startsWith('light') || lower.startsWith('point') || lower.startsWith('spot')) {
-      cleaned = cleaned.replaceAll(RegExp(r'light|point|spot', caseSensitive: false), 'Light Fixture');
+    cleaned = cleaned.replaceAll(
+        RegExp(r'Modern Ceiling Light 01', caseSensitive: false),
+        'Ceiling Light');
+    cleaned = cleaned.replaceAll(
+        RegExp(r'Double spot light', caseSensitive: false), 'Spot Light');
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'([a-zA-Z])(\d)'), (m) => '${m[1]} ${m[2]}');
+    cleaned =
+        cleaned.replaceAll(RegExp(r'plane', caseSensitive: false), 'Wall');
+    if (lower.startsWith('light') ||
+        lower.startsWith('point') ||
+        lower.startsWith('spot')) {
+      cleaned = cleaned.replaceAll(
+          RegExp(r'light|point|spot', caseSensitive: false), 'Light Fixture');
     }
 
     if (cleaned.isNotEmpty) {
@@ -812,20 +847,48 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
   void _updateTime() {
     final now = DateTime.now();
     setState(() {
-      _timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      _timeStr =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
       _dateStr = '${_formatDate(now)}';
-      _greeting = now.hour < 12 ? 'Good Morning' : now.hour < 17 ? 'Good Afternoon' : 'Good Evening';
+      _greeting = now.hour < 12
+          ? 'Good Morning'
+          : now.hour < 17
+              ? 'Good Afternoon'
+              : 'Good Evening';
     });
   }
 
   String _formatDate(DateTime d) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
     return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
   void _closePopup() {
-    _popupAnim.reverse().then((_) { if(mounted) setState(() => _showRepairPopup = false); });
+    _popupAnim.reverse().then((_) {
+      if (mounted) setState(() => _showRepairPopup = false);
+    });
     // Removed fcmReset to maintain camera focus
   }
 
@@ -841,27 +904,40 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
       _showConfirmation = false;
     });
     // Removed fcmReset call
-    try { js.context.callMethod('eval', ["fcmCleanup();"]); } catch(e) {}
+    try {
+      js.context.callMethod('eval', ["fcmCleanup();"]);
+    } catch (e) {}
   }
 
   Future<void> _pickDate() async {
-    final d = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 30)));
+    final d = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 30)));
     if (d != null) setState(() => _selectedDate = d);
   }
 
   Future<void> _pickTime() async {
-    final t = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 9, minute: 30));
+    final t = await showTimePicker(
+        context: context, initialTime: const TimeOfDay(hour: 9, minute: 30));
     if (t != null) {
       final double m = t.hour * 60.0 + t.minute;
-      final bool valid = (m >= (9*60+30) && m <= (12*60)) || (m >= (13*60) && m <= (16*60));
-      if (valid) setState(() => _selectedTime = t);
-      else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาเลือกเวลาในช่วง 09:30-12:00 หรือ 13:00-16:00'), backgroundColor: Colors.redAccent));
+      final bool valid = (m >= (9 * 60 + 30) && m <= (12 * 60)) ||
+          (m >= (13 * 60) && m <= (16 * 60));
+      if (valid)
+        setState(() => _selectedTime = t);
+      else
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('กรุณาเลือกเวลาในช่วง 09:30-12:00 หรือ 13:00-16:00'),
+            backgroundColor: Colors.redAccent));
     }
   }
 
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) setState(() => _attachedImages.addAll(images.map((e) => e.path)));
+    if (images.isNotEmpty)
+      setState(() => _attachedImages.addAll(images.map((e) => e.path)));
   }
 
   void _removeImage(int idx) => setState(() => _attachedImages.removeAt(idx));
@@ -891,7 +967,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isUrgent ? Colors.redAccent : DashboardTheme.primary,
+                backgroundColor:
+                    _isUrgent ? Colors.redAccent : DashboardTheme.primary,
                 foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -960,18 +1037,41 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
               rotationPerSecond: '6deg',
             ),
           ),
-          Positioned.fill(child: IgnorePointer(child: Container(decoration: BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.2, colors: [Colors.transparent, const Color(0xFF0A0A0F).withOpacity(0.6)]))))),
+          Positioned.fill(
+              child: IgnorePointer(
+                  child: Container(
+                      decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                              center: Alignment.center,
+                              radius: 1.2,
+                              colors: [
+                Colors.transparent,
+                const Color(0xFF0A0A0F).withOpacity(0.6)
+              ]))))),
 
           // ── Header ──
           Positioned(
-            top: 32, left: 40, right: 40,
+            top: 32,
+            left: 40,
+            right: 40,
             child: Row(
               children: [
                 if (widget.onMenuTap != null)
-                  Padding(padding: const EdgeInsets.only(right: 12), child: GestureDetector(onTap: widget.onMenuTap, child: Icon(Icons.menu_rounded, color: gold, size: 28))),
+                  Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: GestureDetector(
+                          onTap: widget.onMenuTap,
+                          child:
+                              Icon(Icons.menu_rounded, color: gold, size: 28))),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('$_greeting,', style: GoogleFonts.outfit(color: gold.withOpacity(0.8), fontSize: 14)),
-                  Text(widget.displayUser, style: GoogleFonts.outfit(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                  Text('$_greeting,',
+                      style: GoogleFonts.outfit(
+                          color: gold.withOpacity(0.8), fontSize: 14)),
+                  Text(widget.displayUser,
+                      style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold)),
                 ]),
                 const Spacer(),
                 Material(
@@ -981,15 +1081,25 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
                     borderRadius: BorderRadius.circular(40),
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), shape: BoxShape.circle, border: Border.all(color: Colors.white24, width: 1.5)),
+                      decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: Colors.white24, width: 1.5)),
                       child: Icon(Icons.roofing_rounded, color: gold, size: 26),
                     ),
                   ),
                 ),
                 const SizedBox(width: 24),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(_timeStr, style: GoogleFonts.outfit(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w200)),
-                  Text(_dateStr, style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13)),
+                  Text(_timeStr,
+                      style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 42,
+                          fontWeight: FontWeight.w200)),
+                  Text(_dateStr,
+                      style: GoogleFonts.outfit(
+                          color: Colors.white38, fontSize: 13)),
                 ]),
               ],
             ),
@@ -997,10 +1107,36 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
 
           // ── News Ticker ──
           Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: _showTicker 
-              ? _buildNewsTicker(gold)
-              : Center(child: Padding(padding: const EdgeInsets.only(bottom: 8), child: GestureDetector(onTap: () => setState(() => _showTicker = true), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(20), border: Border.all(color: gold.withOpacity(0.3))), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.campaign_rounded, color: gold, size: 14), const SizedBox(width: 8), Text('VIEW NEWS', style: GoogleFonts.outfit(color: gold, fontSize: 11, fontWeight: FontWeight.bold))]))))),
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _showTicker
+                ? _buildNewsTicker(gold)
+                : Center(
+                    child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GestureDetector(
+                            onTap: () => setState(() => _showTicker = true),
+                            child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.6),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: gold.withOpacity(0.3))),
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.campaign_rounded,
+                                          color: gold, size: 14),
+                                      const SizedBox(width: 8),
+                                      Text('VIEW NEWS',
+                                          style: GoogleFonts.outfit(
+                                              color: gold,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold))
+                                    ]))))),
           ),
 
           // ── AI Chat FAB ──
@@ -1015,7 +1151,33 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
                 child: InkWell(
                   onTap: () => setState(() => _showAIChatPanel = true),
                   borderRadius: BorderRadius.circular(40),
-                  child: Hero(tag: 'ai_assistant_fab', child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [gold, DashboardTheme.accentAmber], begin: Alignment.topLeft, end: Alignment.bottomRight), shape: BoxShape.circle, boxShadow: [BoxShadow(color: gold.withOpacity(0.3), blurRadius: 15)]), child: Text('V', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black)))),
+                  child: Hero(
+                    tag: 'ai_assistant_fab',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [gold, DashboardTheme.accentAmber],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(40),
+                        boxShadow: [
+                          BoxShadow(
+                              color: gold.withOpacity(0.3), blurRadius: 15)
+                        ],
+                      ),
+                      child: Text(
+                        TranslationService.instance.t('v_chat_with_ai'),
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1031,7 +1193,17 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
             ),
 
           if (_showAIChatPanel)
-            Positioned(bottom: _showTicker ? 72 : 32, right: 32, child: AIChatPanel(residentName: widget.displayUser, onClose: () => setState(() => _showAIChatPanel = false), onHistoryRequested: () { setState(() => _showAIChatPanel = false); if (widget.onHistoryRequested != null) widget.onHistoryRequested!(); })),
+            Positioned(
+                bottom: _showTicker ? 72 : 32,
+                right: 32,
+                child: AIChatPanel(
+                    residentName: widget.displayUser,
+                    onClose: () => setState(() => _showAIChatPanel = false),
+                    onHistoryRequested: () {
+                      setState(() => _showAIChatPanel = false);
+                      if (widget.onHistoryRequested != null)
+                        widget.onHistoryRequested!();
+                    })),
 
           // ── Repair Popup ──
           if (_showRepairPopup)
@@ -1040,16 +1212,52 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
                 animation: _popupAnim,
                 builder: (context, child) {
                   final t = Curves.easeOutCubic.transform(_popupAnim.value);
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final isMobile = screenWidth < 600;
+
                   return Stack(
                     children: [
-                      Positioned.fill(child: GestureDetector(onTap: _closePopup, child: Container(color: Colors.black.withOpacity(0.5 * t)))),
-                      ValueListenableBuilder<Offset>(
-                        valueListenable: _popupOffset,
-                        builder: (context, offset, _) => Positioned(
-                          top: 100, right: 40 - (440 * (1 - t)), width: 440, bottom: 40,
-                          child: Transform.translate(offset: offset, child: Opacity(opacity: t, child: _buildDraggablePopupStack(_buildRepairPanel(gold, _isDragging.value)))),
+                      Positioned.fill(
+                          child: GestureDetector(
+                              onTap: _closePopup,
+                              child: Container(
+                                  color: Colors.black.withOpacity(0.6 * t)))),
+                      if (isMobile)
+                        // ── Mobile: centered, no drag ──
+                        Positioned.fill(
+                          child: Center(
+                            child: Opacity(
+                              opacity: t,
+                              child: Transform.scale(
+                                scale: 0.9 + 0.1 * t,
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 40),
+                                  child: _buildPopupStack(
+                                      _buildRepairPanel(gold, false)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        // ── Desktop: right panel (original) ──
+                        ValueListenableBuilder<Offset>(
+                          valueListenable: _popupOffset,
+                          builder: (context, offset, _) => Positioned(
+                            top: 100,
+                            right: 40 - (440 * (1 - t)),
+                            width: 440,
+                            bottom: 40,
+                            child: Transform.translate(
+                                offset: offset,
+                                child: Opacity(
+                                    opacity: t,
+                                    child: _buildDraggablePopupStack(
+                                        _buildRepairPanel(
+                                            gold, _isDragging.value)))),
+                          ),
                         ),
-                      ),
                     ],
                   );
                 },
@@ -1066,19 +1274,48 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
       builder: (context, offset, _) {
         final sh = MediaQuery.of(context).size.height;
         final sw = MediaQuery.of(context).size.width;
-        final isHovered = offset.dy > sh - 220 && offset.dx > (sw/2 - 120) && offset.dx < (sw/2 + 120);
+        final isHovered = offset.dy > sh - 220 &&
+            offset.dx > (sw / 2 - 120) &&
+            offset.dx < (sw / 2 + 120);
         return Positioned(
-          bottom: 30, left: 0, right: 0,
+          bottom: 30,
+          left: 0,
+          right: 0,
           child: Center(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: isHovered ? 240 : 200, height: 100,
-              decoration: BoxDecoration(color: isHovered ? Colors.redAccent.withOpacity(0.2) : Colors.black.withOpacity(0.3), borderRadius: BorderRadius.circular(50), border: Border.all(color: isHovered ? Colors.redAccent : Colors.white12, width: 2), boxShadow: isHovered ? [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 30)] : []),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.delete_sweep_rounded, color: isHovered ? Colors.redAccent : Colors.white38, size: 32),
-                const SizedBox(height: 8),
-                Text(isHovered ? 'RELEASE TO CANCEL' : 'DRAG HERE TO CANCEL', style: GoogleFonts.shareTechMono(color: isHovered ? Colors.redAccent : Colors.white24, fontSize: 10, letterSpacing: 1.5)),
-              ]),
+              width: isHovered ? 240 : 200,
+              height: 100,
+              decoration: BoxDecoration(
+                  color: isHovered
+                      ? Colors.redAccent.withOpacity(0.2)
+                      : Colors.black.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(50),
+                  border: Border.all(
+                      color: isHovered ? Colors.redAccent : Colors.white12,
+                      width: 2),
+                  boxShadow: isHovered
+                      ? [
+                          BoxShadow(
+                              color: Colors.redAccent.withOpacity(0.2),
+                              blurRadius: 30)
+                        ]
+                      : []),
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_sweep_rounded,
+                        color: isHovered ? Colors.redAccent : Colors.white38,
+                        size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                        isHovered ? 'RELEASE TO CANCEL' : 'DRAG HERE TO CANCEL',
+                        style: GoogleFonts.shareTechMono(
+                            color:
+                                isHovered ? Colors.redAccent : Colors.white24,
+                            fontSize: 10,
+                            letterSpacing: 1.5)),
+                  ]),
             ),
           ),
         );
@@ -1090,36 +1327,60 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
     return ValueListenableBuilder<Offset>(
       valueListenable: _repairFabOffset,
       builder: (context, offset, child) => Positioned(
-        top: offset.dy, right: offset.dx,
+        top: offset.dy,
+        right: offset.dx,
         child: PointerInterceptor(
           child: GestureDetector(
             onPanStart: (_) => _isRepairFabDragging.value = true,
-            onPanUpdate: (d) => _repairFabOffset.value = Offset(_repairFabOffset.value.dx - d.delta.dx, _repairFabOffset.value.dy + d.delta.dy),
+            onPanUpdate: (d) => _repairFabOffset.value = Offset(
+                _repairFabOffset.value.dx - d.delta.dx,
+                _repairFabOffset.value.dy + d.delta.dy),
             onPanEnd: (_) {
-               _isRepairFabDragging.value = false;
-               final sh = MediaQuery.of(context).size.height;
-               final sw = MediaQuery.of(context).size.width;
-               if (_repairFabOffset.value.dy > sh - 220 && _repairFabOffset.value.dx > (sw/2 - 120) && _repairFabOffset.value.dx < (sw/2 + 120)) {
-                 _resetSelection();
-               }
+              _isRepairFabDragging.value = false;
+              final sh = MediaQuery.of(context).size.height;
+              final sw = MediaQuery.of(context).size.width;
+              if (_repairFabOffset.value.dy > sh - 220 &&
+                  _repairFabOffset.value.dx > (sw / 2 - 120) &&
+                  _repairFabOffset.value.dx < (sw / 2 + 120)) {
+                _resetSelection();
+              }
             },
-            onTap: () { setState(() => _showRepairPopup = true); _popupAnim.forward(from: 0); },
+            onTap: () {
+              setState(() => _showRepairPopup = true);
+              _popupAnim.forward(from: 0);
+            },
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    width: 64, height: 64,
-                    decoration: BoxDecoration(color: const Color(0xFF16161C), shape: BoxShape.circle, border: Border.all(color: gold.withOpacity(0.4), width: 2), boxShadow: [BoxShadow(color: Colors.black, blurRadius: 20)]),
-                    child: Center(child: Icon(Icons.handyman_rounded, color: gold, size: 28)),
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF16161C),
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: gold.withOpacity(0.4), width: 2),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black, blurRadius: 20)
+                        ]),
+                    child: Center(
+                        child: Icon(Icons.handyman_rounded,
+                            color: gold, size: 28)),
                   ),
                   // UNFINISHED STATE BADGE
                   Positioned(
-                    top: 2, right: 2,
+                    top: 2,
+                    right: 2,
                     child: Container(
-                      width: 14, height: 14,
-                      decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF16161C), width: 2.5)),
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFF16161C), width: 2.5)),
                     ),
                   ),
                 ],
@@ -1131,11 +1392,27 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
     );
   }
 
+  /// Non-draggable popup wrapper (mobile)
+  Widget _buildPopupStack(Widget panel) {
+    return Stack(children: [
+      Positioned.fill(child: panel),
+    ]);
+  }
+
   Widget _buildDraggablePopupStack(Widget panel) {
     return Stack(children: [
       Positioned.fill(child: panel),
       // Hit-test only center part for dragging to keep 'X' and 'Dropdowns' interactive
-      Positioned(top: 0, left: 100, right: 100, height: 80, child: GestureDetector(onPanStart: (_) => _isDragging.value = true, onPanEnd: (_) => _isDragging.value = false, onPanUpdate: (d) => _popupOffset.value += d.delta, behavior: HitTestBehavior.opaque)),
+      Positioned(
+          top: 0,
+          left: 100,
+          right: 100,
+          height: 80,
+          child: GestureDetector(
+              onPanStart: (_) => _isDragging.value = true,
+              onPanEnd: (_) => _isDragging.value = false,
+              onPanUpdate: (d) => _popupOffset.value += d.delta,
+              behavior: HitTestBehavior.opaque)),
     ]);
   }
 
@@ -1146,99 +1423,162 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          decoration: BoxDecoration(color: Colors.black.withOpacity(isDragging ? 0.9 : 0.8), borderRadius: BorderRadius.circular(32), border: Border.all(color: Colors.white10)),
+          decoration: BoxDecoration(
+              color: Colors.black.withOpacity(isDragging ? 0.9 : 0.8),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: Colors.white10)),
           padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_showSuccess) ...[
                 const Spacer(),
-                Center(child: Column(children: [
-                  Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(shape: BoxShape.circle, color: gold.withOpacity(0.1), border: Border.all(color: gold.withOpacity(0.3))), child: Icon(Icons.check_circle_outline_rounded, size: 80, color: gold)),
+                Center(
+                    child: Column(children: [
+                  Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: gold.withOpacity(0.1),
+                          border: Border.all(color: gold.withOpacity(0.3))),
+                      child: Icon(Icons.check_circle_outline_rounded,
+                          size: 80, color: gold)),
                   const SizedBox(height: 32),
-                  Text('SUCCESS!', style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 2)),
+                  Text('SUCCESS!',
+                      style: GoogleFonts.outfit(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 2)),
                   const SizedBox(height: 12),
-                  Text('Your request has been filed.', style: GoogleFonts.kanit(fontSize: 16, color: Colors.white38)),
+                  Text('Your request has been filed.',
+                      style: GoogleFonts.kanit(
+                          fontSize: 16, color: Colors.white38)),
                 ])),
                 const Spacer(),
               ] else if (_showConfirmation) ...[
                 Expanded(child: _buildConfirmation(glowColor)),
               ] else ...[
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('OBJECT',
-                      style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: gold.withOpacity(0.7),
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2)),
-                  const SizedBox(height: 12),
-                  Text(
-                      _titleCtrl.text.isEmpty
-                          ? _selectedObjectName
-                          : _titleCtrl.text,
-                      style: GoogleFonts.outfit(
-                          fontSize: 36,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -1)),
-                ]),
-                IconButton(
-                    onPressed: _closePopup,
-                    icon: const Icon(Icons.close_rounded, color: Colors.white38)),
-              ]),
-              const SizedBox(height: 40),
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('OBJECT',
+                                style: GoogleFonts.outfit(
+                                    fontSize: 12,
+                                    color: gold.withOpacity(0.7),
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2)),
+                            const SizedBox(height: 12),
+                            Text(
+                                _titleCtrl.text.isEmpty
+                                    ? _selectedObjectName
+                                    : _titleCtrl.text,
+                                style: GoogleFonts.outfit(
+                                    fontSize: 36,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -1)),
+                          ]),
+                      IconButton(
+                          onPressed: _closePopup,
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white38)),
+                    ]),
+                const SizedBox(height: 40),
                 Expanded(
                   child: SingleChildScrollView(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _buildLabel('Current Object', glowColor),
-                      Text(_selectedObjectName, style: GoogleFonts.outfit(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -1)),
-                      _buildLabel('Category', glowColor),
-                      _PremiumDropdown(selected: _selectedCategory, items: _categories, onChanged: (v) => setState(() => _selectedCategory = v)),
-                      const SizedBox(height: 24),
-                      _buildLabel('Subject', glowColor),
-                      _PremiumInput(controller: _titleCtrl, hint: 'e.g. Water leak...', activeColor: glowColor),
-                      const SizedBox(height: 24),
-                      _buildLabel('Issue Details', glowColor),
-                      _PremiumInput(controller: _detailCtrl, hint: 'Describe the issue...', activeColor: glowColor, maxLines: 3),
-                      const SizedBox(height: 24),
-                      _buildLabel('Appointment', glowColor),
-                      Row(children: [
-                        Expanded(child: _ScheduleTrigger(label: 'Date', value: _selectedDate == null ? null : DateFormat('MMM dd').format(_selectedDate!), icon: Icons.event, onTap: _pickDate, activeColor: glowColor)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _ScheduleTrigger(label: 'Time', value: _selectedTime?.format(context), icon: Icons.schedule, onTap: _pickTime, activeColor: glowColor)),
-                      ]),
-                      const SizedBox(height: 24),
-                      _buildLabel('Photos', glowColor),
-                      _PhotoPicker(imagePaths: _attachedImages, onTap: _pickImages, onRemove: _removeImage, activeColor: glowColor),
-                      const SizedBox(height: 32),
-                      _EmergencyToggle(
-                          value: _isUrgent,
-                          onChanged: (v) => setState(() => _isUrgent = v)),
-                      const SizedBox(height: 40),
-                      _SubmitAction(
-                          onTap: () {
-                            if (_selectedCategory.isEmpty ||
-                                _titleCtrl.text.isEmpty ||
-                                _detailCtrl.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                  content: Text(
-                                      'กรุณาระบุหมวดหมู่ หัวข้อ และรายละเอียดปัญหาให้ครบถ้วน'),
-                                  backgroundColor: Colors.redAccent));
-                              return;
-                            }
-                            setState(() => _showConfirmation = true);
-                          },
-                          isUrgent: _isUrgent,
-                          gold: gold),
-                      const SizedBox(height: 20),
-                      Center(
-                          child: Text('SECURE ENCRYPTED FILING',
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('Current Object', glowColor),
+                          Text(_selectedObjectName,
                               style: GoogleFonts.outfit(
-                                  fontSize: 10,
-                                  color: Colors.white12,
-                                  letterSpacing: 2))),
-                    ]),
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -1)),
+                          _buildLabel('Category', glowColor),
+                          _PremiumDropdown(
+                              selected: _selectedCategory,
+                              items: _categories,
+                              onChanged: (v) =>
+                                  setState(() => _selectedCategory = v)),
+                          const SizedBox(height: 24),
+                          _buildLabel('Subject', glowColor),
+                          _PremiumInput(
+                              controller: _titleCtrl,
+                              hint: 'e.g. Water leak...',
+                              activeColor: glowColor),
+                          const SizedBox(height: 24),
+                          _buildLabel('Issue Details', glowColor),
+                          _PremiumInput(
+                              controller: _detailCtrl,
+                              hint: 'Describe the issue...',
+                              activeColor: glowColor,
+                              maxLines: 3),
+                          const SizedBox(height: 24),
+                          _buildLabel('Appointment', glowColor),
+                          Row(children: [
+                            Expanded(
+                                child: _ScheduleTrigger(
+                                    label: 'Date',
+                                    value: _selectedDate == null
+                                        ? null
+                                        : DateFormat('MMM dd')
+                                            .format(_selectedDate!),
+                                    icon: Icons.event,
+                                    onTap: _pickDate,
+                                    activeColor: glowColor)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                                child: _ScheduleTrigger(
+                                    label: 'Time',
+                                    value: _selectedTime?.format(context),
+                                    icon: Icons.schedule,
+                                    onTap: _pickTime,
+                                    activeColor: glowColor)),
+                          ]),
+                          const SizedBox(height: 24),
+                          _buildLabel('Photos', glowColor),
+                          _PhotoPicker(
+                              imagePaths: _attachedImages,
+                              onTap: _pickImages,
+                              onRemove: _removeImage,
+                              activeColor: glowColor),
+                          const SizedBox(height: 32),
+                          _EmergencyToggle(
+                              value: _isUrgent,
+                              onChanged: (v) => setState(() => _isUrgent = v)),
+                          const SizedBox(height: 32),
+                          _buildWarrantyBadge(gold),
+                          const SizedBox(height: 16),
+                          _SubmitAction(
+                              onTap: () {
+                                if (_selectedCategory.isEmpty ||
+                                    _titleCtrl.text.isEmpty ||
+                                    _detailCtrl.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'กรุณาระบุหมวดหมู่ หัวข้อ และรายละเอียดปัญหาให้ครบถ้วน'),
+                                          backgroundColor: Colors.redAccent));
+                                  return;
+                                }
+                                setState(() => _showConfirmation = true);
+                              },
+                              isUrgent: _isUrgent,
+                              gold: gold),
+                          const SizedBox(height: 20),
+                          Center(
+                              child: Text('SECURE ENCRYPTED FILING',
+                                  style: GoogleFonts.outfit(
+                                      fontSize: 10,
+                                      color: Colors.white12,
+                                      letterSpacing: 2))),
+                        ]),
                   ),
                 ),
               ],
@@ -1249,7 +1589,80 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
     );
   }
 
-  Widget _buildLabel(String t, Color c) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t.toUpperCase(), style: GoogleFonts.shareTechMono(fontSize: 12, fontWeight: FontWeight.bold, color: c.withOpacity(0.4), letterSpacing: 2)));
+  Widget _buildLabel(String t, Color c) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(t.toUpperCase(),
+          style: GoogleFonts.shareTechMono(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: c.withOpacity(0.4),
+              letterSpacing: 2)));
+
+  Widget _buildWarrantyBadge(Color gold) {
+    final expiryDate = DateTime.now().add(const Duration(days: 365 * 5));
+    final expiryStr = DateFormat('dd/MM/yyyy').format(expiryDate);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: gold.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: gold.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.verified_user_rounded, color: gold, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WARRANTY COVERAGE',
+                  style: GoogleFonts.shareTechMono(
+                    fontSize: 10,
+                    color: gold.withOpacity(0.6),
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '5-Year Shield Active',
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'EXPIRES',
+                style: GoogleFonts.shareTechMono(
+                  fontSize: 9,
+                  color: Colors.white24,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                expiryStr,
+                style: GoogleFonts.shareTechMono(
+                  fontSize: 13,
+                  color: gold,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildConfirmation(Color glowColor) {
     final dateStr = _selectedDate == null
@@ -1318,7 +1731,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
                         label: 'Back',
                         color: Colors.white,
                         isOutline: true,
-                        onTap: () => setState(() => _showConfirmation = false))),
+                        onTap: () =>
+                            setState(() => _showConfirmation = false))),
                 const SizedBox(width: 16),
                 Expanded(
                     child: _OverlayBtn(
@@ -1333,28 +1747,110 @@ class _ResidentHomeViewState extends State<ResidentHomeView> with TickerProvider
 
   Widget _buildNewsTicker(Color gold) {
     return Container(
-      height: 44, decoration: BoxDecoration(color: const Color(0xFF0A0A0F).withOpacity(0.95), border: Border(top: BorderSide(color: gold.withOpacity(0.2)))),
-      child: Row(children: [
-        Container(height: 44, padding: const EdgeInsets.symmetric(horizontal: 16), decoration: BoxDecoration(gradient: LinearGradient(colors: [gold.withOpacity(0.2), gold.withOpacity(0.05)]), border: Border(right: BorderSide(color: gold.withOpacity(0.15)))), child: Row(children: [Icon(Icons.campaign_rounded, color: gold, size: 16), const SizedBox(width: 8), Text('NEWS', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w900, color: gold, letterSpacing: 2))])),
-        Expanded(child: ClipRect(child: AnimatedBuilder(animation: _tickerAnim, builder: (context, child) {
-          final textStyle = GoogleFonts.outfit(fontSize: 13);
-          return LayoutBuilder(builder: (context, constraints) {
-            double itemWidth = 0; for (var a in _announcements) itemWidth += _measureText(a.text, textStyle) + 120;
-            return Transform.translate(offset: Offset(constraints.maxWidth - (_tickerAnim.value * itemWidth), 0), child: Row(mainAxisSize: MainAxisSize.min, children: [..._announcements, ..._announcements].expand((a) => [Icon(a.icon, color: a.color, size: 14), const SizedBox(width: 8), Text(a.text, style: GoogleFonts.kanit(fontSize: 13, color: Colors.white70)), const Padding(padding: EdgeInsets.symmetric(horizontal: 24), child: Text('●', style: TextStyle(color: Colors.white12, fontSize: 8)))]).toList()));
-          });
-        }))),
-        Material(color: Colors.transparent, child: InkWell(onTap: () => setState(() => _showTicker = false), child: Container(height: 44, padding: const EdgeInsets.symmetric(horizontal: 14), child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white38, size: 18)))),
-      ]),
+      height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A0F).withOpacity(0.95),
+        border: Border(top: BorderSide(color: gold.withOpacity(0.2))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [gold.withOpacity(0.2), gold.withOpacity(0.05)]),
+              border: Border(right: BorderSide(color: gold.withOpacity(0.15))),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize
+                  .min, // Fix: Prevent overflow by taking only needed space
+              children: [
+                Icon(Icons.campaign_rounded, color: gold, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  TranslationService.instance.t('news_label'),
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: gold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+              child: ClipRect(
+                  child: AnimatedBuilder(
+                      animation: _tickerAnim,
+                      builder: (context, child) {
+                        final textStyle = GoogleFonts.outfit(fontSize: 13);
+                        return LayoutBuilder(builder: (context, constraints) {
+                          double itemWidth = 0;
+                          for (var a in _announcements)
+                            itemWidth += _measureText(a.text, textStyle) + 120;
+                          return Transform.translate(
+                              offset: Offset(
+                                  constraints.maxWidth -
+                                      (_tickerAnim.value * itemWidth),
+                                  0),
+                              child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ..._announcements,
+                                    ..._announcements
+                                  ]
+                                      .expand((a) => [
+                                            Icon(a.icon,
+                                                color: a.color, size: 14),
+                                            const SizedBox(width: 8),
+                                            Text(a.text,
+                                                style: GoogleFonts.kanit(
+                                                    fontSize: 13,
+                                                    color: Colors.white70)),
+                                            const Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 24),
+                                                child: Text('●',
+                                                    style: TextStyle(
+                                                        color: Colors.white12,
+                                                        fontSize: 8)))
+                                          ])
+                                      .toList()));
+                        });
+                      }))),
+          Material(
+              color: Colors.transparent,
+              child: InkWell(
+                  onTap: () => setState(() => _showTicker = false),
+                  child: Container(
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Icon(Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white38, size: 18)))),
+        ],
+      ),
     );
   }
 
   double _measureText(String text, TextStyle style) {
-    final tp = TextPainter(text: TextSpan(text: text, style: style), maxLines: 1, textDirection: ui.TextDirection.ltr)..layout();
+    final tp = TextPainter(
+        text: TextSpan(text: text, style: style),
+        maxLines: 1,
+        textDirection: ui.TextDirection.ltr)
+      ..layout();
     return tp.width;
   }
 }
 
-class _Announcement { final IconData icon; final Color color; final String text; const _Announcement({required this.icon, required this.color, required this.text}); }
+class _Announcement {
+  final IconData icon;
+  final Color color;
+  final String text;
+  const _Announcement(
+      {required this.icon, required this.color, required this.text});
+}
 
 class _PremiumInput extends StatefulWidget {
   final TextEditingController controller;
@@ -1442,7 +1938,8 @@ class _PremiumDropdown extends StatefulWidget {
   final String selected;
   final List<Map<String, dynamic>> items;
   final ValueChanged<String> onChanged;
-  const _PremiumDropdown({required this.selected, required this.items, required this.onChanged});
+  const _PremiumDropdown(
+      {required this.selected, required this.items, required this.onChanged});
 
   @override
   State<_PremiumDropdown> createState() => _PremiumDropdownState();
@@ -1462,7 +1959,8 @@ class _PremiumDropdownState extends State<_PremiumDropdown> {
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _isHovered ? Colors.white38 : Colors.white10),
+          border:
+              Border.all(color: _isHovered ? Colors.white38 : Colors.white10),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: DropdownButtonHideUnderline(
@@ -1470,14 +1968,20 @@ class _PremiumDropdownState extends State<_PremiumDropdown> {
             value: widget.selected.isEmpty ? null : widget.selected,
             isExpanded: true,
             dropdownColor: const Color(0xFF1A1A24),
-            icon: Icon(Icons.keyboard_arrow_down_rounded, color: _isHovered ? Colors.white70 : Colors.white24),
-            hint: Text('Select Category', style: GoogleFonts.outfit(color: Colors.white24, fontSize: 16)),
+            icon: Icon(Icons.keyboard_arrow_down_rounded,
+                color: _isHovered ? Colors.white70 : Colors.white24),
+            hint: Text('Select Category',
+                style: GoogleFonts.outfit(color: Colors.white24, fontSize: 16)),
             items: widget.items.expand((c) {
               final g = c['group'] as String;
               return (c['items'] as List<String>).map((i) => DropdownMenuItem(
-                value: '$g: $i',
-                child: Text('$g: $i', style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.normal)),
-              ));
+                    value: '$g: $i',
+                    child: Text('$g: $i',
+                        style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.normal)),
+                  ));
             }).toList(),
             onChanged: (v) => widget.onChanged(v ?? ''),
           ),
@@ -1488,37 +1992,167 @@ class _PremiumDropdownState extends State<_PremiumDropdown> {
 }
 
 class _ScheduleTrigger extends StatelessWidget {
-  final String label; final String? value; final IconData icon; final VoidCallback onTap; final Color activeColor;
-  const _ScheduleTrigger({required this.label, this.value, required this.icon, required this.onTap, required this.activeColor});
+  final String label;
+  final String? value;
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color activeColor;
+  const _ScheduleTrigger(
+      {required this.label,
+      this.value,
+      required this.icon,
+      required this.onTap,
+      required this.activeColor});
   @override
   Widget build(BuildContext context) {
     final hasVal = value != null;
-    return GestureDetector(onTap: onTap, child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: hasVal ? activeColor.withOpacity(0.1) : Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: hasVal ? activeColor.withOpacity(0.5) : Colors.white10)), child: Column(children: [Icon(icon, color: hasVal ? activeColor : Colors.white24, size: 24), const SizedBox(height: 8), Text(label, style: GoogleFonts.shareTechMono(fontSize: 10, color: Colors.white38)), Text(value ?? 'Set', style: GoogleFonts.outfit(fontSize: 14, color: Colors.white, fontWeight: hasVal ? FontWeight.bold : FontWeight.normal))])));
+    return GestureDetector(
+        onTap: onTap,
+        child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: hasVal
+                    ? activeColor.withOpacity(0.1)
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: hasVal
+                        ? activeColor.withOpacity(0.5)
+                        : Colors.white10)),
+            child: Column(children: [
+              Icon(icon,
+                  color: hasVal ? activeColor : Colors.white24, size: 24),
+              const SizedBox(height: 8),
+              Text(label,
+                  style: GoogleFonts.shareTechMono(
+                      fontSize: 10, color: Colors.white38)),
+              Text(value ?? 'Set',
+                  style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: hasVal ? FontWeight.bold : FontWeight.normal))
+            ])));
   }
 }
 
 class _PhotoPicker extends StatelessWidget {
-  final List<String> imagePaths; final VoidCallback onTap; final Function(int) onRemove; final Color activeColor;
-  const _PhotoPicker({required this.imagePaths, required this.onTap, required this.onRemove, required this.activeColor});
+  final List<String> imagePaths;
+  final VoidCallback onTap;
+  final Function(int) onRemove;
+  final Color activeColor;
+  const _PhotoPicker(
+      {required this.imagePaths,
+      required this.onTap,
+      required this.onRemove,
+      required this.activeColor});
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      GestureDetector(onTap: onTap, child: Container(padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)), child: Row(children: [Icon(Icons.add_a_photo_rounded, color: activeColor, size: 24), const SizedBox(width: 16), Text('ATTACH PHOTOS', style: GoogleFonts.shareTechMono(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))]))),
-      if (imagePaths.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: SizedBox(height: 80, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: imagePaths.length, separatorBuilder: (_, __) => const SizedBox(width: 10), itemBuilder: (context, idx) => Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(imagePaths[idx]), width: 80, height: 80, fit: BoxFit.cover)), Positioned(top: 2, right: 2, child: GestureDetector(onTap: () => onRemove(idx), child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle), child: const Icon(Icons.close, size: 10, color: Colors.white))))]))))
+      GestureDetector(
+          onTap: onTap,
+          child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white10)),
+              child: Row(children: [
+                Icon(Icons.add_a_photo_rounded, color: activeColor, size: 24),
+                const SizedBox(width: 16),
+                Text('ATTACH PHOTOS',
+                    style: GoogleFonts.shareTechMono(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        letterSpacing: 1))
+              ]))),
+      if (imagePaths.isNotEmpty)
+        Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: SizedBox(
+                height: 80,
+                child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: imagePaths.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, idx) => Stack(children: [
+                          ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(File(imagePaths[idx]),
+                                  width: 80, height: 80, fit: BoxFit.cover)),
+                          Positioned(
+                              top: 2,
+                              right: 2,
+                              child: GestureDetector(
+                                  onTap: () => onRemove(idx),
+                                  child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle),
+                                      child: const Icon(Icons.close,
+                                          size: 10, color: Colors.white))))
+                        ]))))
     ]);
   }
 }
 
 class _EmergencyToggle extends StatelessWidget {
-  final bool value; final ValueChanged<bool> onChanged;
+  final bool value;
+  final ValueChanged<bool> onChanged;
   const _EmergencyToggle({required this.value, required this.onChanged});
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(onTap: () => onChanged(!value), child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: value ? Colors.redAccent.withOpacity(0.1) : Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: value ? Colors.redAccent : Colors.white10)), child: Row(children: [Icon(Icons.warning_amber_rounded, color: value ? Colors.redAccent : Colors.white24), const SizedBox(width: 16), Expanded(child: Text('EMERGENCY DISPATCH', style: GoogleFonts.shareTechMono(color: value ? Colors.redAccent : Colors.white38, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))), _SimpleSwitch(value: value)])));
+    return GestureDetector(
+        onTap: () => onChanged(!value),
+        child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: value
+                    ? Colors.redAccent.withOpacity(0.1)
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: value ? Colors.redAccent : Colors.white10)),
+            child: Row(children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: value ? Colors.redAccent : Colors.white24),
+              const SizedBox(width: 16),
+              Expanded(
+                  child: Text('EMERGENCY DISPATCH',
+                      style: GoogleFonts.shareTechMono(
+                          color: value ? Colors.redAccent : Colors.white38,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          letterSpacing: 1))),
+              _SimpleSwitch(value: value)
+            ])));
   }
 }
 
-class _SimpleSwitch extends StatelessWidget { final bool value; const _SimpleSwitch({required this.value}); @override Widget build(BuildContext context) { return Container(width: 40, height: 22, padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: value ? Colors.redAccent : Colors.white12, borderRadius: BorderRadius.circular(11)), child: AnimatedAlign(duration: const Duration(milliseconds: 200), alignment: value ? Alignment.centerRight : Alignment.centerLeft, child: Container(width: 18, height: 18, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white)))); } }
+class _SimpleSwitch extends StatelessWidget {
+  final bool value;
+  const _SimpleSwitch({required this.value});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+        width: 40,
+        height: 22,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+            color: value ? Colors.redAccent : Colors.white12,
+            borderRadius: BorderRadius.circular(11)),
+        child: AnimatedAlign(
+            duration: const Duration(milliseconds: 200),
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+                width: 18,
+                height: 18,
+                decoration: const BoxDecoration(
+                    shape: BoxShape.circle, color: Colors.white))));
+  }
+}
 
 class _SubmitAction extends StatelessWidget {
   final VoidCallback onTap;
@@ -1551,7 +2185,19 @@ class _SubmitAction extends StatelessWidget {
   }
 }
 
-class _TactileSlab extends StatelessWidget { final Widget child; const _TactileSlab({required this.child}); @override Widget build(BuildContext context) { return Container(decoration: BoxDecoration(color: Colors.white.withOpacity(0.03), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)), child: child); } }
+class _TactileSlab extends StatelessWidget {
+  final Widget child;
+  const _TactileSlab({required this.child});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+        decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white10)),
+        child: child);
+  }
+}
 
 class _ReviewRow extends StatelessWidget {
   final String label;
@@ -1569,7 +2215,8 @@ class _ReviewRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        child:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(label,
               style: GoogleFonts.shareTechMono(
                   color: Colors.white38, fontSize: 13, letterSpacing: 1)),

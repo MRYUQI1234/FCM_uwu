@@ -3,6 +3,55 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:fcm_app/core/data/auth_repository.dart';
 
+class RepairTask {
+  final String id;
+  final String description;
+  final String status;
+  final String urgency;
+  final String? taskReport;
+  final String? afterRepairImageUrl;
+  final DateTime? preferDate;
+  final String? objectName;
+  final String? category;
+  final double laborFee;
+  final double partFee;
+  final String? modelRef3D;
+
+  RepairTask({
+    required this.id,
+    required this.description,
+    required this.status,
+    required this.urgency,
+    this.taskReport,
+    this.afterRepairImageUrl,
+    this.preferDate,
+    this.objectName,
+    this.category,
+    this.laborFee = 0.0,
+    this.partFee = 0.0,
+    this.modelRef3D,
+  });
+
+  factory RepairTask.fromJson(Map<String, dynamic> json) {
+    return RepairTask(
+      id: json['id']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      urgency: json['urgency']?.toString() ?? 'Normal',
+      taskReport: json['task_report']?.toString(),
+      afterRepairImageUrl: json['after_repair_image_url']?.toString(),
+      preferDate: json['prefer_date'] != null
+          ? DateTime.tryParse(json['prefer_date'].toString())
+          : null,
+      objectName: json['object_name']?.toString(),
+      category: json['category']?.toString(),
+      laborFee: (json['labor_fee'] ?? 0.0).toDouble(),
+      partFee: (json['part_fee'] ?? 0.0).toDouble(),
+      modelRef3D: json['model_ref_3d']?.toString(),
+    );
+  }
+}
+
 class RepairRequest {
   final String id;
   final String title;
@@ -19,8 +68,7 @@ class RepairRequest {
   final TimeOfDay? appointmentTime;
   final String? appointmentSlot; // 'AM' or 'PM' per SRS
   final bool isEmergency;
-  final bool isWarranty;
-  final double estimatedCost;
+  final List<RepairTask> tasks;
 
   // Assessment fields (FE-03)
   final int? rating;
@@ -55,8 +103,7 @@ class RepairRequest {
     this.appointmentTime,
     this.appointmentSlot,
     this.isEmergency = false,
-    this.isWarranty = true,
-    this.estimatedCost = 0.0,
+    this.tasks = const [],
     this.rating,
     this.assessmentComment,
     this.completionDate,
@@ -69,6 +116,22 @@ class RepairRequest {
     this.requesterEmail,
     this.requesterHouse,
   });
+
+  bool get isWarranty {
+    // Logic: Warranty expires after 5 years from handover.
+    // If no handover date is available, we assume a default or check if any task has a fee.
+    // However, the SRS says "Remaining warranty period".
+    // I'll calculate it based on a mock handover date if not present in DB.
+    final handoverDate = DateTime(2022, 10, 10);
+    final expiryDate =
+        DateTime(handoverDate.year + 5, handoverDate.month, handoverDate.day);
+    return DateTime.now().isBefore(expiryDate);
+  }
+
+  double get estimatedCost {
+    if (isWarranty) return 0.0;
+    return tasks.fold(0.0, (sum, task) => sum + task.laborFee + task.partFee);
+  }
 
   /// Create a copy with modified fields
   RepairRequest copyWith({
@@ -85,8 +148,7 @@ class RepairRequest {
     TimeOfDay? appointmentTime,
     String? appointmentSlot,
     bool? isEmergency,
-    bool? isWarranty,
-    double? estimatedCost,
+    List<RepairTask>? tasks,
     int? rating,
     String? assessmentComment,
     DateTime? completionDate,
@@ -113,8 +175,7 @@ class RepairRequest {
       appointmentTime: appointmentTime ?? this.appointmentTime,
       appointmentSlot: appointmentSlot ?? this.appointmentSlot,
       isEmergency: isEmergency ?? this.isEmergency,
-      isWarranty: isWarranty ?? this.isWarranty,
-      estimatedCost: estimatedCost ?? this.estimatedCost,
+      tasks: tasks ?? this.tasks,
       rating: rating ?? this.rating,
       assessmentComment: assessmentComment ?? this.assessmentComment,
       completionDate: completionDate ?? this.completionDate,
@@ -173,14 +234,17 @@ class RepairRepository {
         if (result['success'] == true) {
           final List data = result['data'] ?? [];
           final remoteRepairs = data.map<RepairRequest>((r) {
-            final tasks = (r['tasks'] as List?) ?? [];
+            final tasks = ((r['tasks'] as List?) ?? [])
+                .map((t) => RepairTask.fromJson(t))
+                .toList();
+
             final firstTask = tasks.isNotEmpty ? tasks[0] : null;
             final title = firstTask != null
-                ? '${firstTask['category'] ?? ''} - ${firstTask['object_name'] ?? ''}'
+                ? '${firstTask.category ?? ''} - ${firstTask.objectName ?? ''}'
                     .trim()
                 : 'Repair Request';
-            final description = firstTask?['description'] ?? '';
-            final urgency = firstTask?['urgency'] ?? 'Normal';
+            final description = firstTask?.description ?? '';
+            final urgency = firstTask?.urgency ?? 'Normal';
 
             String status = (r['status'] ?? 'PENDING').toString().toUpperCase();
             Color statusColor;
@@ -229,11 +293,7 @@ class RepairRepository {
             if (r['created_at'] != null) {
               createdAt = DateTime.tryParse(r['created_at'].toString());
             }
-            DateTime? preferDate;
-            if (firstTask?['prefer_date'] != null) {
-              preferDate =
-                  DateTime.tryParse(firstTask['prefer_date'].toString());
-            }
+            DateTime? preferDate = firstTask?.preferDate;
 
             final dateStr = createdAt != null
                 ? '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}'
@@ -250,14 +310,20 @@ class RepairRepository {
               completionDate: completedAt,
               appointmentDate: preferDate,
               isEmergency: urgency.toString().toLowerCase() == 'emergency',
+              requesterName: r['requester_name']?.toString(),
+              requesterEmail: r['requester_email']?.toString(),
+              requesterHouse: r['requester_house']?.toString(),
+              tasks: tasks,
             );
           }).toList();
 
           // Merge: Keep local requests that aren't in the remote list yet
           final localOnly = repairsNotifier.value.where((local) {
             // If it's a numeric ID (timestamp from addRequest), it's likely local-only
-            bool isNewLocal = double.tryParse(local.id) != null && local.id.length > 10;
-            bool existsRemotely = remoteRepairs.any((remote) => remote.id == local.id);
+            bool isNewLocal =
+                double.tryParse(local.id) != null && local.id.length > 10;
+            bool existsRemotely =
+                remoteRepairs.any((remote) => remote.id == local.id);
             return isNewLocal && !existsRemotely;
           }).toList();
 
@@ -293,11 +359,10 @@ class RepairRepository {
     TimeOfDay? appointmentTime,
     String? appointmentSlot,
     bool isEmergency = false,
-    bool isWarranty = true,
-    double estimatedCost = 0.0,
     String? requesterName,
     String? requesterEmail,
     String? requesterHouse,
+    List<RepairTask> tasks = const [],
   }) {
     final now = DateTime.now();
     final dateStr =
@@ -315,11 +380,10 @@ class RepairRepository {
       appointmentTime: appointmentTime,
       appointmentSlot: appointmentSlot,
       isEmergency: isEmergency,
-      isWarranty: isWarranty,
-      estimatedCost: estimatedCost,
       requesterName: requesterName,
       requesterEmail: requesterEmail,
       requesterHouse: requesterHouse,
+      tasks: tasks,
     );
 
     repairsNotifier.value = [newRequest, ...repairsNotifier.value];

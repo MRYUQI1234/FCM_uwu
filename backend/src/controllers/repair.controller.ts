@@ -23,41 +23,63 @@ const EvaluationSchema = z.object({
 export class RepairController {
   /**
    * GET /api/repair/history
-   * Returns all requests (with tasks) for the resident's property.
-   * Security: filtered by property_id derived from user's national_id.
+   * Returns requests for the user's role.
+   * - Resident: Only their property.
+   * - Jurisdictic/Technician: All requests with requester info.
    */
   static async getResidentHistory(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const user = (req as any).user;
+      const isAdmin = user.role === "Jurisdictic" || user.role === "Technician";
 
-      // 1. Get user's national_id
-      const user = db.prepare("SELECT national_id FROM users WHERE id = ?").get(userId) as any;
-      if (!user) return res.status(404).json({ success: false, status_code: "USER_NOT_FOUND" });
+      let query: string;
+      let params: any[] = [];
 
-      // 2. Get house_number from real_estate_records
-      const estate = db.prepare("SELECT house_number FROM real_estate_records WHERE national_id = ?").get(user.national_id) as any;
-      if (!estate) return res.status(404).json({ success: false, status_code: "PROPERTY_NOT_FOUND" });
+      if (isAdmin) {
+        // Fetch all requests with requester names and house numbers
+        query = `
+          SELECT r.id, r.status, r.technician_id, r.repair_report, r.after_repair_image_url,
+                 r.completed_at, r.created_at, r.updated_at,
+                 u_tech.full_name as technician_name,
+                 u_req.full_name as requester_name,
+                 u_req.email as requester_email,
+                 p.house_number as requester_house
+          FROM request r
+          LEFT JOIN users u_tech ON r.technician_id = u_tech.id
+          LEFT JOIN users u_req ON r.resident_id = u_req.id
+          LEFT JOIN properties p ON r.property_id = p.id
+          ORDER BY r.created_at DESC
+        `;
+      } else {
+        // Fetch only for resident's property
+        const userData = db.prepare("SELECT national_id FROM users WHERE id = ?").get(user.id) as any;
+        if (!userData) return res.status(404).json({ success: false, status_code: "USER_NOT_FOUND" });
 
-      // 3. Get property_id from properties table
-      const property = db.prepare("SELECT id FROM properties WHERE house_number = ?").get(estate.house_number) as any;
-      if (!property) return res.status(404).json({ success: false, status_code: "PROPERTY_NOT_FOUND" });
+        const estate = db.prepare("SELECT house_number FROM real_estate_records WHERE national_id = ?").get(userData.national_id) as any;
+        if (!estate) return res.status(404).json({ success: false, status_code: "PROPERTY_NOT_FOUND" });
 
-      // 4. Fetch all requests for this property with tasks
-      const requests = db.prepare(`
-        SELECT r.id, r.status, r.technician_id, r.repair_report, r.after_repair_image_url,
-               r.completed_at, r.created_at, r.updated_at,
-               u_tech.full_name as technician_name
-        FROM request r
-        LEFT JOIN users u_tech ON r.technician_id = u_tech.id
-        WHERE r.property_id = ?
-        ORDER BY r.created_at DESC
-      `).all(property.id) as any[];
+        const property = db.prepare("SELECT id FROM properties WHERE house_number = ?").get(estate.house_number) as any;
+        if (!property) return res.status(404).json({ success: false, status_code: "PROPERTY_NOT_FOUND" });
+
+        query = `
+          SELECT r.id, r.status, r.technician_id, r.repair_report, r.after_repair_image_url,
+                 r.completed_at, r.created_at, r.updated_at,
+                 u_tech.full_name as technician_name
+          FROM request r
+          LEFT JOIN users u_tech ON r.technician_id = u_tech.id
+          WHERE r.property_id = ?
+          ORDER BY r.created_at DESC
+        `;
+        params = [property.id];
+      }
+
+      const requests = db.prepare(query).all(...params) as any[];
 
       const result = requests.map((req: any) => {
         const tasks = db.prepare(`
           SELECT t.id, t.description, t.urgency, t.status, t.task_report,
                  t.after_repair_image_url, t.prefer_date,
-                 o.object_name, o.category
+                 o.object_name, o.category, o.labor_fee, o.part_fee, o.model_ref_3d
           FROM task t
           LEFT JOIN object o ON t.object_id = o.id
           WHERE t.request_id = ?

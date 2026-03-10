@@ -10,7 +10,8 @@ import 'package:image_picker/image_picker.dart';
 
 /// FE-05: Add / Edit personnel overlay (SRS Compliant)
 class AddPersonnelOverlay extends StatefulWidget {
-  final Map<String, dynamic>? existingPersonnel; // null = add mode, non-null = edit mode
+  final Map<String, dynamic>?
+      existingPersonnel; // null = add mode, non-null = edit mode
   final VoidCallback onDismiss;
   final Function(Map<String, dynamic>) onSave;
 
@@ -35,6 +36,7 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
   late TextEditingController _heightController;
   late TextEditingController _birthplaceController;
   late TextEditingController _bioController;
+  late TextEditingController _positionController;
 
   String _selectedType = 'technician';
   String? _errorMessage;
@@ -67,11 +69,12 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
     _heightController = TextEditingController(text: p?['height'] ?? '');
     _birthplaceController = TextEditingController(text: p?['birthplace'] ?? '');
     _bioController = TextEditingController(text: p?['bio'] ?? '');
+    _positionController = TextEditingController(text: p?['position'] ?? '');
 
     if (p != null) {
       _selectedType = p['type'] ?? 'technician';
       _generatedEmployeeId = p['id'];
-      
+
       final stats = p['stats'] as Map<String, dynamic>?;
       if (stats != null) {
         _statAir = (stats['AIR'] ?? 0.5).toDouble();
@@ -94,6 +97,7 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
     _heightController.dispose();
     _birthplaceController.dispose();
     _bioController.dispose();
+    _positionController.dispose();
     super.dispose();
   }
 
@@ -127,24 +131,29 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
       return;
     }
     if (_idCardController.text.trim().length != 13) {
-      setState(() => _errorMessage = "กรุณากรอกหมายเลขบัตรประชาชนให้ครบ 13 หลัก");
+      setState(
+          () => _errorMessage = "กรุณากรอกหมายเลขบัตรประชาชนให้ครบ 13 หลัก");
       return;
     }
     if (!RegExp(r'^\d{13}$').hasMatch(_idCardController.text.trim())) {
-      setState(() => _errorMessage = "หมายเลขบัตรประชาชนต้องเป็นตัวเลขเท่านั้น");
+      setState(
+          () => _errorMessage = "หมายเลขบัตรประชาชนต้องเป็นตัวเลขเท่านั้น");
       return;
     }
     if (_phoneController.text.trim().length != 10) {
-      setState(() => _errorMessage = "กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลัก");
+      setState(
+          () => _errorMessage = "กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลัก");
       return;
     }
 
     // Check duplicates in existing data
     if (!_isEditMode) {
       final existing = DashboardData.technicians;
-      final duplicate = existing.any((t) => t['idCard'] == _idCardController.text.trim());
+      final duplicate =
+          existing.any((t) => t['idCard'] == _idCardController.text.trim());
       if (duplicate) {
-        setState(() => _errorMessage = "มีบุคลากรที่มีหมายเลขประจำตัวนี้อยู่แล้ว กรุณาตรวจสอบอีกครั้ง");
+        setState(() => _errorMessage =
+            "มีบุคลากรที่มีหมายเลขประจำตัวนี้อยู่แล้ว กรุณาตรวจสอบอีกครั้ง");
         return;
       }
     }
@@ -163,15 +172,25 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
       'line': _lineController.text.trim(),
       'email': _emailController.text.trim(),
       'age': int.tryParse(_ageController.text) ?? 25,
-      'height': _heightController.text.trim().isEmpty ? "170 cm" : _heightController.text.trim(),
+      'height': _heightController.text.trim().isEmpty
+          ? "170 cm"
+          : _heightController.text.trim(),
       'birthplace': _birthplaceController.text.trim(),
       'bio': _bioController.text.trim(),
       'type': _selectedType,
       'role': _selectedType == 'technician' ? 'TECHNICIAN' : 'VILLAGE ADMIN',
+      'position': _positionController.text.trim(),
       'isActive': true,
-      'image': _pickedFile != null ? _pickedFile!.path : (widget.existingPersonnel?['image'] ?? 'assets/resident_profile.png'),
-      'icon': _selectedType == 'technician' ? Icons.engineering_rounded : Icons.admin_panel_settings_rounded,
-      'abilities': _bioController.text.isNotEmpty ? [_bioController.text.split(' ').first] : ['General'],
+      'image': _pickedFile != null
+          ? _pickedFile!.path
+          : (widget.existingPersonnel?['image'] ??
+              'assets/resident_profile.png'),
+      'icon': _selectedType == 'technician'
+          ? Icons.engineering_rounded
+          : Icons.admin_panel_settings_rounded,
+      'abilities': _bioController.text.isNotEmpty
+          ? [_bioController.text.split(' ').first]
+          : ['General'],
       'stats': {
         'AIR': _statAir,
         'POWER': _statPower,
@@ -214,7 +233,9 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
         color: DashboardTheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: DashboardTheme.border),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 60)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 60)
+        ],
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(36),
@@ -231,12 +252,19 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                   children: [
                     Text(
                       _isEditMode ? "EDIT PERSONNEL" : "ADD NEW PERSONNEL",
-                      style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2),
+                      style: GoogleFonts.notoSans(
+                          color: DashboardTheme.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       _isEditMode ? "แก้ไขข้อมูลบุคลากร" : "เพิ่มบุคลากรใหม่",
-                      style: GoogleFonts.notoSans(color: DashboardTheme.textMain, fontSize: 24, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.notoSans(
+                          color: DashboardTheme.textMain,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800),
                     ),
                   ],
                 ),
@@ -245,7 +273,8 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                   shape: const CircleBorder(),
                   child: IconButton(
                     onPressed: widget.onDismiss,
-                    icon: Icon(Icons.close_rounded, color: DashboardTheme.textMain, size: 20),
+                    icon: Icon(Icons.close_rounded,
+                        color: DashboardTheme.textMain, size: 20),
                   ),
                 ),
               ],
@@ -272,27 +301,49 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: _isPhotoHovered ? DashboardTheme.primary : DashboardTheme.primary.withOpacity(0.3),
+                              color: _isPhotoHovered
+                                  ? DashboardTheme.primary
+                                  : DashboardTheme.primary.withOpacity(0.3),
                               width: 2,
                             ),
-                            boxShadow: _isPhotoHovered ? [
-                              BoxShadow(color: DashboardTheme.primary.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)
-                            ] : [],
+                            boxShadow: _isPhotoHovered
+                                ? [
+                                    BoxShadow(
+                                        color: DashboardTheme.primary
+                                            .withOpacity(0.3),
+                                        blurRadius: 20,
+                                        spreadRadius: 2)
+                                  ]
+                                : [],
                           ),
                           child: ClipOval(
                             child: _pickedFile != null
-                                ? (kIsWeb 
-                                    ? Image.network(_pickedFile!.path, fit: BoxFit.cover)
-                                    : Image.file(File(_pickedFile!.path), fit: BoxFit.cover))
-                                : (widget.existingPersonnel?['image'] != null 
-                                    ? (widget.existingPersonnel!['image'].startsWith('assets/')
-                                        ? Image.asset(widget.existingPersonnel!['image'], fit: BoxFit.cover)
-                                        : (kIsWeb 
-                                            ? Image.network(widget.existingPersonnel!['image'], fit: BoxFit.cover)
-                                            : Image.file(File(widget.existingPersonnel!['image']), fit: BoxFit.cover)))
+                                ? (kIsWeb
+                                    ? Image.network(_pickedFile!.path,
+                                        fit: BoxFit.cover)
+                                    : Image.file(File(_pickedFile!.path),
+                                        fit: BoxFit.cover))
+                                : (widget.existingPersonnel?['image'] != null
+                                    ? (widget.existingPersonnel!['image']
+                                            .startsWith('assets/')
+                                        ? Image.asset(
+                                            widget.existingPersonnel!['image'],
+                                            fit: BoxFit.cover)
+                                        : (kIsWeb
+                                            ? Image.network(
+                                                widget.existingPersonnel![
+                                                    'image'],
+                                                fit: BoxFit.cover)
+                                            : Image.file(
+                                                File(widget.existingPersonnel![
+                                                    'image']),
+                                                fit: BoxFit.cover)))
                                     : Container(
                                         color: DashboardTheme.surfaceSecondary,
-                                        child: Icon(Icons.add_a_photo_rounded, color: DashboardTheme.primary.withOpacity(0.5), size: 40),
+                                        child: Icon(Icons.add_a_photo_rounded,
+                                            color: DashboardTheme.primary
+                                                .withOpacity(0.5),
+                                            size: 40),
                                       )),
                           ),
                         ),
@@ -301,8 +352,11 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                           right: 0,
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: DashboardTheme.primary, shape: BoxShape.circle),
-                            child: const Icon(Icons.edit_rounded, color: Colors.black, size: 16),
+                            decoration: BoxDecoration(
+                                color: DashboardTheme.primary,
+                                shape: BoxShape.circle),
+                            child: const Icon(Icons.edit_rounded,
+                                color: Colors.black, size: 16),
                           ),
                         ),
                       ],
@@ -314,53 +368,87 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
             const SizedBox(height: 48),
 
             // Personnel Type
-            Text("ประเภทบุคลากร", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontSize: 11, fontWeight: FontWeight.bold)),
+            Text("ประเภทบุคลากร",
+                style: GoogleFonts.notoSans(
+                    color: DashboardTheme.textPale,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Row(
               children: [
                 _typeChip("technician", "ช่างซ่อม", Icons.engineering_rounded),
                 const SizedBox(width: 12),
-                _typeChip("legal", "นิติกรหมู่บ้าน", Icons.admin_panel_settings_rounded),
+                _typeChip("legal", "นิติกรหมู่บ้าน",
+                    Icons.admin_panel_settings_rounded),
               ],
             ),
             const SizedBox(height: 28),
 
+            // Position Field
+            _labeledField("ตำแหน่ง (เช่น ช่างแอร์, ช่างไฟ, หัวหน้านิติ)",
+                _positionController,
+                isOptional: true),
+            const SizedBox(height: 20),
+
             // Form Fields
             _labeledField("ชื่อ-นามสกุล", _nameController),
             const SizedBox(height: 20),
-            _labeledField("หมายเลขบัตรประชาชน (13 หลัก)", _idCardController, maxLength: 13, keyboardType: TextInputType.number),
+            _labeledField("หมายเลขบัตรประชาชน (13 หลัก)", _idCardController,
+                maxLength: 13, keyboardType: TextInputType.number),
             const SizedBox(height: 20),
-            
+
             Row(
               children: [
-                Expanded(child: _labeledField("เบอร์โทรศัพท์", _phoneController, maxLength: 10, keyboardType: TextInputType.phone)),
+                Expanded(
+                    child: _labeledField("เบอร์โทรศัพท์", _phoneController,
+                        maxLength: 10, keyboardType: TextInputType.phone)),
                 const SizedBox(width: 20),
-                Expanded(child: _labeledField("LINE ID", _lineController, isOptional: true)),
+                Expanded(
+                    child: _labeledField("LINE ID", _lineController,
+                        isOptional: true)),
               ],
             ),
             const SizedBox(height: 20),
-            _labeledField("อีเมล (E-Mail)", _emailController, isOptional: true, keyboardType: TextInputType.emailAddress),
+            _labeledField("อีเมล (E-Mail)", _emailController,
+                isOptional: true, keyboardType: TextInputType.emailAddress),
 
             const SizedBox(height: 40),
-            Text("PERSONAL PROFILE // ข้อมูลส่วนตัวเสริม", style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+            Text("PERSONAL PROFILE // ข้อมูลส่วนตัวเสริม",
+                style: GoogleFonts.notoSans(
+                    color: DashboardTheme.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5)),
             const SizedBox(height: 20),
-            
+
             Row(
               children: [
-                Expanded(child: _labeledField("อายุ", _ageController, keyboardType: TextInputType.number)),
+                Expanded(
+                    child: _labeledField("อายุ", _ageController,
+                        keyboardType: TextInputType.number)),
                 const SizedBox(width: 20),
-                Expanded(child: _labeledField("ส่วนสูง (เช่น 175 cm)", _heightController)),
+                Expanded(
+                    child: _labeledField(
+                        "ส่วนสูง (เช่น 175 cm)", _heightController)),
               ],
             ),
             const SizedBox(height: 20),
             _labeledField("สถานที่เกิด (Birthplace)", _birthplaceController),
             const SizedBox(height: 20),
-            _labeledField("ประวัติย่อ / ความสามารถที่โดดเด่น", _bioController, isOptional: true, maxLines: 3, keyboardType: TextInputType.multiline),
+            _labeledField("ประวัติย่อ / ความสามารถที่โดดเด่น", _bioController,
+                isOptional: true,
+                maxLines: 3,
+                keyboardType: TextInputType.multiline),
 
             const SizedBox(height: 40),
-            Text("SKILL METRICS // ค่าสถิติทักษะ (RADAR CHART)", style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+            Text("SKILL METRICS // ค่าสถิติทักษะ (RADAR CHART)",
+                style: GoogleFonts.notoSans(
+                    color: DashboardTheme.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5)),
             const SizedBox(height: 20),
-            
+
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -368,11 +456,16 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                   flex: 3,
                   child: Column(
                     children: [
-                      _labeledSlider("AIR", _statAir, (val) => setState(() => _statAir = val)),
-                      _labeledSlider("POWER", _statPower, (val) => setState(() => _statPower = val)),
-                      _labeledSlider("PIPE", _statPipe, (val) => setState(() => _statPipe = val)),
-                      _labeledSlider("BUILD", _statBuild, (val) => setState(() => _statBuild = val)),
-                      _labeledSlider("PAINT", _statPaint, (val) => setState(() => _statPaint = val)),
+                      _labeledSlider("AIR", _statAir,
+                          (val) => setState(() => _statAir = val)),
+                      _labeledSlider("POWER", _statPower,
+                          (val) => setState(() => _statPower = val)),
+                      _labeledSlider("PIPE", _statPipe,
+                          (val) => setState(() => _statPipe = val)),
+                      _labeledSlider("BUILD", _statBuild,
+                          (val) => setState(() => _statBuild = val)),
+                      _labeledSlider("PAINT", _statPaint,
+                          (val) => setState(() => _statPaint = val)),
                     ],
                   ),
                 ),
@@ -413,12 +506,22 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
               Container(
                 margin: const EdgeInsets.only(bottom: 24),
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: DashboardTheme.error.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: DashboardTheme.error.withOpacity(0.3))),
+                decoration: BoxDecoration(
+                    color: DashboardTheme.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: DashboardTheme.error.withOpacity(0.3))),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline_rounded, color: DashboardTheme.error, size: 20),
+                    const Icon(Icons.error_outline_rounded,
+                        color: DashboardTheme.error, size: 20),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(_errorMessage!, style: GoogleFonts.notoSans(color: DashboardTheme.error, fontSize: 13, fontWeight: FontWeight.w600))),
+                    Expanded(
+                        child: Text(_errorMessage!,
+                            style: GoogleFonts.notoSans(
+                                color: DashboardTheme.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600))),
                   ],
                 ),
               ),
@@ -429,8 +532,15 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                 Expanded(
                   child: TextButton(
                     onPressed: widget.onDismiss,
-                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                    child: Text("ยกเลิก", style: GoogleFonts.notoSans(color: DashboardTheme.textSecondary, fontWeight: FontWeight.w700, fontSize: 14)),
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14))),
+                    child: Text("ยกเลิก",
+                        style: GoogleFonts.notoSans(
+                            color: DashboardTheme.textSecondary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -438,8 +548,18 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                   flex: 2,
                   child: ElevatedButton(
                     onPressed: _validate,
-                    style: ElevatedButton.styleFrom(backgroundColor: DashboardTheme.primary, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
-                    child: Text("ไปยังขั้นตอนถัดไป", style: GoogleFonts.notoSans(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: DashboardTheme.primary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                        elevation: 0),
+                    child: Text("ไปยังขั้นตอนถัดไป",
+                        style: GoogleFonts.notoSans(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14)),
                   ),
                 ),
               ],
@@ -450,7 +570,8 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
     );
   }
 
-  Widget _labeledSlider(String label, double value, Function(double) onChanged) {
+  Widget _labeledSlider(
+      String label, double value, Function(double) onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -459,8 +580,16 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontSize: 11, fontWeight: FontWeight.bold)),
-              Text("${(value * 100).toInt()}%", style: GoogleFonts.shareTechMono(color: DashboardTheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text(label,
+                  style: GoogleFonts.notoSans(
+                      color: DashboardTheme.textPale,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+              Text("${(value * 100).toInt()}%",
+                  style: GoogleFonts.shareTechMono(
+                      color: DashboardTheme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           SliderTheme(
@@ -493,7 +622,10 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: DashboardTheme.primary.withOpacity(0.3)),
         boxShadow: [
-          BoxShadow(color: DashboardTheme.primary.withOpacity(0.1), blurRadius: 40, spreadRadius: 4),
+          BoxShadow(
+              color: DashboardTheme.primary.withOpacity(0.1),
+              blurRadius: 40,
+              spreadRadius: 4),
           BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 60),
         ],
       ),
@@ -501,8 +633,15 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Header
-          Text("ELECTRONIC ID CARD", style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 3)),
-          Text("บัตรประจำตัวพนักงานอิเล็กทรอนิกส์", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontSize: 10)),
+          Text("ELECTRONIC ID CARD",
+              style: GoogleFonts.notoSans(
+                  color: DashboardTheme.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3)),
+          Text("บัตรประจำตัวพนักงานอิเล็กทรอนิกส์",
+              style: GoogleFonts.notoSans(
+                  color: DashboardTheme.textPale, fontSize: 10)),
           const SizedBox(height: 28),
 
           // ID Card
@@ -518,7 +657,8 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: DashboardTheme.primary.withOpacity(0.2)),
+              border:
+                  Border.all(color: DashboardTheme.primary.withOpacity(0.2)),
             ),
             child: Column(
               children: [
@@ -536,10 +676,13 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: _pickedFile != null
-                            ? (kIsWeb 
-                                ? Image.network(_pickedFile!.path, fit: BoxFit.cover)
-                                : Image.file(File(_pickedFile!.path), fit: BoxFit.cover))
-                            : Icon(Icons.person_rounded, color: DashboardTheme.textPale, size: 40),
+                            ? (kIsWeb
+                                ? Image.network(_pickedFile!.path,
+                                    fit: BoxFit.cover)
+                                : Image.file(File(_pickedFile!.path),
+                                    fit: BoxFit.cover))
+                            : Icon(Icons.person_rounded,
+                                color: DashboardTheme.textPale, size: 40),
                       ),
                     ),
                     const SizedBox(width: 24),
@@ -547,9 +690,25 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_nameController.text, style: GoogleFonts.notoSans(color: DashboardTheme.textMain, fontSize: 18, fontWeight: FontWeight.w800)),
+                          Text(_nameController.text,
+                              style: GoogleFonts.notoSans(
+                                  color: DashboardTheme.textMain,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800)),
                           const SizedBox(height: 4),
-                          Text(_selectedType == 'technician' ? 'ช่างซ่อม' : 'นิติกรหมู่บ้าน', style: GoogleFonts.notoSans(color: DashboardTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(
+                              _selectedType == 'technician'
+                                  ? 'ช่างซ่อม'
+                                  : 'นิติกรหมู่บ้าน',
+                              style: GoogleFonts.notoSans(
+                                  color: DashboardTheme.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                          if (_positionController.text.isNotEmpty)
+                            Text(_positionController.text,
+                                style: GoogleFonts.notoSans(
+                                    color: DashboardTheme.textPale,
+                                    fontSize: 11)),
                           const SizedBox(height: 12),
                           _idRow("ID", _generatedEmployeeId ?? ''),
                           _idRow("TEL", _phoneController.text),
@@ -564,15 +723,25 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("VIVORN VILLA FACILITY", style: GoogleFonts.shareTechMono(color: DashboardTheme.textPale, fontSize: 9, letterSpacing: 1)),
-                    Text("ACTIVE ●", style: GoogleFonts.notoSans(color: const Color(0xFF00E676), fontSize: 10, fontWeight: FontWeight.w800)),
+                    Text("VIVORN VILLA FACILITY",
+                        style: GoogleFonts.shareTechMono(
+                            color: DashboardTheme.textPale,
+                            fontSize: 9,
+                            letterSpacing: 1)),
+                    Text("ACTIVE ●",
+                        style: GoogleFonts.notoSans(
+                            color: const Color(0xFF00E676),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800)),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          Text("รหัสผ่านเริ่มต้น = หมายเลขบัตรประชาชน", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontSize: 10)),
+          Text("รหัสผ่านเริ่มต้น = หมายเลขบัตรประชาชน",
+              style: GoogleFonts.notoSans(
+                  color: DashboardTheme.textPale, fontSize: 10)),
           const SizedBox(height: 28),
 
           // Actions
@@ -581,8 +750,13 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
               Expanded(
                 child: TextButton(
                   onPressed: () => setState(() => _showIdCard = false),
-                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
-                  child: Text("ย้อนกลับ", style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18)),
+                  child: Text("ย้อนกลับ",
+                      style: GoogleFonts.notoSans(
+                          color: DashboardTheme.textPale,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14)),
                 ),
               ),
               const SizedBox(width: 16),
@@ -592,10 +766,15 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: DashboardTheme.primary,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
-                  child: Text("บันทึก", style: GoogleFonts.notoSans(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
+                  child: Text("บันทึก",
+                      style: GoogleFonts.notoSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14)),
                 ),
               ),
             ],
@@ -615,16 +794,32 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? DashboardTheme.primary.withOpacity(0.1) : DashboardTheme.surfaceSecondary,
+            color: isSelected
+                ? DashboardTheme.primary.withOpacity(0.1)
+                : DashboardTheme.surfaceSecondary,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: isSelected ? DashboardTheme.primary : DashboardTheme.border),
+            border: Border.all(
+                color: isSelected
+                    ? DashboardTheme.primary
+                    : DashboardTheme.border),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: isSelected ? DashboardTheme.primary : DashboardTheme.textPale, size: 18),
+              Icon(icon,
+                  color: isSelected
+                      ? DashboardTheme.primary
+                      : DashboardTheme.textPale,
+                  size: 18),
               const SizedBox(width: 8),
-              Text(label, style: GoogleFonts.notoSans(color: isSelected ? DashboardTheme.primary : DashboardTheme.textSecondary, fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+              Text(label,
+                  style: GoogleFonts.notoSans(
+                      color: isSelected
+                          ? DashboardTheme.primary
+                          : DashboardTheme.textSecondary,
+                      fontSize: 13,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal)),
             ],
           ),
         ),
@@ -632,14 +827,26 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
     );
   }
 
-  Widget _labeledField(String label, TextEditingController controller, {int? maxLength, TextInputType? keyboardType, bool isOptional = false, int maxLines = 1}) {
+  Widget _labeledField(String label, TextEditingController controller,
+      {int? maxLength,
+      TextInputType? keyboardType,
+      bool isOptional = false,
+      int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text(label, style: GoogleFonts.notoSans(color: DashboardTheme.textPale, fontSize: 11, fontWeight: FontWeight.bold)),
-            if (isOptional) Text(" (optional)", style: GoogleFonts.notoSans(color: DashboardTheme.textPale.withOpacity(0.5), fontSize: 10)),
+            Text(label,
+                style: GoogleFonts.notoSans(
+                    color: DashboardTheme.textPale,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
+            if (isOptional)
+              Text(" (optional)",
+                  style: GoogleFonts.notoSans(
+                      color: DashboardTheme.textPale.withOpacity(0.5),
+                      fontSize: 10)),
           ],
         ),
         const SizedBox(height: 8),
@@ -648,15 +855,24 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
           maxLength: maxLength,
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: GoogleFonts.notoSans(color: DashboardTheme.textMain, fontSize: 14),
+          style: GoogleFonts.notoSans(
+              color: DashboardTheme.textMain, fontSize: 14),
           decoration: InputDecoration(
             counterText: '',
             filled: true,
             fillColor: DashboardTheme.surfaceSecondary,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: DashboardTheme.border)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: DashboardTheme.border)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: DashboardTheme.primary, width: 1.5)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: DashboardTheme.border)),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: DashboardTheme.border)),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    BorderSide(color: DashboardTheme.primary, width: 1.5)),
           ),
         ),
       ],
@@ -668,8 +884,19 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          SizedBox(width: 40, child: Text(label, style: GoogleFonts.shareTechMono(color: DashboardTheme.textPale, fontSize: 10, fontWeight: FontWeight.bold))),
-          Expanded(child: Text(value, style: GoogleFonts.shareTechMono(color: DashboardTheme.textMain, fontSize: 12, fontWeight: FontWeight.bold))),
+          SizedBox(
+              width: 40,
+              child: Text(label,
+                  style: GoogleFonts.shareTechMono(
+                      color: DashboardTheme.textPale,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold))),
+          Expanded(
+              child: Text(value,
+                  style: GoogleFonts.shareTechMono(
+                      color: DashboardTheme.textMain,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold))),
         ],
       ),
     );

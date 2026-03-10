@@ -8,7 +8,7 @@ const repairRouter = Router();
 repairRouter.get(
   "/history",
   authMiddleware,
-  authorizeRole(["Resident"]),
+  authorizeRole(["Resident", "Jurisdictic", "Technician"]),
   RepairController.getResidentHistory
 );
 

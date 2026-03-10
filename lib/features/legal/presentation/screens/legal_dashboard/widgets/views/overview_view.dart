@@ -6,6 +6,7 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/personnel_dossier_overlay.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/task_assignment_overlay.dart';
+import 'package:fcm_app/core/data/repair_repository.dart';
 
 class OverviewView extends StatefulWidget {
   const OverviewView({super.key});
@@ -16,7 +17,7 @@ class OverviewView extends StatefulWidget {
 
 class _OverviewViewState extends State<OverviewView> {
   Map<String, dynamic>? _selectedTech;
-  Map<String, dynamic>? _selectedTask;
+  RepairRequest? _selectedTask;
   List<String> _draftStaffNames = [];
 
   @override
@@ -33,15 +34,19 @@ class _OverviewViewState extends State<OverviewView> {
                 child: VillageMapWidget(
                   onMarkerTap: (houseShort, issue) {
                     final fullHouse = "UNIT-$houseShort";
-                    final task = DashboardData.tasks.firstWhere(
-                      (t) => t['house'] == fullHouse || t['house'] == houseShort,
-                      orElse: () => {},
-                    );
-                    
-                    if (task.isNotEmpty) {
+                    final matches = RepairRepository
+                        .instance.repairsNotifier.value
+                        .where((r) =>
+                            r.requesterHouse == fullHouse ||
+                            r.requesterHouse == houseShort ||
+                            r.requesterHouse == "Unit $houseShort")
+                        .toList();
+
+                    if (matches.isNotEmpty) {
                       setState(() {
-                        _selectedTask = task;
-                        _draftStaffNames = List<String>.from(task['staffNames'] ?? []); 
+                        _selectedTask = matches.first;
+                        _draftStaffNames =
+                            List<String>.from(_selectedTask!.assignedStaff);
                       });
                     }
                   },
@@ -69,7 +74,8 @@ class _OverviewViewState extends State<OverviewView> {
                     }),
                     onConfirm: () {
                       if (_draftStaffNames.isNotEmpty) {
-                        _selectedTask!['staffNames'] = List<String>.from(_draftStaffNames);
+                        RepairRepository.instance
+                            .assignRequest(_selectedTask!.id, _draftStaffNames);
                       }
                       setState(() {
                         _selectedTask = null;
@@ -85,20 +91,20 @@ class _OverviewViewState extends State<OverviewView> {
 
               // 5. TECHNICIANS CURRENTLY ON DUTY (TOP MOST FOR INTERACTIVITY)
               Positioned(
-                bottom: 30, 
+                bottom: 30,
                 left: 0,
                 right: 0,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center, 
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: terminalText(
-                        "TECHNICIANS CURRENTLY ON DUTY", 
-                        fontSize: 8.5, 
+                        "พนักงานที่ปฏิบัติงานอยู่",
+                        fontSize: 8.5,
                         color: Colors.white, // White font as requested
-                        fontWeight: FontWeight.w700, 
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
                         shadows: [
                           Shadow(
@@ -110,10 +116,10 @@ class _OverviewViewState extends State<OverviewView> {
                       ),
                     ),
                     SizedBox(
-                      height: 210, 
+                      height: 210,
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(), 
+                        physics: const NeverScrollableScrollPhysics(),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
@@ -121,7 +127,9 @@ class _OverviewViewState extends State<OverviewView> {
                             return TechnicianCard(
                               name: tech['name'],
                               status: tech['isActive'] ? "ACTIVE" : "INACTIVE",
-                              statusColor: tech['isActive'] ? DashboardTheme.success : DashboardTheme.primary,
+                              statusColor: tech['isActive']
+                                  ? DashboardTheme.success
+                                  : DashboardTheme.primary,
                               isActive: tech['isActive'],
                               imagePath: tech['image'],
                               roleIcon: tech['icon'],
@@ -130,7 +138,8 @@ class _OverviewViewState extends State<OverviewView> {
                                 if (_selectedTask != null) {
                                   if (tech['isActive']) {
                                     setState(() {
-                                      if (_draftStaffNames.contains(tech['name'])) {
+                                      if (_draftStaffNames
+                                          .contains(tech['name'])) {
                                         _draftStaffNames.remove(tech['name']);
                                       } else {
                                         _draftStaffNames.add(tech['name']);

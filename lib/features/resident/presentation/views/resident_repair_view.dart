@@ -440,7 +440,7 @@ class _TactileSlab extends StatelessWidget {
   final double? width;
   final bool isRecessed;
   const _TactileSlab(
-      {super.key, required this.child, this.width, this.isRecessed = false});
+      {required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -497,7 +497,6 @@ class _ScheduleTrigger extends StatelessWidget {
   final Color activeColor;
   const _ScheduleTrigger(
       {required this.label,
-      this.value,
       required this.icon,
       required this.onTap,
       required this.activeColor});
@@ -678,8 +677,7 @@ class _PremiumInput extends StatelessWidget {
   const _PremiumInput(
       {required this.controller,
       required this.hint,
-      required this.activeColor,
-      this.maxLines = 1});
+      required this.activeColor});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -851,9 +849,7 @@ class _ReviewRow extends StatelessWidget {
   const _ReviewRow(
       {required this.label,
       required this.value,
-      this.isRed = false,
-      this.isGreen = false,
-      this.isBold = false});
+      this.isGreen = false});
   @override
   Widget build(BuildContext context) {
     return Padding(

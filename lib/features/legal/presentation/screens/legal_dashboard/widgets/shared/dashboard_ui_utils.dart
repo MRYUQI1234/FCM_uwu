@@ -4,18 +4,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
 
 // Light Mode Theme Constants
-Color get retroAmber => DashboardTheme.primary; 
+Color get retroAmber => DashboardTheme.primary;
 Color get retroAmberDim => DashboardTheme.primaryDim;
 Color get retroBg => DashboardTheme.background;
 
-Widget terminalText(String text, {double fontSize = 12, Color? color, FontWeight fontWeight = FontWeight.w900, double letterSpacing = 0.5, TextAlign? textAlign, List<Shadow>? shadows}) {
+Widget terminalText(String text,
+    {double fontSize = 12,
+    Color? color,
+    FontWeight fontWeight = FontWeight.w900,
+    double letterSpacing = 0.5,
+    TextAlign? textAlign,
+    List<Shadow>? shadows}) {
   return Text(
     text.toUpperCase(),
     textAlign: textAlign,
     style: GoogleFonts.shareTechMono(
       color: color ?? DashboardTheme.textMain,
       fontSize: fontSize,
-      fontWeight: fontWeight, 
+      fontWeight: fontWeight,
       letterSpacing: letterSpacing,
       shadows: shadows,
     ),
@@ -51,14 +57,12 @@ class MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: _HoverMetricCard(
-        label: label,
-        icon: icon,
-        color: color,
-        onTap: onTap,
-        child: child,
-      ),
+    return _HoverMetricCard(
+      label: label,
+      icon: icon,
+      color: color,
+      onTap: onTap,
+      child: child,
     );
   }
 }
@@ -88,7 +92,9 @@ class _HoverMetricCardState extends State<_HoverMetricCard> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: widget.onTap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -98,10 +104,13 @@ class _HoverMetricCardState extends State<_HoverMetricCard> {
           height: 140,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: _isHovered ? DashboardTheme.primaryDim : DashboardTheme.surface,
+            color:
+                _isHovered ? DashboardTheme.primaryDim : DashboardTheme.surface,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: _isHovered ? DashboardTheme.primary.withOpacity(0.3) : DashboardTheme.border,
+              color: _isHovered
+                  ? DashboardTheme.primary.withOpacity(0.3)
+                  : DashboardTheme.border,
               width: 1.5,
             ),
             boxShadow: [
@@ -119,20 +128,25 @@ class _HoverMetricCardState extends State<_HoverMetricCard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.label,
-                    style: GoogleFonts.notoSans(
-                      color: _isHovered ? DashboardTheme.primary : DashboardTheme.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      style: GoogleFonts.notoSans(
+                        color: _isHovered
+                            ? DashboardTheme.primary
+                            : DashboardTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Icon(
-                    widget.icon, 
-                    color: _isHovered ? DashboardTheme.primary : DashboardTheme.textPale, 
-                    size: 18
-                  ),
+                  Icon(widget.icon,
+                      color: _isHovered
+                          ? DashboardTheme.primary
+                          : DashboardTheme.textPale,
+                      size: 18),
                 ],
               ),
               widget.child,
@@ -206,7 +220,10 @@ void showDashboardOverlay({
                               ],
                             ),
                             const SizedBox(height: 12),
-                            terminalText(subtitle, fontSize: 11, color: DashboardTheme.textSecondary, letterSpacing: 2),
+                            terminalText(subtitle,
+                                fontSize: 11,
+                                color: DashboardTheme.textSecondary,
+                                letterSpacing: 2),
                           ],
                         ),
                         Material(
@@ -214,7 +231,8 @@ void showDashboardOverlay({
                           shape: const CircleBorder(),
                           child: IconButton(
                             onPressed: () => Navigator.pop(context),
-                            icon: Icon(Icons.close_rounded, color: DashboardTheme.textMain, size: 28),
+                            icon: Icon(Icons.close_rounded,
+                                color: DashboardTheme.textMain, size: 28),
                           ),
                         ),
                       ],

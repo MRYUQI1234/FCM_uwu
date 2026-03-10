@@ -9,7 +9,6 @@ import 'package:fcm_app/shared/widgets/repair_confirmation_overlay.dart';
 import '../../data/repositories/ai_chat_repository.dart';
 import '../../data/models/ai_conversation_model.dart';
 import '../../data/models/ai_message_model.dart';
-import 'dart:ui';
 import 'dart:convert';
 
 class AIChatPanel extends StatefulWidget {

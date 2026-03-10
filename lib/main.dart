@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/forgot_password_screen.dart';
 
 import 'features/resident/presentation/screens/resident_dashboard_screen.dart';
 import 'features/legal/presentation/screens/legal_dashboard_screen.dart';
@@ -83,6 +84,7 @@ class FcmApp extends StatelessWidget {
             const AuthGuard(child: TechnicianViewScreen()),
         '/3d_model': (context) =>
             const AuthGuard(child: ResidentDashboardScreen()),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
       },
     );
   }

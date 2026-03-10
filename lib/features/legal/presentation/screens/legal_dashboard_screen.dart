@@ -16,8 +16,8 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/views/settings_view.dart';
 
 // Data
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/core/data/auth_repository.dart';
+import 'package:fcm_app/core/data/repair_repository.dart';
 
 class LegalDashboardScreen extends StatefulWidget {
   const LegalDashboardScreen({super.key});
@@ -29,11 +29,17 @@ class LegalDashboardScreen extends StatefulWidget {
 class _LegalDashboardScreenState extends State<LegalDashboardScreen>
     with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+  Map<String, dynamic>? _profileData;
+  List<Map<String, dynamic>> _technicians = [];
+  bool _isLoadingProfile = true;
+  bool _isHovering = false;
 
   // ── Sidebar auto-hide ──
   late AnimationController _sidebarAnim;
   Timer? _hideTimer;
-  bool _isHovering = false;
+
+  // No data for views needed here as technicians are fetched via _fetchPersonnel
+  // and requests can be fetched in OverviewView/TasksView directly if needed.
 
   @override
   void initState() {
@@ -44,6 +50,44 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
       value: 1.0,
     );
     _startHideTimer();
+    _fetchProfile();
+    _fetchPersonnel();
+    _loadData();
+  }
+
+  Future<void> _fetchPersonnel() async {
+    final personnel = await AuthRepository.instance.getPersonnel();
+    if (mounted) {
+      setState(() {
+        _technicians = personnel;
+      });
+    }
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final result = await AuthRepository.instance.getProfile();
+      if (mounted && result['success'] == true) {
+        setState(() {
+          _profileData = result['data'];
+          _isLoadingProfile = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching profile: $e');
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
+    }
+  }
+
+  void _loadData() {
+    // Fetch repair history for the dashboard
+    RepairRepository.instance.fetchHistory();
+    // Other data like announcements or statistics can remain hardcoded for now or fetch later
+    // _technicians is now fetched via _fetchPersonnel, so no hardcoded data here.
   }
 
   @override
@@ -120,27 +164,27 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                             SidebarItem(
                                 index: 0,
                                 icon: Icons.dashboard_rounded,
-                                label: "OVERVIEW"),
+                                label: "ภาพรวม"),
                             SidebarItem(
                                 index: 1,
                                 icon: Icons.assignment_rounded,
-                                label: "REQUESTS"),
+                                label: "รายการแจ้งซ่อม"),
                             SidebarItem(
                                 index: 2,
                                 icon: Icons.engineering_rounded,
-                                label: "STAFF"),
+                                label: "พนักงาน"),
                             SidebarItem(
                                 index: 4,
                                 icon: Icons.analytics_rounded,
-                                label: "ANALYTICS"),
+                                label: "สถิติ"),
                             SidebarItem(
                                 index: 5,
                                 icon: Icons.person_rounded,
-                                label: "ACCOUNT"),
+                                label: "บัญชีผู้ใช้"),
                             SidebarItem(
                                 index: 3,
                                 icon: Icons.settings_rounded,
-                                label: "SETTINGS"),
+                                label: "ตั้งค่า"),
                           ],
                         ),
                       ),
@@ -148,19 +192,23 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                   ),
                   Expanded(
                     child: RepaintBoundary(
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: _buildMainContent(),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: _buildHeader(),
-                          ),
-                        ],
-                      ),
+                      child: _isLoadingProfile
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                  color: DashboardTheme.accentAmber))
+                          : Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: _buildMainContent(),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: _buildHeader(),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                 ],
@@ -242,13 +290,13 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                             color: DashboardTheme.error, size: 48),
                       ),
                       const SizedBox(height: 24),
-                      terminalText("SESSION TERMINATION",
+                      terminalText("ออกจากระบบ",
                           color: DashboardTheme.error,
                           fontSize: 18,
                           letterSpacing: 2),
                       const SizedBox(height: 12),
                       Text(
-                        "Are you sure you want to end your active session on the FCM Platform?",
+                        "คุณต้องการออกจากระบบ FCM Platform ใช่หรือไม่?",
                         textAlign: TextAlign.center,
                         style: GoogleFonts.notoSans(
                           color: DashboardTheme.textSecondary,
@@ -267,7 +315,7 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                     children: [
                       Expanded(
                         child: _dialogButton(
-                          label: "CANCEL",
+                          label: "ยกเลิก",
                           onTap: () => Navigator.pop(context),
                           color: DashboardTheme.textPale,
                           isGlassy: true,
@@ -276,7 +324,7 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
                       const SizedBox(width: 16),
                       Expanded(
                         child: _dialogButton(
-                          label: "LOGOUT",
+                          label: "ออกจากระบบ",
                           onTap: () async {
                             await AuthRepository.instance.logout();
                             if (mounted) {
@@ -344,17 +392,13 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+          Row(
             children: [
-              const SizedBox(height: 0),
               Text(
-                "TODAY'S REPAIR REQUESTS",
+                "รายการแจ้งซ่อมประจำวัน",
                 style: GoogleFonts.notoSans(
-                  color: Colors.white, // White font as requested
+                  color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.5,
@@ -369,42 +413,7 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
               ),
             ],
           ),
-          Row(
-            children: [
-              _headerInfo('22°C', Icons.wb_sunny_rounded),
-              _headerInfo('Humidity 49%', Icons.water_drop_rounded),
-              _headerInfo('Wind 4 km/h', Icons.air_rounded),
-              const SizedBox(width: 0),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerInfo(String label, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 20),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: DashboardTheme.primary, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: GoogleFonts.notoSans(
-              color: Colors.white, // White font as requested
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              shadows: [
-                Shadow(
-                  color: Colors.black.withOpacity(0.8),
-                  blurRadius: 6,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox.shrink(),
         ],
       ),
     );
@@ -416,22 +425,24 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
         return const OverviewView();
       case 1:
         return TasksView(
-          technicians: DashboardData.technicians,
+          technicians: _technicians,
           onIndexChanged: (i) => setState(() => _selectedIndex = i),
         );
       case 2:
-        return TechniciansView(technicians: DashboardData.technicians);
+        return TechniciansView(technicians: _technicians);
       case 3:
         return const SettingsView();
       case 4:
         return const StatisticsView();
       case 5:
-        return const ProfileView(
-          name: "Admin Zeta",
-          email: "admin@gmail.com",
-          phone: "+66 88 777 9999",
-          role: "Admin",
-          imagePath: 'assets/images/profile_placeholder_2.jpg',
+        return ProfileView(
+          name: (_profileData?['name'] as String?) ?? "Admin",
+          email: (_profileData?['email'] as String?) ?? "",
+          phone: (_profileData?['phone'] as String?) ?? "",
+          role: (_profileData?['role'] as String?) ?? "Jurisdictic",
+          position: _profileData?['position'] as String?,
+          imagePath: 'assets/resident_profile.png',
+          onProfileUpdated: _fetchProfile,
         );
       default:
         return const OverviewView();

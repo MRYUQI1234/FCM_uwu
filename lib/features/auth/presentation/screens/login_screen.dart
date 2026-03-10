@@ -414,10 +414,11 @@ class _LoginScreenState extends State<LoginScreen>
                   cameraControls: false,
                   disableZoom: true,
                   exposure: (lerpDouble(
-                    previousSeason['exposure'] as double,
-                    currentSeason['exposure'] as double,
-                    t,
-                  ) ?? 1.0),
+                        previousSeason['exposure'] as double,
+                        currentSeason['exposure'] as double,
+                        t,
+                      ) ??
+                      1.0),
                   shadowIntensity: 1.0,
                   shadowSoftness: 1.0,
                   rotationPerSecond: '10deg',
@@ -705,7 +706,8 @@ class _LoginScreenState extends State<LoginScreen>
           Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                  onPressed: () {},
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/forgot-password'),
                   child: const Text('Forgot password?',
                       style: TextStyle(color: accentGold, fontSize: 13)))),
           // Inline error message
