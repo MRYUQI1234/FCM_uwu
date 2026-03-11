@@ -1,0 +1,57 @@
+ Vivorn Villa FCM - Backend Walkthrough v4.0
+-----------------------------------------
+Focus: Authentication Result Code Integration for Frontend Routing
+
+1. Overview:
+   The backend now returns a standardized `status_code` field in all Auth responses. This allows 
+   the Flutter/Frontend app to use efficient switch/if logic for routing rather than parsing text 
+   messages.
+
+2. Auth Status Codes:
+
+   A. POST /api/auth/login
+   - AUTH_SUCCESS (Status 200):
+     Login successful. User has already set up their PIN.
+     Action: Redirect to Home/Dashboard.
+   
+   - REQUIRE_PIN_SETUP (Status 200):
+     Credentials valid, but this is the user's first login.
+     Action: Redirect to 6-digit PIN setup screen.
+   
+   - INVALID_CREDENTIALS (Status 401):
+     Email or Password incorrect.
+     Action: Show error notification.
+
+   B. POST /api/auth/register
+   - REGISTRATION_SUCCESS (Status 201):
+     User created successfully based on valid real estate record.
+     Action: Redirect to Login page.
+   
+   - ID_NOT_FOUND (Status 403):
+     The provided National ID is not in our real estate database.
+     Action: Show "Not a Resident" error.
+   
+   - ALREADY_REGISTERED (Status 409):
+     National ID or Email already exists.
+     Action: Suggest password recovery or login.
+
+   C. POST /api/auth/setup-pin
+   - PIN_SETUP_SUCCESS (Status 200):
+     PIN saved and first_login flag cleared.
+     Action: Redirect to Home/Dashboard.
+
+3. Role-Based Access Control (RBAC)
+   The `user.role` returned in the login response is now strictly case-sensitive:
+   - 'Resident'
+   - 'Technician'
+   - 'Jurisdictic' (Note the 't' at the end)
+
+4. Technical Standards:
+   - All response headers are JSON.
+   - 400 Errors provide a `status_code: "VALIDATION_ERROR"` with an `errors` array from Zod.
+   - JWT Token should be stored in Flutter Secure Storage and sent in Authorization header:
+     Authorization: Bearer <TOKEN>
+
+Status: Verified & Tested.
+Backend Dev Team
+2026-03-07

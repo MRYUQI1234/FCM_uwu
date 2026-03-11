@@ -1,0 +1,33 @@
+- Version: 3.0 (AI-to-Database Contextual Mapping)
+- Focus: Context-aware AI and transactional database persistence.
+
+1. Hardware Contextualization:
+    Unlike generic AI, this system now performs "Context Fetching." Before the prompt is sent, 
+    the backend queries the `object` table for the resident's specific property. 
+    This list of IDs and Names is injected into the prompt as "Available Hardware Context."
+
+2. Object Mapping & IDs:
+    Gemini is no longer just identifying "a light"; it is mapping the user request 
+    to a specific `object_id` from the database. If a user says "the sink," Gemini 
+    matches it to the ID provided in the context (e.g., 'sink_v1'). This allows 
+    instant 3D highlighting for technicians.
+
+3. Transactional Integrity:
+    We use SQLite Transactions (via better-sqlite3). This ensures that if any part 
+    of the creation fails (e.g., AI log fails), the entire Request and its child 
+    Tasks are rolled back, preventing orphaned or incomplete records.
+
+4. Chronological Accuracy (ISO-8601):
+    The AI is instructed to convert natural language relative dates (e.g., "Friday at 10") 
+    into strict TIMEDATE format (YYYY-MM-DD HH:MM:SS), ensuring they can be sorted 
+    in SQL and rendered correctly in JavaScript calendars.
+
+5. AI Audit Trail:
+    Every request stores the raw prompt, the full raw JSON response, and token 
+    usage metrics in the `ai_log` table. This is critical for debugging AI behavior 
+    and performance monitoring.
+
+6. Developer Integration:
+    The endpoint now returns a `request_id` upon success. This allows the frontend 
+    to perform an immediate redirect (`/requests/:id`) as soon as the AI 
+    finishes processing.

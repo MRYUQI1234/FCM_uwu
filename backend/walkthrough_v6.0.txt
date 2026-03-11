@@ -1,0 +1,57 @@
+Vivorn Villa FCM - Backend Walkthrough v6.0
+-----------------------------------------
+Topic: Repair Reporting (FE-03), Staff Operations, and Resident Feedback System
+
+1. Database Schema Update (v3.7):
+   - Tables: 'task' now includes `task_report` and `after_repair_image_url`.
+   - Tables: 'request' now includes `completed_at` to track finish time.
+   - New Table: 'evaluation' for storing 1-5 star ratings and resident comments.
+
+2. Technician Operations (FE-03):
+   Technicians or Jurisdictic staff can update the status of individual tasks within a request.
+   
+   Endpoint: PATCH /api/repair/task/:taskId
+   Request Body:
+   {
+     "status": "Completed", 
+     "task_report": "Text reporting details",
+     "after_repair_image_url": "https://..."
+   }
+   
+   Business Logic:
+   - When the LAST task in a request is marked as "Completed", the parent Request status 
+     automatically transitions to "Completed" and sets the `completed_at` timestamp.
+
+3. Resident Feedback System:
+   Residents can evaluate the repair service once the request is fully completed.
+   
+   Endpoint: POST /api/repair/evaluate
+   Request Body:
+   {
+     "request_id": "uuid-here",
+     "rating": 5,           // 1 to 5
+     "comment": "Good job"  // Optional
+   }
+   
+   Business Rule (7-Day Limit):
+   - Evaluation is only allowed within 7 days of the `completed_at` date.
+   - Status Code `EVALUATION_PERIOD_EXPIRED` is returned if the limit is exceeded.
+
+4. Standardized Status Codes for Flutter:
+   
+   | Endpoint                | status_code                | Meaning                              |
+   | :---                    | :---                       | :---                                 |
+   | PATCH /repair/task/:id  | TASK_UPDATED               | Individual task saved.               |
+   | PATCH /repair/task/:id  | REQUEST_FULLY_COMPLETED    | All tasks done, Request is closed.   |
+   | POST /repair/evaluate   | EVALUATION_SUBMITTED       | Review saved, status set to Reviewed.|
+   | POST /repair/evaluate   | REQUEST_NOT_COMPLETED     | Cannot review an unfinished job.     |
+   | POST /repair/evaluate   | EVALUATION_PERIOD_EXPIRED  | Over 7 days since completion.        |
+
+5. Database Seed Update:
+   - Database: vivorn_villa.db
+   - Test Resident: res_200@vivorn.com (Password = National ID from DB)
+   - Test Admin: admin@vivorn.com / AdminP@ss123
+
+Backend Architect Note: v6.0 introduces the full closure loop for repair requests.
+2026-03-07
+v6.0 Unified Build

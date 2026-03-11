@@ -1,0 +1,41 @@
+ Vivorn Villa FCM - Backend Walkthrough v7.0
+-----------------------------------------
+Topic: AI Request Assistant (FE-08)
+
+1. Database Schema Update (v8.0):
+   - New Table: 'ai_conversations' for storing session master data.
+   - New Table: 'ai_messages' for storing thread logs between Resident and Gemini AI.
+
+2. AI Chat Component (FE-08):
+   Residents can initiate a chat with the System AI to report issues directly from the 3D Home screen.
+   
+   A. Get Conversations:
+   Endpoint: GET /api/chat/conversations
+   Returns all previous AI chat sessions for the logged-in resident.
+
+   B. Get Messages:
+   Endpoint: GET /api/chat/conversations/:conversationId/messages
+   Returns the message thread for a specific conversation.
+
+   C. Send Message:
+   Endpoint: POST /api/chat/message
+   Request Body:
+   {
+     "content": "The kitchen sink is leaking.",
+     "conversationId": "uuid-here" // Optional. If omitted, a new conversation is started.
+   }
+   
+   Business Logic:
+   - The user message is logged immediately.
+   - The backend runs `AIService.analyzeRepairIntent` to process the NLP.
+   - The AI's `follow_up_message` or completion response is returned and logged as an AI message.
+   - If a valid task is parsed, it creates the request objects as per v3.0 standard.
+
+3. Frontend Implementation:
+   - Floating Action Button (FAB) added uniquely to the ResidentHomeView (3D Model page).
+   - The AIChatScreen features a 2-column layout (History aside, active thread main).
+   - Strict adherence to DashboardTheme visual guidelines.
+
+Status: Current Standard.
+2026-03-08
+v8.0 AI Chat Integration

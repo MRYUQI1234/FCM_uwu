@@ -1,0 +1,472 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:fcm_app/core/data/auth_repository.dart';
+
+class RepairTask {
+  final String id;
+  final String description;
+  final String status;
+  final String urgency;
+  final String? taskReport;
+  final String? afterRepairImageUrl;
+  final DateTime? preferDate;
+  final String? objectName;
+  final String? category;
+  final double laborFee;
+  final double partFee;
+  final String? modelRef3D;
+
+  RepairTask({
+    required this.id,
+    required this.description,
+    required this.status,
+    required this.urgency,
+    this.taskReport,
+    this.afterRepairImageUrl,
+    this.preferDate,
+    this.objectName,
+    this.category,
+    this.laborFee = 0.0,
+    this.partFee = 0.0,
+    this.modelRef3D,
+  });
+
+  factory RepairTask.fromJson(Map<String, dynamic> json) {
+    return RepairTask(
+      id: json['id']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      urgency: json['urgency']?.toString() ?? 'Normal',
+      taskReport: json['task_report']?.toString(),
+      afterRepairImageUrl: json['after_repair_image_url']?.toString(),
+      preferDate: json['prefer_date'] != null
+          ? DateTime.tryParse(json['prefer_date'].toString())
+          : null,
+      objectName: json['object_name']?.toString(),
+      category: json['category']?.toString(),
+      laborFee: (json['labor_fee'] ?? 0.0).toDouble(),
+      partFee: (json['part_fee'] ?? 0.0).toDouble(),
+      modelRef3D: json['model_ref_3d']?.toString(),
+    );
+  }
+}
+
+class RepairRequest {
+  final String id;
+  final String title;
+  final String description;
+  final String date;
+  final String status;
+  final Color statusColor;
+  final List<String> imagePaths;
+  final String? rejectionReason;
+  final String? rejectionTemplate;
+
+  // V11 Compliance Fields
+  final DateTime? appointmentDate;
+  final TimeOfDay? appointmentTime;
+  final String? appointmentSlot; // 'AM' or 'PM' per SRS
+  final bool isEmergency;
+  final List<RepairTask> tasks;
+
+  // Assessment fields (FE-03)
+  final int? rating;
+  final String? assessmentComment;
+  final DateTime? completionDate;
+  final String? technicianName;
+
+  // FE-02: Assignment fields
+  final List<String> assignedStaff;
+
+  // FE-03: Technician report fields
+  final String? techReport;
+  final List<String> techReportPhotos;
+  final DateTime? workStartTime;
+
+  // Requester info (for staff view)
+  final String? requesterName;
+  final String? requesterEmail;
+  final String? requesterHouse;
+
+  RepairRequest({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.date,
+    required this.status,
+    required this.statusColor,
+    this.imagePaths = const [],
+    this.rejectionReason,
+    this.rejectionTemplate,
+    this.appointmentDate,
+    this.appointmentTime,
+    this.appointmentSlot,
+    this.isEmergency = false,
+    this.tasks = const [],
+    this.rating,
+    this.assessmentComment,
+    this.completionDate,
+    this.technicianName,
+    this.assignedStaff = const [],
+    this.techReport,
+    this.techReportPhotos = const [],
+    this.workStartTime,
+    this.requesterName,
+    this.requesterEmail,
+    this.requesterHouse,
+  });
+
+  bool get isWarranty {
+    // Logic: Warranty expires after 5 years from handover.
+    // If no handover date is available, we assume a default or check if any task has a fee.
+    // However, the SRS says "Remaining warranty period".
+    // I'll calculate it based on a mock handover date if not present in DB.
+    final handoverDate = DateTime(2022, 10, 10);
+    final expiryDate =
+        DateTime(handoverDate.year + 5, handoverDate.month, handoverDate.day);
+    return DateTime.now().isBefore(expiryDate);
+  }
+
+  double get estimatedCost {
+    if (isWarranty) return 0.0;
+    return tasks.fold(0.0, (sum, task) => sum + task.laborFee + task.partFee);
+  }
+
+  /// Create a copy with modified fields
+  RepairRequest copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? date,
+    String? status,
+    Color? statusColor,
+    List<String>? imagePaths,
+    String? rejectionReason,
+    String? rejectionTemplate,
+    DateTime? appointmentDate,
+    TimeOfDay? appointmentTime,
+    String? appointmentSlot,
+    bool? isEmergency,
+    List<RepairTask>? tasks,
+    int? rating,
+    String? assessmentComment,
+    DateTime? completionDate,
+    String? technicianName,
+    List<String>? assignedStaff,
+    String? techReport,
+    List<String>? techReportPhotos,
+    DateTime? workStartTime,
+    String? requesterName,
+    String? requesterEmail,
+    String? requesterHouse,
+  }) {
+    return RepairRequest(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      date: date ?? this.date,
+      status: status ?? this.status,
+      statusColor: statusColor ?? this.statusColor,
+      imagePaths: imagePaths ?? this.imagePaths,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      rejectionTemplate: rejectionTemplate ?? this.rejectionTemplate,
+      appointmentDate: appointmentDate ?? this.appointmentDate,
+      appointmentTime: appointmentTime ?? this.appointmentTime,
+      appointmentSlot: appointmentSlot ?? this.appointmentSlot,
+      isEmergency: isEmergency ?? this.isEmergency,
+      tasks: tasks ?? this.tasks,
+      rating: rating ?? this.rating,
+      assessmentComment: assessmentComment ?? this.assessmentComment,
+      completionDate: completionDate ?? this.completionDate,
+      technicianName: technicianName ?? this.technicianName,
+      assignedStaff: assignedStaff ?? this.assignedStaff,
+      techReport: techReport ?? this.techReport,
+      techReportPhotos: techReportPhotos ?? this.techReportPhotos,
+      workStartTime: workStartTime ?? this.workStartTime,
+      requesterName: requesterName ?? this.requesterName,
+      requesterEmail: requesterEmail ?? this.requesterEmail,
+      requesterHouse: requesterHouse ?? this.requesterHouse,
+    );
+  }
+}
+
+/// Team Preset — saved selection of technicians
+class TeamPreset {
+  final String id;
+  final String name;
+  final List<String> memberNames;
+  final IconData icon;
+
+  TeamPreset({
+    required this.id,
+    required this.name,
+    required this.memberNames,
+    this.icon = Icons.folder_rounded,
+  });
+}
+
+class RepairRepository {
+  static final RepairRepository instance = RepairRepository._internal();
+  RepairRepository._internal();
+
+  final String _baseUrl = 'http://localhost:3000/api';
+
+  // ── Repairs ──
+  final ValueNotifier<List<RepairRequest>> repairsNotifier = ValueNotifier([]);
+
+  /// Fetch repair history from backend API
+  Future<void> fetchHistory() async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('$_baseUrl/repair/history'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          final List data = result['data'] ?? [];
+          final remoteRepairs = data.map<RepairRequest>((r) {
+            final tasks = ((r['tasks'] as List?) ?? [])
+                .map((t) => RepairTask.fromJson(t))
+                .toList();
+
+            final firstTask = tasks.isNotEmpty ? tasks[0] : null;
+            final title = firstTask != null
+                ? '${firstTask.category ?? ''} - ${firstTask.objectName ?? ''}'
+                    .trim()
+                : 'Repair Request';
+            final description = firstTask?.description ?? '';
+            final urgency = firstTask?.urgency ?? 'Normal';
+
+            String status = (r['status'] ?? 'PENDING').toString().toUpperCase();
+            Color statusColor;
+
+            if (status.contains('รออนุมัติ')) status = 'AWAITING APPROVAL';
+            if (status.contains('รอดำเนินการ')) status = 'PENDING';
+            if (status.contains('ดำเนินการ')) status = 'IN PROGRESS';
+            if (status.contains('เสร็จสิ้น')) status = 'COMPLETED';
+            if (status.contains('ถูกปฏิเสธ')) status = 'REJECTED';
+
+            switch (status) {
+              case 'CREATED':
+              case 'AWAITING APPROVAL':
+                status = 'AWAITING APPROVAL';
+                statusColor = Colors.orange;
+                break;
+              case 'WAIT':
+              case 'PENDING':
+                status = 'PENDING';
+                statusColor = Colors.orange;
+                break;
+              case 'IN PROGRESS':
+              case 'INPROGRESS':
+                status = 'IN PROGRESS';
+                statusColor = Colors.blue;
+                break;
+              case 'COMPLETED':
+              case 'REVIEWED':
+                status = 'COMPLETED';
+                statusColor = Colors.green;
+                break;
+              case 'DENIED':
+              case 'REJECTED':
+                status = 'REJECTED';
+                statusColor = Colors.red;
+                break;
+              default:
+                statusColor = Colors.orange;
+            }
+
+            DateTime? completedAt;
+            if (r['completed_at'] != null) {
+              completedAt = DateTime.tryParse(r['completed_at'].toString());
+            }
+            DateTime? createdAt;
+            if (r['created_at'] != null) {
+              createdAt = DateTime.tryParse(r['created_at'].toString());
+            }
+            DateTime? preferDate = firstTask?.preferDate;
+
+            final dateStr = createdAt != null
+                ? '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}'
+                : '';
+
+            return RepairRequest(
+              id: r['id']?.toString() ?? '',
+              title: title.replaceAll(RegExp(r'^\s*-\s*'), ''),
+              description: description,
+              date: dateStr,
+              status: status,
+              statusColor: statusColor,
+              technicianName: r['technician_name']?.toString(),
+              completionDate: completedAt,
+              appointmentDate: preferDate,
+              isEmergency: urgency.toString().toLowerCase() == 'emergency',
+              requesterName: r['requester_name']?.toString(),
+              requesterEmail: r['requester_email']?.toString(),
+              requesterHouse: r['requester_house']?.toString(),
+              tasks: tasks,
+            );
+          }).toList();
+
+          // Merge: Keep local requests that aren't in the remote list yet
+          final localOnly = repairsNotifier.value.where((local) {
+            // If it's a numeric ID (timestamp from addRequest), it's likely local-only
+            bool isNewLocal =
+                double.tryParse(local.id) != null && local.id.length > 10;
+            bool existsRemotely =
+                remoteRepairs.any((remote) => remote.id == local.id);
+            return isNewLocal && !existsRemotely;
+          }).toList();
+
+          repairsNotifier.value = [...localOnly, ...remoteRepairs];
+        }
+      }
+    } catch (e) {
+      debugPrint('FCM: Error fetching repair history: $e');
+    }
+  }
+
+  // ── Team Presets ──
+  final ValueNotifier<List<TeamPreset>> teamPresetsNotifier = ValueNotifier([
+    TeamPreset(
+      id: 'preset_1',
+      name: 'Electrical Team',
+      memberNames: ['Wichai', 'Pee'],
+      icon: Icons.bolt_rounded,
+    ),
+    TeamPreset(
+      id: 'preset_2',
+      name: 'Plumbing Team',
+      memberNames: ['Kong'],
+      icon: Icons.water_drop_rounded,
+    ),
+  ]);
+
+  void addRequest({
+    required String title,
+    required String description,
+    List<String> imagePaths = const [],
+    DateTime? appointmentDate,
+    TimeOfDay? appointmentTime,
+    String? appointmentSlot,
+    bool isEmergency = false,
+    String? requesterName,
+    String? requesterEmail,
+    String? requesterHouse,
+    List<RepairTask> tasks = const [],
+  }) {
+    final now = DateTime.now();
+    final dateStr =
+        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year + 543}";
+
+    final newRequest = RepairRequest(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      description: description,
+      date: dateStr,
+      status: 'AWAITING APPROVAL',
+      statusColor: Colors.orange,
+      imagePaths: imagePaths,
+      appointmentDate: appointmentDate,
+      appointmentTime: appointmentTime,
+      appointmentSlot: appointmentSlot,
+      isEmergency: isEmergency,
+      requesterName: requesterName,
+      requesterEmail: requesterEmail,
+      requesterHouse: requesterHouse,
+      tasks: tasks,
+    );
+
+    repairsNotifier.value = [newRequest, ...repairsNotifier.value];
+  }
+
+  void deleteRequest(String id) {
+    repairsNotifier.value =
+        repairsNotifier.value.where((item) => item.id != id).toList();
+  }
+
+  void updateRequest(RepairRequest updatedItem) {
+    final index =
+        repairsNotifier.value.indexWhere((item) => item.id == updatedItem.id);
+    if (index != -1) {
+      final List<RepairRequest> newList = List.from(repairsNotifier.value);
+      newList[index] = updatedItem;
+      repairsNotifier.value = newList;
+    }
+  }
+
+  // ── SRS Workflow Methods ──
+
+  /// FE-02: Assign technicians to a request
+  void assignRequest(String id, List<String> staffNames) {
+    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
+    updateRequest(request.copyWith(
+      status: 'In Progress',
+      statusColor: Colors.blue,
+      assignedStaff: staffNames,
+      technicianName: staffNames.join(', '),
+    ));
+  }
+
+  /// FE-02: Reject a request with reason
+  void rejectRequest(String id, String reason, {String? template}) {
+    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
+    updateRequest(request.copyWith(
+      status: 'Denied',
+      statusColor: Colors.red,
+      rejectionReason: reason,
+      rejectionTemplate: template,
+    ));
+  }
+
+  /// FE-03: Technician starts work
+  void startWork(String id) {
+    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
+    updateRequest(request.copyWith(
+      status: 'In Progress',
+      statusColor: Colors.blue,
+      workStartTime: DateTime.now(),
+    ));
+  }
+
+  /// FE-03: Technician completes work with report
+  void completeWork(String id, {String? report, List<String>? photos}) {
+    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
+    updateRequest(request.copyWith(
+      status: 'Completed',
+      statusColor: Colors.green,
+      completionDate: DateTime.now(),
+      techReport: report,
+      techReportPhotos: photos ?? [],
+    ));
+  }
+
+  // ── Team Preset Methods ──
+
+  void addTeamPreset(
+      {required String name,
+      required List<String> memberNames,
+      IconData icon = Icons.folder_rounded}) {
+    final preset = TeamPreset(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      memberNames: memberNames,
+      icon: icon,
+    );
+    teamPresetsNotifier.value = [...teamPresetsNotifier.value, preset];
+  }
+
+  void deleteTeamPreset(String id) {
+    teamPresetsNotifier.value =
+        teamPresetsNotifier.value.where((p) => p.id != id).toList();
+  }
+}

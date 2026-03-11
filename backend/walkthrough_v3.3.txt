@@ -1,0 +1,39 @@
+- Version: 3.3 (Security & Business Logic Guardrails)
+- Focus: Integrity, Identity, and Operational Constraints.
+
+1. High-Security Identity:
+    The `users` table now mandates a **13-digit ID Card Number**. This allows the Juristic 
+    team to verify Every Resident and Staff member against governmental/contractual 
+    records, fulfilling a core security requirement.
+
+2. Enforced Operational Windows:
+    The AI is no longer allowed to pick arbitrary times for repairs. It is strictly 
+    constrained to:
+    - Morning Slot: 09:30 - 12:00
+    - Afternoon Slot: 13:00 - 16:00
+    If a resident requests "Morning", the system automatically normalizes the entry 
+    to the 09:30 window for database consistency.
+
+3. Automated Urgency Escalation:
+    We've hardcoded business "Red Flags" into the AI prompt. 
+    - Words like "ท่อแตก" (Pipe burst) or "ไฟดับทั้งบ้าน" (Total blackout) 
+      automatically trigger the `emergency` urgency flag, bypassing normal triage.
+
+4. Multi-Level Categorization:
+    The `task` table now includes `object_type`. This is mapped automatically by the AI 
+    from the hardware context category (e.g., matching "Toilet" to "Bathroom"). This 
+    enables better reporting for management on which house zones are failing.
+
+5. Linguistic Consistency:
+    The AI is strictly bound to use the resident's language for all human-facing 
+    descriptions and follow-up checks, ensuring the High-End Viviorn Villa 
+    experience is seamless for Thai, English, and Chinese speakers.
+
+6. Resilience & Error Boundaries (SRS Reliability-1):
+    The system now includes a robust Error Boundary for the Gemini API. 
+    If the API returns a 5x (Overload) or 4x (Rate Limit) error:
+    - The resident receives a polite "System Busy" message rather than a crash.
+    - The failure is automatically logged to `ai_log` with `success_flag = 0` 
+      and the specific error trace for dev review.
+    - We implemented a v3.3 Migration to ensure the database schema supports 
+      tracking these performance metrics (`processing_time_sec`).

@@ -1,0 +1,30 @@
+- Description: A detailed technical summary of the Facility Management System API.
+- Stack: Node.js (v24.12+), TypeScript, Express, Zod, Google Gemini AI (Generative SDK).
+
+1. Core Architecture:
+    The API endpoint /api/repair/intent is designed to intake raw natural language (voice or text) 
+    from a resident and use Gemini AI to automatically categorize the issue.
+
+2. Component Roles:
+    - Zod Middleware: Validates that input is a valid string, not empty, and reasonable length.
+    - AI Service: Encapsulates prompt engineering. Prompts Gemini 1.5-Flash to return a 
+      strictly structured JSON object with Category, Urgency, and Location properties.
+    - Controller: Handles timing (latency monitoring) and fallback logic.
+
+3. Reliability Strategy:
+    As per SRS V2.1 Section 5 (Nonfunctional Requirements), durability is key. 
+    If Gemini hits a rate limit, the controller will not return an AI error, but rather 
+    a "FALLBACK_TO_MANUAL" code (202 Accepted). This instructs the frontend to stop 
+    processing AI and simply display a manual selection/entry form to the user.
+
+4. Performance:
+    The target is < 10 seconds total latency. Gemini 1.5-Flash is used here to prioritize 
+    speed while maintaining high accuracy for simple categorization.
+
+5. Instructions for Running:
+    - Add your GEMINI_API_KEY to the .env file.
+    - Run `npm install` to install all dependencies.
+    - Use `npx nodemon src/index.ts` to start the development server.
+    - Send a POST request to http://localhost:3000/api/repair/intent with a JSON body.
+    - Note: Authentication is mocked. Include an "Authorization: Bearer mock-token" 
+      in your request headers.

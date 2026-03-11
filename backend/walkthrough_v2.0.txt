@@ -1,0 +1,29 @@
+- Version: 2.0 (Senior DB Architect Refinement)
+- Key Feature: 3D Visualization Linkage & Multi-Task Containerization
+
+1. Request vs Task Architecture:
+    Instead of a single request being one issue, we now use a "Container" pattern. 
+    A resident sends one description (e.g., "Fix the sink AND the light"). 
+    The AI extracts two separate entries into the `task` table, both linked 
+    to one parent `request` record.
+
+2. The 3D Integration Bridge:
+    The `object` table is the critical link to our 3D model. 
+    - `model_ref_3d`: This field stores the unique identifier (ID/Name) of 
+      the component within the 3D scene (e.g., in Blender/Three.js).
+    - Linkage: Each `task` is linked to an `object_id`. This allows the 
+      technician app to automatically "highlight" or "zoom to" the exact 
+      physical object in the 3D house model based on the AI's detection.
+
+3. Monitoring & Security:
+    - `ai_log`: Stores raw prompts and responses. This is vital for "Prompt Tuning" 
+       and ensuring that Gemini is providing the multi-task JSON we expect.
+    - `audit_log`: Provides a full trail for management. If a technician changes 
+       a status, we know who, when, and what the previous state was.
+    - `login_log`: Tracks access patterns, IP addresses, and devices for security.
+
+4. Data Integrity:
+    - `ON DELETE CASCADE`: Deleting a parent `request` automatically cleans up 
+      all associated child `tasks`.
+    - `CHECK constraints`: Restricts urgency to 'normal' or 'emergency' at the 
+      database level, ensuring AI errors don't corrupt our data types.
