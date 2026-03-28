@@ -35,7 +35,8 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
     if (widget.pendingItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('กรุณาคลิกที่วัตถุบนโมเดล 3D เพื่อเพิ่มรายการ', style: GoogleFonts.kanit()),
+          content: Text('กรุณาคลิกที่วัตถุบนโมเดล 3D เพื่อเพิ่มรายการ',
+              style: GoogleFonts.kanit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -44,14 +45,19 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
 
     // Add each item to RepairRepository
     for (var item in widget.pendingItems) {
-      RepairRepository.instance.addRequest(title: item.name, description: item.name, imagePaths: item.imagePath != null ? [item.imagePath!] : []);
+      RepairRepository.instance.addRequest(
+          title: item.name,
+          description: item.name,
+          imagePaths: item.imagePath != null ? [item.imagePath!] : []);
     }
 
     widget.onSubmit();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('ส่งแจ้งซ่อม ${widget.pendingItems.length} รายการเรียบร้อย!', style: GoogleFonts.kanit()),
+        content: Text(
+            'ส่งแจ้งซ่อม ${widget.pendingItems.length} รายการเรียบร้อย!',
+            style: GoogleFonts.kanit()),
         backgroundColor: const Color(0xFFC5A059),
       ),
     );
@@ -120,16 +126,19 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF252525),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFC5A059).withOpacity(0.3)),
+                    border: Border.all(
+                        color: const Color(0xFFC5A059).withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.touch_app, color: Color(0xFFC5A059), size: 24),
+                      const Icon(Icons.touch_app,
+                          color: Color(0xFFC5A059), size: 24),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'คลิกที่วัตถุบนโมเดล 3D\nเพื่อเพิ่มรายการแจ้งซ่อม',
-                          style: GoogleFonts.kanit(color: Colors.grey[400], fontSize: 12),
+                          style: GoogleFonts.kanit(
+                              color: Colors.grey[400], fontSize: 12),
                         ),
                       ),
                     ],
@@ -144,11 +153,13 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
                   children: [
                     Text(
                       'รายการ',
-                      style: GoogleFonts.kanit(color: Colors.grey, fontSize: 12),
+                      style:
+                          GoogleFonts.kanit(color: Colors.grey, fontSize: 12),
                     ),
                     Text(
                       '${widget.pendingItems.length} รายการ',
-                      style: GoogleFonts.kanit(color: const Color(0xFFC5A059), fontSize: 12),
+                      style: GoogleFonts.kanit(
+                          color: const Color(0xFFC5A059), fontSize: 12),
                     ),
                   ],
                 ),
@@ -168,11 +179,13 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.inbox_outlined, color: Colors.grey[600], size: 48),
+                                Icon(Icons.inbox_outlined,
+                                    color: Colors.grey[600], size: 48),
                                 const SizedBox(height: 8),
                                 Text(
                                   'ยังไม่มีรายการ',
-                                  style: GoogleFonts.kanit(color: Colors.grey[600], fontSize: 14),
+                                  style: GoogleFonts.kanit(
+                                      color: Colors.grey[600], fontSize: 14),
                                 ),
                               ],
                             ),
@@ -182,19 +195,24 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
                           shrinkWrap: true,
                           padding: const EdgeInsets.all(8),
                           itemCount: widget.pendingItems.length,
-                          separatorBuilder: (_, __) => const Divider(color: Colors.grey, height: 1),
+                          separatorBuilder: (_, __) =>
+                              const Divider(color: Colors.grey, height: 1),
                           itemBuilder: (context, index) {
                             final item = widget.pendingItems[index];
                             return ListTile(
                               dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                              leading: const Icon(Icons.handyman, color: Color(0xFFC5A059), size: 20),
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              leading: const Icon(Icons.handyman,
+                                  color: Color(0xFFC5A059), size: 20),
                               title: Text(
                                 item.name,
-                                style: GoogleFonts.kanit(color: Colors.white, fontSize: 13),
+                                style: GoogleFonts.kanit(
+                                    color: Colors.white, fontSize: 13),
                               ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red, size: 18),
                                 onPressed: () => widget.onRemoveItem(item.id),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
@@ -223,7 +241,8 @@ class _FloatingRepairPanelState extends State<FloatingRepairPanel> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: Text('แจ้งซ่อม', style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
+                    child: Text('แจ้งซ่อม',
+                        style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(width: 12),

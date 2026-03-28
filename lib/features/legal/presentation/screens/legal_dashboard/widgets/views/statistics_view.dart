@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_stats_widgets.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
 
 class StatisticsView extends StatefulWidget {
@@ -14,8 +13,6 @@ class StatisticsView extends StatefulWidget {
 }
 
 class _StatisticsViewState extends State<StatisticsView> {
-  double get _calculatedAvgRating => DashboardData.calculatedAvgRating;
-
   void _showDetailOverlay({
     required String title,
     required String subtitle,
@@ -42,13 +39,21 @@ class _StatisticsViewState extends State<StatisticsView> {
             repairs.where((t) => t.status == "URGENT" || t.isEmergency).length;
         final pendingCount = repairs
             .where((t) =>
-                t.status == "AWAITING APPROVAL" ||
                 t.status == "PENDING" ||
+                t.status == "CREATED" ||
+                t.status == "AWAITING APPROVAL" ||
                 t.status == "ASSIGNED")
             .length;
         final workingCount =
             repairs.where((t) => t.status == "IN PROGRESS").length;
         final doneCount = repairs.where((t) => t.status == "COMPLETED").length;
+
+        final ratedRepairs =
+            repairs.where((r) => r.rating != null && r.rating! > 0).toList();
+        final avgRating = ratedRepairs.isEmpty
+            ? 0.0
+            : ratedRepairs.fold(0.0, (sum, r) => sum + r.rating!) /
+                ratedRepairs.length;
 
         const totalHistorical = 4281;
         const resolvedHistorical = 4127;
@@ -142,10 +147,10 @@ class _StatisticsViewState extends State<StatisticsView> {
                                   color: DashboardTheme.accentAmber,
                                   compactChild:
                                       DashboardStatsWidgets.buildRatingCompact(
-                                          _calculatedAvgRating),
+                                          avgRating),
                                   expandedChild:
                                       DashboardStatsWidgets.buildRatingExpanded(
-                                          context, _calculatedAvgRating),
+                                          context, avgRating, ratedRepairs),
                                   isClickable: true,
                                 ),
                               ),

@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_painters.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
+import 'package:fcm_app/core/controllers/upload_controller.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:fcm_app/core/data/repair_repository.dart';
 
 /// FE-05: Add / Edit personnel overlay (SRS Compliant)
 class AddPersonnelOverlay extends StatefulWidget {
@@ -32,27 +33,12 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
   late TextEditingController _phoneController;
   late TextEditingController _lineController;
   late TextEditingController _emailController;
-  late TextEditingController _ageController;
-  late TextEditingController _heightController;
-  late TextEditingController _birthplaceController;
-  late TextEditingController _bioController;
-  late TextEditingController _positionController;
 
   String _selectedType = 'technician';
   String? _errorMessage;
   bool _showIdCard = false;
-  String? _generatedEmployeeId;
   XFile? _pickedFile;
   bool _isPhotoHovered = false;
-
-  // Radar Chart Stats
-  double _statAir = 0.5;
-  double _statPower = 0.5;
-  double _statPipe = 0.5;
-  double _statBuild = 0.5;
-  double _statPaint = 0.5;
-
-  final ImagePicker _picker = ImagePicker();
 
   bool get _isEditMode => widget.existingPersonnel != null;
 
@@ -65,24 +51,9 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
     _phoneController = TextEditingController(text: p?['phone'] ?? '');
     _lineController = TextEditingController(text: p?['line'] ?? '');
     _emailController = TextEditingController(text: p?['email'] ?? '');
-    _ageController = TextEditingController(text: p?['age']?.toString() ?? '');
-    _heightController = TextEditingController(text: p?['height'] ?? '');
-    _birthplaceController = TextEditingController(text: p?['birthplace'] ?? '');
-    _bioController = TextEditingController(text: p?['bio'] ?? '');
-    _positionController = TextEditingController(text: p?['position'] ?? '');
 
     if (p != null) {
       _selectedType = p['type'] ?? 'technician';
-      _generatedEmployeeId = p['id'];
-
-      final stats = p['stats'] as Map<String, dynamic>?;
-      if (stats != null) {
-        _statAir = (stats['AIR'] ?? 0.5).toDouble();
-        _statPower = (stats['POWER'] ?? 0.5).toDouble();
-        _statPipe = (stats['PIPE'] ?? 0.5).toDouble();
-        _statBuild = (stats['BUILD'] ?? 0.5).toDouble();
-        _statPaint = (stats['PAINT'] ?? 0.5).toDouble();
-      }
     }
   }
 
@@ -93,33 +64,16 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
     _phoneController.dispose();
     _lineController.dispose();
     _emailController.dispose();
-    _ageController.dispose();
-    _heightController.dispose();
-    _birthplaceController.dispose();
-    _bioController.dispose();
-    _positionController.dispose();
     super.dispose();
   }
 
-  String _generateEmployeeId() {
-    final prefix = _selectedType == 'technician' ? 'TECH' : 'ADMIN';
-    final num = DateTime.now().millisecondsSinceEpoch % 10000;
-    return '$prefix-${num.toString().padLeft(4, '0')}';
-  }
+  // ID generation logic removed as per user request (ID = National ID)
 
   Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      );
-      if (image != null) {
-        setState(() => _pickedFile = image);
-      }
-    } catch (e) {
-      debugPrint("Error picking image: $e");
+    final XFile? image = await UploadController.instance.pickImage(
+        source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
+    if (image != null && mounted) {
+      setState(() => _pickedFile = image);
     }
   }
 
@@ -145,6 +99,15 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
           () => _errorMessage = "กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลัก");
       return;
     }
+    if (_emailController.text.trim().isEmpty) {
+      setState(() => _errorMessage = "กรุณากรอกอีเมลสำหรับเข้าใช้งาน");
+      return;
+    }
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+        .hasMatch(_emailController.text.trim())) {
+      setState(() => _errorMessage = "รูปแบบอีเมลไม่ถูกต้อง");
+      return;
+    }
 
     // Check duplicates in existing data
     if (!_isEditMode) {
@@ -158,47 +121,54 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
       }
     }
 
-    // Generate ID and show preview
-    _generatedEmployeeId ??= _generateEmployeeId();
+    // Show preview
     setState(() => _showIdCard = true);
   }
 
-  void _confirmSave() {
-    widget.onSave({
+  void _confirmSave() async {
+    String? uploadedUrl;
+    if (_pickedFile != null) {
+      uploadedUrl = await UploadController.instance.uploadProfilePicture(_pickedFile!);
+    }
+
+    final staffData = {
       'name': _nameController.text.trim(),
-      'id': _generatedEmployeeId,
+      'id': _idCardController.text.trim(),
       'idCard': _idCardController.text.trim(),
       'phone': _phoneController.text.trim(),
-      'line': _lineController.text.trim(),
+      'lineId': _lineController.text.trim(),
       'email': _emailController.text.trim(),
-      'age': int.tryParse(_ageController.text) ?? 25,
-      'height': _heightController.text.trim().isEmpty
-          ? "170 cm"
-          : _heightController.text.trim(),
-      'birthplace': _birthplaceController.text.trim(),
-      'bio': _bioController.text.trim(),
       'type': _selectedType,
-      'role': _selectedType == 'technician' ? 'TECHNICIAN' : 'VILLAGE ADMIN',
-      'position': _positionController.text.trim(),
+      'role': _selectedType == 'technician' ? 'TECHNICIAN' : 'JURISTIC',
       'isActive': true,
-      'image': _pickedFile != null
-          ? _pickedFile!.path
-          : (widget.existingPersonnel?['image'] ??
-              'assets/resident_profile.png'),
-      'icon': _selectedType == 'technician'
-          ? Icons.engineering_rounded
-          : Icons.admin_panel_settings_rounded,
-      'abilities': _bioController.text.isNotEmpty
-          ? [_bioController.text.split(' ').first]
-          : ['General'],
-      'stats': {
-        'AIR': _statAir,
-        'POWER': _statPower,
-        'PIPE': _statPipe,
-        'BUILD': _statBuild,
-        'PAINT': _statPaint,
-      },
-    });
+      'image': uploadedUrl ??
+          (widget.existingPersonnel?['image'] ?? 'assets/resident_profile.png'),
+    };
+
+    bool success = false;
+    if (!_isEditMode) {
+      success = await RepairRepository.instance.registerStaff(staffData);
+    } else {
+      success = await RepairRepository.instance.updateStaff(staffData);
+    }
+
+    if (!success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                _isEditMode
+                    ? "เกิดข้อผิดพลาดในการอัปเดตข้อมูลบุคลากร"
+                    : "เกิดข้อผิดพลาดในการบันทึกข้อมูลบุคลากรลงฐานข้อมูล",
+                style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
+            backgroundColor: DashboardTheme.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    widget.onSave(staffData);
     widget.onDismiss();
   }
 
@@ -384,12 +354,6 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
             ),
             const SizedBox(height: 28),
 
-            // Position Field
-            _labeledField("ตำแหน่ง (เช่น ช่างแอร์, ช่างไฟ, หัวหน้านิติ)",
-                _positionController,
-                isOptional: true),
-            const SizedBox(height: 20),
-
             // Form Fields
             _labeledField("ชื่อ-นามสกุล", _nameController),
             const SizedBox(height: 20),
@@ -410,94 +374,7 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
             ),
             const SizedBox(height: 20),
             _labeledField("อีเมล (E-Mail)", _emailController,
-                isOptional: true, keyboardType: TextInputType.emailAddress),
-
-            const SizedBox(height: 40),
-            Text("PERSONAL PROFILE // ข้อมูลส่วนตัวเสริม",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5)),
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Expanded(
-                    child: _labeledField("อายุ", _ageController,
-                        keyboardType: TextInputType.number)),
-                const SizedBox(width: 20),
-                Expanded(
-                    child: _labeledField(
-                        "ส่วนสูง (เช่น 175 cm)", _heightController)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _labeledField("สถานที่เกิด (Birthplace)", _birthplaceController),
-            const SizedBox(height: 20),
-            _labeledField("ประวัติย่อ / ความสามารถที่โดดเด่น", _bioController,
-                isOptional: true,
-                maxLines: 3,
-                keyboardType: TextInputType.multiline),
-
-            const SizedBox(height: 40),
-            Text("SKILL METRICS // ค่าสถิติทักษะ (RADAR CHART)",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5)),
-            const SizedBox(height: 20),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    children: [
-                      _labeledSlider("AIR", _statAir,
-                          (val) => setState(() => _statAir = val)),
-                      _labeledSlider("POWER", _statPower,
-                          (val) => setState(() => _statPower = val)),
-                      _labeledSlider("PIPE", _statPipe,
-                          (val) => setState(() => _statPipe = val)),
-                      _labeledSlider("BUILD", _statBuild,
-                          (val) => setState(() => _statBuild = val)),
-                      _labeledSlider("PAINT", _statPaint,
-                          (val) => setState(() => _statPaint = val)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    height: 200,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: DashboardTheme.surfaceSecondary,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: DashboardTheme.border),
-                    ),
-                    child: CustomPaint(
-                      painter: RadarChartPainter(
-                        stats: {
-                          'AIR': _statAir,
-                          'POWER': _statPower,
-                          'PIPE': _statPipe,
-                          'BUILD': _statBuild,
-                          'PAINT': _statPaint,
-                        },
-                        color: DashboardTheme.primary,
-                        labelColor: DashboardTheme.textPale.withOpacity(0.5),
-                        gridColor: DashboardTheme.border.withOpacity(0.2),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                keyboardType: TextInputType.emailAddress),
 
             const SizedBox(height: 48),
 
@@ -566,48 +443,6 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _labeledSlider(
-      String label, double value, Function(double) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label,
-                  style: GoogleFonts.notoSans(
-                      color: DashboardTheme.textPale,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold)),
-              Text("${(value * 100).toInt()}%",
-                  style: GoogleFonts.shareTechMono(
-                      color: DashboardTheme.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
-            ],
-          ),
-          SliderTheme(
-            data: SliderThemeData(
-              activeTrackColor: DashboardTheme.primary,
-              inactiveTrackColor: DashboardTheme.border,
-              thumbColor: DashboardTheme.primary,
-              overlayColor: DashboardTheme.primary.withOpacity(0.1),
-              trackHeight: 2,
-            ),
-            child: Slider(
-              value: value,
-              min: 0,
-              max: 1,
-              onChanged: onChanged,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -704,13 +539,8 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                                   color: DashboardTheme.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
-                          if (_positionController.text.isNotEmpty)
-                            Text(_positionController.text,
-                                style: GoogleFonts.notoSans(
-                                    color: DashboardTheme.textPale,
-                                    fontSize: 11)),
                           const SizedBox(height: 12),
-                          _idRow("ID", _generatedEmployeeId ?? ''),
+                          _idRow("ID", _idCardController.text),
                           _idRow("TEL", _phoneController.text),
                         ],
                       ),
@@ -728,18 +558,14 @@ class _AddPersonnelOverlayState extends State<AddPersonnelOverlay> {
                             color: DashboardTheme.textPale,
                             fontSize: 9,
                             letterSpacing: 1)),
-                    Text("ACTIVE ●",
-                        style: GoogleFonts.notoSans(
-                            color: const Color(0xFF00E676),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800)),
+                    const SizedBox.shrink(),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          Text("รหัสผ่านเริ่มต้น = หมายเลขบัตรประชาชน",
+          Text("รหัสผ่านเริ่มต้น = Vi + หมายเลขบัตรประชาชน",
               style: GoogleFonts.notoSans(
                   color: DashboardTheme.textPale, fontSize: 10)),
           const SizedBox(height: 28),

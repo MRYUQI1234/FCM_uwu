@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:fcm_app/core/data/auth_repository.dart';
+import 'package:image_picker/image_picker.dart';
 
 class RepairTask {
   final String id;
@@ -38,8 +41,10 @@ class RepairTask {
       description: json['description']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       urgency: json['urgency']?.toString() ?? 'Normal',
-      taskReport: json['task_report']?.toString(),
-      afterRepairImageUrl: json['after_repair_image_url']?.toString(),
+      taskReport: (json['taskReport'] ?? json['task_report'])?.toString(),
+      afterRepairImageUrl:
+          (json['afterRepairImageUrl'] ?? json['after_repair_image_url'])
+              ?.toString(),
       preferDate: json['prefer_date'] != null
           ? DateTime.tryParse(json['prefer_date'].toString())
           : null,
@@ -87,7 +92,9 @@ class RepairRequest {
   // Requester info (for staff view)
   final String? requesterName;
   final String? requesterEmail;
+  final String? requesterPhone;
   final String? requesterHouse;
+  final String? requesterProfileUrl;
 
   RepairRequest({
     required this.id,
@@ -114,7 +121,9 @@ class RepairRequest {
     this.workStartTime,
     this.requesterName,
     this.requesterEmail,
+    this.requesterPhone,
     this.requesterHouse,
+    this.requesterProfileUrl,
   });
 
   bool get isWarranty {
@@ -159,6 +168,7 @@ class RepairRequest {
     DateTime? workStartTime,
     String? requesterName,
     String? requesterEmail,
+    String? requesterPhone,
     String? requesterHouse,
   }) {
     return RepairRequest(
@@ -186,7 +196,9 @@ class RepairRequest {
       workStartTime: workStartTime ?? this.workStartTime,
       requesterName: requesterName ?? this.requesterName,
       requesterEmail: requesterEmail ?? this.requesterEmail,
+      requesterPhone: requesterPhone ?? this.requesterPhone,
       requesterHouse: requesterHouse ?? this.requesterHouse,
+      requesterProfileUrl: requesterProfileUrl,
     );
   }
 }
@@ -212,10 +224,115 @@ class RepairRepository {
 
   final String _baseUrl = 'http://localhost:3000/api';
 
+  // ── Personnel Registration ──
+  Future<bool> registerStaff(Map<String, dynamic> staffData) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/register-staff'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(staffData),
+      );
+
+      return response.statusCode == 201;
+    } catch (e) {
+      debugPrint("Error registering staff: $e");
+      return false;
+    }
+  }
+
+  /// Upload a profile picture to Cloudflare R2 via backend
+  Future<String?> uploadProfilePic(Uint8List bytes, String fileName) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return null;
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/upload/profile-pic'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      final extension = fileName.split('.').last.toLowerCase();
+
+      request.files.add(http.MultipartFile.fromBytes(
+        'image',
+        bytes,
+        filename: fileName,
+        contentType: MediaType('image', extension),
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['imageUrl'];
+      } else {
+        debugPrint("Upload failed with status: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error uploading profile pic: $e");
+      return null;
+    }
+  }
+
+  /// Update existing staff information
+  Future<bool> updateStaff(Map<String, dynamic> staffData) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final nationalId = staffData['idCard'];
+      final response = await http.put(
+        Uri.parse('$_baseUrl/auth/personnel/$nationalId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(staffData),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint("Error updating staff: $e");
+      return false;
+    }
+  }
+
+  /// Delete staff from the system
+  Future<bool> deleteStaff(String nationalId) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/auth/personnel/$nationalId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint("Error deleting staff: $e");
+      return false;
+    }
+  }
+
   // ── Repairs ──
   final ValueNotifier<List<RepairRequest>> repairsNotifier = ValueNotifier([]);
 
   /// Fetch repair history from backend API
+  /// ดึงประวัติการแจ้งซ่อม
   Future<void> fetchHistory() async {
     try {
       final token = await AuthRepository.instance.getToken();
@@ -238,51 +355,51 @@ class RepairRepository {
                 .map((t) => RepairTask.fromJson(t))
                 .toList();
 
-            final firstTask = tasks.isNotEmpty ? tasks[0] : null;
-            final title = firstTask != null
-                ? '${firstTask.category ?? ''} - ${firstTask.objectName ?? ''}'
-                    .trim()
-                : 'Repair Request';
-            final description = firstTask?.description ?? '';
-            final urgency = firstTask?.urgency ?? 'Normal';
+            final title = r['title']?.toString() ?? 'Repair Request';
+            final description = tasks.isNotEmpty ? tasks[0].description : '';
 
-            String status = (r['status'] ?? 'PENDING').toString().toUpperCase();
-            Color statusColor;
+            String rawStatus =
+                (r['status'] ?? 'CREATED').toString().toUpperCase();
+            String status = 'PENDING';
+            Color statusColor = Colors.orange;
 
-            if (status.contains('รออนุมัติ')) status = 'AWAITING APPROVAL';
-            if (status.contains('รอดำเนินการ')) status = 'PENDING';
-            if (status.contains('ดำเนินการ')) status = 'IN PROGRESS';
-            if (status.contains('เสร็จสิ้น')) status = 'COMPLETED';
-            if (status.contains('ถูกปฏิเสธ')) status = 'REJECTED';
-
-            switch (status) {
+            switch (rawStatus) {
               case 'CREATED':
-              case 'AWAITING APPROVAL':
-                status = 'AWAITING APPROVAL';
+                status = 'CREATED';
                 statusColor = Colors.orange;
                 break;
-              case 'WAIT':
-              case 'PENDING':
-                status = 'PENDING';
-                statusColor = Colors.orange;
+              case 'ASSIGNED':
+                status = 'ASSIGNED';
+                statusColor = Colors.blue;
                 break;
+              case 'BEGAN':
               case 'IN PROGRESS':
-              case 'INPROGRESS':
                 status = 'IN PROGRESS';
                 statusColor = Colors.blue;
                 break;
               case 'COMPLETED':
-              case 'REVIEWED':
                 status = 'COMPLETED';
                 statusColor = Colors.green;
                 break;
-              case 'DENIED':
+              case 'EVALUATED':
+                status = 'EVALUATED';
+                statusColor = Colors.green;
+                break;
               case 'REJECTED':
-                status = 'REJECTED';
+              case 'DENIED':
+              case 'DECLINED':
+                status = 'DECLINED';
                 statusColor = Colors.red;
                 break;
-              default:
-                statusColor = Colors.orange;
+              case 'CANCELED':
+              case 'CANCELLED':
+                status = 'CANCELLED';
+                statusColor = Colors.grey;
+                break;
+              case 'URGENT':
+                status = 'URGENT';
+                statusColor = Colors.red;
+                break;
             }
 
             DateTime? completedAt;
@@ -293,27 +410,48 @@ class RepairRepository {
             if (r['created_at'] != null) {
               createdAt = DateTime.tryParse(r['created_at'].toString());
             }
-            DateTime? preferDate = firstTask?.preferDate;
 
             final dateStr = createdAt != null
                 ? '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}'
                 : '';
 
+            final isEmergency =
+                r['type']?.toString().toUpperCase() == 'URGENT' ||
+                    r['emergency'] == 1 ||
+                    r['emergency'] == true ||
+                    rawStatus == 'URGENT';
+
+            final allPhotos = tasks
+                .where((t) => t.afterRepairImageUrl != null)
+                .map((t) => t.afterRepairImageUrl!)
+                .toList();
+            final allReports = tasks
+                .where((t) => t.taskReport != null && t.taskReport!.isNotEmpty)
+                .map((t) => t.taskReport!)
+                .join("\n");
+
             return RepairRequest(
               id: r['id']?.toString() ?? '',
-              title: title.replaceAll(RegExp(r'^\s*-\s*'), ''),
+              title: title,
               description: description,
               date: dateStr,
               status: status,
               statusColor: statusColor,
               technicianName: r['technician_name']?.toString(),
               completionDate: completedAt,
-              appointmentDate: preferDate,
-              isEmergency: urgency.toString().toLowerCase() == 'emergency',
-              requesterName: r['requester_name']?.toString(),
-              requesterEmail: r['requester_email']?.toString(),
+              appointmentDate: tasks.isNotEmpty ? tasks.first.preferDate : null,
+              isEmergency: isEmergency,
               requesterHouse: r['requester_house']?.toString(),
               tasks: tasks,
+              requesterName: r['requester_name']?.toString(),
+              requesterEmail: r['requester_email']?.toString(),
+              requesterPhone: r['requester_phone']?.toString(),
+              requesterProfileUrl: r['requester_profile_url']?.toString(),
+              rating: (r['rating'] as num?)?.toInt(),
+              assessmentComment: r['comment']?.toString(),
+              assignedStaff: List<String>.from(r['assignedStaff'] ?? []),
+              techReport: allReports.isNotEmpty ? allReports : null,
+              techReportPhotos: allPhotos,
             );
           }).toList();
 
@@ -350,6 +488,63 @@ class RepairRepository {
       icon: Icons.water_drop_rounded,
     ),
   ]);
+
+  /// FE-01: Submit a new repair request to the backend
+  Future<bool> submitRequest({
+    required String title,
+    required String description,
+    List<String> imagePaths = const [],
+    DateTime? appointmentDate,
+    TimeOfDay? appointmentTime,
+    bool isEmergency = false,
+    // For 3D model compatibility
+    String? objectId,
+    String? objectType,
+  }) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      // Map single request to a task array as expected by backend
+      final tasks = [
+        {
+          "object_id": objectId ?? "unk-001",
+          "object_name": title,
+          "object_type": objectType ?? "General",
+          "description": description,
+          "urgency": isEmergency ? "Emergency" : "Normal",
+          "prefer_date": appointmentDate?.toIso8601String().split('T').first,
+          "prefer_time": appointmentTime != null
+              ? "${appointmentTime.hour.toString().padLeft(2, '0')}:${appointmentTime.minute.toString().padLeft(2, '0')}"
+              : null,
+        }
+      ];
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/repair/confirm'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          "request": {"tasks": tasks}
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          // Refresh history after a short delay
+          await fetchHistory();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('FCM: Error submitting repair request: $e');
+      return false;
+    }
+  }
 
   void addRequest({
     required String title,
@@ -407,47 +602,135 @@ class RepairRepository {
   // ── SRS Workflow Methods ──
 
   /// FE-02: Assign technicians to a request
-  void assignRequest(String id, List<String> staffNames) {
-    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
-    updateRequest(request.copyWith(
-      status: 'In Progress',
-      statusColor: Colors.blue,
-      assignedStaff: staffNames,
-      technicianName: staffNames.join(', '),
-    ));
+  Future<bool> assignRequest(String id, List<String> staffNames) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/repair/request/$id/assign'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'staff_names': staffNames,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          // After a successful backend assign, refresh data to keep UI in sync
+          await fetchHistory();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('FCM: Error assigning request: $e');
+      return false;
+    }
   }
 
   /// FE-02: Reject a request with reason
-  void rejectRequest(String id, String reason, {String? template}) {
-    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
-    updateRequest(request.copyWith(
-      status: 'Denied',
-      statusColor: Colors.red,
-      rejectionReason: reason,
-      rejectionTemplate: template,
-    ));
+  Future<bool> rejectRequest(String id, String reason,
+      {String? template}) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/repair/request/$id/reject'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'reason': reason,
+          'template': template,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          await fetchHistory();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('FCM: Error rejecting request: $e');
+      return false;
+    }
   }
 
-  /// FE-03: Technician starts work
-  void startWork(String id) {
-    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
-    updateRequest(request.copyWith(
-      status: 'In Progress',
-      statusColor: Colors.blue,
-      workStartTime: DateTime.now(),
-    ));
+  /// FE-03: Technician starts work or completes work (Status update)
+  Future<bool> updateStatus(String requestId, String status) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      // Find the first task ID for this request to update its status
+      // In this system, we often update the first task to represent the request status change
+      final request = repairsNotifier.value.firstWhere((r) => r.id == requestId,
+          orElse: () => repairsNotifier.value[0]);
+      if (request.tasks.isEmpty) return false;
+      final taskId = request.tasks[0].id;
+
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/repair/task/$taskId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'status': status == 'BEGAN' ? 'InProgress' : 'Completed',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchHistory();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error updating status: $e');
+    }
+    return false;
   }
 
-  /// FE-03: Technician completes work with report
-  void completeWork(String id, {String? report, List<String>? photos}) {
-    final request = repairsNotifier.value.firstWhere((r) => r.id == id);
-    updateRequest(request.copyWith(
-      status: 'Completed',
-      statusColor: Colors.green,
-      completionDate: DateTime.now(),
-      techReport: report,
-      techReportPhotos: photos ?? [],
-    ));
+  Future<bool> updateTaskReport({
+    required String taskId,
+    required String status, // 'InProgress' or 'Completed'
+    String? report,
+    String? imageUrl,
+  }) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/repair/task/$taskId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'status': status,
+          'task_report': report,
+          'after_repair_image_url': imageUrl,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchHistory();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error updating task report: $e');
+    }
+    return false;
   }
 
   // ── Team Preset Methods ──
@@ -468,5 +751,71 @@ class RepairRepository {
   void deleteTeamPreset(String id) {
     teamPresetsNotifier.value =
         teamPresetsNotifier.value.where((p) => p.id != id).toList();
+  }
+
+  /// Resident: Submit Evaluation (Feedback System)
+  Future<bool> submitEvaluation({
+    required String requestId,
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/repair/evaluate'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'request_id': requestId,
+          'rating': rating,
+          'comment': comment ?? '',
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          await fetchHistory();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('FCM: Error submitting evaluation: $e');
+      return false;
+    }
+  }
+
+  Future<String?> uploadImage(XFile file) async {
+    try {
+      final token = await AuthRepository.instance.getToken();
+      if (token == null) return null;
+
+      var request =
+          http.MultipartRequest('POST', Uri.parse('$_baseUrl/upload/repair'));
+      request.headers['Authorization'] = 'Bearer $token';
+
+      var stream = http.ByteStream(file.openRead());
+      var length = await file.length();
+
+      var multipartFile = http.MultipartFile('image', stream, length,
+          filename: file.name, contentType: MediaType('image', 'jpeg'));
+
+      request.files.add(multipartFile);
+
+      var response = await request.send();
+      if (response.statusCode == 200) {
+        var responseStr = await response.stream.bytesToString();
+        var result = jsonDecode(responseStr);
+        return result['imageUrl'];
+      }
+    } catch (e) {
+      debugPrint('FCM: Upload error: $e');
+    }
+    return null;
   }
 }

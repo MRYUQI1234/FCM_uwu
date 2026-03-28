@@ -10,10 +10,12 @@ import 'dart:io' show File;
 
 class TechniciansView extends StatefulWidget {
   final List<Map<String, dynamic>> technicians;
+  final VoidCallback? onRefresh;
 
   const TechniciansView({
     super.key,
     required this.technicians,
+    this.onRefresh,
   });
 
   @override
@@ -322,9 +324,6 @@ class _TechniciansViewState extends State<TechniciansView> {
                           _staffHeaderCell("Member name", flex: 3),
                           _staffHeaderCell("Mobile", flex: 2),
                           _staffHeaderCell("Email", flex: 3),
-                          _staffHeaderCell("Status", flex: 2),
-                          _staffHeaderCell("Job", flex: 2),
-                          _staffHeaderCell("Rating", flex: 2),
                           if (!_isCreatingTeam) _staffHeaderCell("", flex: 1),
                         ],
                       ),
@@ -362,7 +361,7 @@ class _TechniciansViewState extends State<TechniciansView> {
                         content: Text(
                           _editTarget != null
                               ? "แก้ไขข้อมูลบุคลากรเรียบร้อยแล้ว"
-                              : "เพิ่มบุคลากรใหม่เรียบร้อยแล้ว &mdash; รหัสพนักงาน: ${data['id']}",
+                              : "เพิ่มบุคลากรใหม่เรียบร้อยแล้ว — รหัสผ่านเริ่มต้นคือ Vi ตามด้วยเลขบัตรประชาชน",
                           style:
                               GoogleFonts.notoSans(fontWeight: FontWeight.w600),
                         ),
@@ -372,6 +371,7 @@ class _TechniciansViewState extends State<TechniciansView> {
                             borderRadius: BorderRadius.circular(12)),
                       ),
                     );
+                    if (widget.onRefresh != null) widget.onRefresh!();
                     setState(() {
                       _showAddOverlay = false;
                       _editTarget = null;
@@ -672,58 +672,6 @@ class _TechniciansViewState extends State<TechniciansView> {
                         child: Text(tech['email']?.toString() ?? 'N/A',
                             style: GoogleFonts.notoSans(
                                 color: DashboardTheme.textPale, fontSize: 13))),
-                    Expanded(
-                      flex: 2,
-                      child: Row(children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? DashboardTheme.success.withOpacity(0.1)
-                                : DashboardTheme.error.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: isActive
-                                    ? DashboardTheme.success.withOpacity(0.2)
-                                    : DashboardTheme.error.withOpacity(0.2)),
-                          ),
-                          child: Text(isActive ? "Active" : "Inactive",
-                              style: GoogleFonts.notoSans(
-                                  color: isActive
-                                      ? DashboardTheme.success
-                                      : DashboardTheme.error,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ]),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                          tech['position'] != null &&
-                                  tech['position'].toString().isNotEmpty
-                              ? tech['position'].toString()
-                              : (tech['role']?.toString() ?? 'User'),
-                          style: GoogleFonts.notoSans(
-                              color: DashboardTheme.textSecondary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500)),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Row(children: [
-                        const Icon(Icons.star_rounded,
-                            color: DashboardTheme.accentAmber, size: 16),
-                        const SizedBox(width: 4),
-                        Text("${tech['rating']}",
-                            style: GoogleFonts.shareTechMono(
-                                color: DashboardTheme.textSecondary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold)),
-                      ]),
-                    ),
-                    // Meatball menu (hidden during team creation)
                     if (!_isCreatingTeam)
                       Expanded(
                         flex: 1,
@@ -957,16 +905,33 @@ class _TechniciansViewState extends State<TechniciansView> {
                       color: DashboardTheme.textPale,
                       fontWeight: FontWeight.bold))),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text("ลบบุคลากร ${tech['name']} เรียบร้อยแล้ว",
-                    style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
-                backgroundColor: DashboardTheme.error,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ));
+            onPressed: () async {
+              final success = await RepairRepository.instance
+                  .deleteStaff(tech['idCard'] ?? tech['id']);
+              if (success) {
+                if (mounted) Navigator.pop(ctx);
+                if (widget.onRefresh != null) widget.onRefresh!();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("ลบบุคลากร ${tech['name']} เรียบร้อยแล้ว",
+                        style:
+                            GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
+                    backgroundColor: DashboardTheme.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ));
+                }
+              } else {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("เกิดข้อผิดพลาดในการลบบุคลากร",
+                        style:
+                            GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
+                    backgroundColor: DashboardTheme.error,
+                  ));
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: DashboardTheme.error,

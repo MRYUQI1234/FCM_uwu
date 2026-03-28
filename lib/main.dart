@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/forgot_password_screen.dart';
+import 'features/auth/presentation/screens/reset_password_screen.dart';
 
 import 'features/resident/presentation/screens/resident_dashboard_screen.dart';
 import 'features/legal/presentation/screens/legal_dashboard_screen.dart';
 import 'features/technician/presentation/screens/technician_view_screen.dart';
+import 'features/auth/presentation/screens/pin_setup_screen.dart';
 
 import 'package:fcm_app/core/data/auth_repository.dart';
 
@@ -85,6 +87,23 @@ class FcmApp extends StatelessWidget {
         '/3d_model': (context) =>
             const AuthGuard(child: ResidentDashboardScreen()),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/pin-setup': (context) {
+          final targetRoute =
+              ModalRoute.of(context)?.settings.arguments as String? ?? '/login';
+          return PinSetupScreen(targetRoute: targetRoute);
+        },
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name != null && settings.name!.startsWith('/reset-password')) {
+          final uri = Uri.parse(settings.name!);
+          final token = uri.queryParameters['token'] ?? '';
+          
+          return MaterialPageRoute(
+            builder: (context) => ResetPasswordScreen(token: token),
+            settings: settings,
+          );
+        }
+        return null;
       },
     );
   }

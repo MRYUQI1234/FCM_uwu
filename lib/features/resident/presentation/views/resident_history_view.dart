@@ -175,8 +175,20 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(height: 16),
                                     itemBuilder: (context, index) {
-                                      String displayStatus =
-                                          filtered[index].status.toUpperCase();
+                                      String mappedStatus = filtered[index].status.toUpperCase();
+                                      String displayStatus = mappedStatus;
+                                      if (mappedStatus == 'CREATED' || mappedStatus == 'AWAITING APPROVAL' || mappedStatus == 'PENDING') displayStatus = _ts.t('status_created');
+                                      else if (mappedStatus == 'ASSIGNED') displayStatus = _ts.t('status_assigned');
+                                      else if (mappedStatus == 'IN PROGRESS' || mappedStatus == 'BEGAN') displayStatus = _ts.t('status_began');
+                                      else if (mappedStatus == 'COMPLETED') displayStatus = _ts.t('status_completed');
+                                      else if (mappedStatus == 'EVALUATED') displayStatus = _ts.t('status_evaluated');
+                                      else if (mappedStatus == 'REJECTED' || mappedStatus == 'DECLINED' || mappedStatus == 'DENIED') displayStatus = _ts.t('status_declined');
+                                      else if (mappedStatus == 'CANCELLED' || mappedStatus == 'CANCELED') displayStatus = _ts.t('status_canceled');
+                                      else if (mappedStatus == 'URGENT') displayStatus = _ts.t('type_urgent');
+                                      
+                                      if (filtered[index].isEmergency) {
+                                          displayStatus = '${_ts.t('type_urgent')} - $displayStatus';
+                                      }
 
                                       return _PremiumServiceCard(
                                         item: filtered[index],
@@ -313,30 +325,47 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                 commentCtrl: commentCtrl,
                 rating: localRating,
                 onRatingChanged: (r) => setDialogState(() => localRating = r),
-                onSubmit: () {
-                  final updated = RepairRequest(
-                    id: item.id,
-                    title: item.title,
-                    description: item.description,
-                    date: item.date,
-                    status: item.status,
-                    statusColor: item.statusColor,
-                    imagePaths: item.imagePaths,
-                    completionDate: item.completionDate,
+                onSubmit: () async {
+                  if (localRating == 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Please provide a rating before submitting.',
+                            style: GoogleFonts.outfit()),
+                        backgroundColor: DashboardTheme.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final success = await RepairRepository.instance.submitEvaluation(
+                    requestId: item.id,
                     rating: localRating,
-                    assessmentComment: commentCtrl.text,
-                    technicianName: item.technicianName,
+                    comment: commentCtrl.text,
                   );
-                  RepairRepository.instance.updateRequest(updated);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Feedback submitted successfully!',
-                          style: GoogleFonts.outfit()),
-                      backgroundColor: DashboardTheme.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Feedback submitted successfully!',
+                              style: GoogleFonts.outfit()),
+                          backgroundColor: DashboardTheme.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to submit feedback. Please try again.',
+                              style: GoogleFonts.outfit()),
+                          backgroundColor: DashboardTheme.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
             ),
@@ -455,9 +484,19 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
       ),
     );
   }
-
   Widget _buildDetailOverlay(RepairRequest t) {
-    final displayStatus = t.status.toUpperCase();
+    final mappedStatus = t.status.toUpperCase();
+    String displayStatus = mappedStatus;
+    if (mappedStatus == 'CREATED' || mappedStatus == 'AWAITING APPROVAL' || mappedStatus == 'PENDING') displayStatus = _ts.t('status_created');
+    else if (mappedStatus == 'ASSIGNED') displayStatus = _ts.t('status_assigned');
+    else if (mappedStatus == 'IN PROGRESS' || mappedStatus == 'BEGAN') displayStatus = _ts.t('status_began');
+    else if (mappedStatus == 'COMPLETED') displayStatus = _ts.t('status_completed');
+    else if (mappedStatus == 'EVALUATED') displayStatus = _ts.t('status_evaluated');
+    else if (mappedStatus == 'REJECTED' || mappedStatus == 'DECLINED' || mappedStatus == 'DENIED') displayStatus = _ts.t('status_declined');
+    else if (mappedStatus == 'CANCELLED' || mappedStatus == 'CANCELED') displayStatus = _ts.t('status_canceled');
+    else if (mappedStatus == 'URGENT') displayStatus = _ts.t('type_urgent');
+    
+    String displayType = t.isEmergency ? _ts.t('type_urgent') : _ts.t('type_normal');
     final dateStr = t.appointmentDate != null
         ? DateFormat('MMM dd, yyyy').format(t.appointmentDate!)
         : 'N/A';
@@ -470,7 +509,9 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
     // Parse object name from title (format: "Room - ObjectName")
     final titleParts = t.title.split(' - ');
     final objectCategory = titleParts.length > 1 ? titleParts[0].trim() : '';
-    final objectName = titleParts.length > 1 ? titleParts[1].trim() : t.title;
+    final rawObjectName =
+        titleParts.length > 1 ? titleParts[1].trim() : t.title;
+    final objectName = _ts.t(rawObjectName);
 
     return Positioned.fill(
       child: Container(
@@ -504,7 +545,7 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'OBJECT',
+                              _ts.t('repair_label_object').toUpperCase(),
                               style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -613,10 +654,16 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                                 fontSize: 13,
                                 letterSpacing: 2)),
                         const SizedBox(height: 16),
+                        _ReviewRow(label: 'TYPE', value: displayType),
                         _ReviewRow(label: _ts.t('logged_on'), value: t.date),
                         _ReviewRow(
                             label: _ts.t('schedule'),
                             value: '$dateStr at $timeStr'),
+                        if (mappedStatus == 'DECLINED' || mappedStatus == 'REJECTED' || mappedStatus == 'DENIED')
+                          _ReviewRow(
+                              label: 'DECLINE REASON',
+                              value: t.rejectionReason ?? t.rejectionTemplate ?? 'N/A',
+                              isRed: true),
                         if (t.completionDate != null)
                           _ReviewRow(
                               label: _ts.t('completed_label'),
@@ -660,29 +707,118 @@ class _ResidentHistoryViewState extends State<ResidentHistoryView> {
                           ),
                         ],
 
-                        // ── Photos ──
-                        if (t.imagePaths.isNotEmpty) ...[
+                        // ── Maintenance Results ──
+                        if (t.techReport != null || t.techReportPhotos.isNotEmpty) ...[
                           const SizedBox(height: 32),
-                          Text(_ts.t('photo_documentation'),
+                          Text("Maintenance",
                               style: GoogleFonts.shareTechMono(
-                                  color: DashboardTheme.textPale,
+                                  color: DashboardTheme.primary,
                                   fontSize: 13,
                                   letterSpacing: 2)),
                           const SizedBox(height: 16),
-                          SizedBox(
-                            height: 200,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: t.imagePaths.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (context, idx) => ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.file(File(t.imagePaths[idx]),
-                                    width: 300, fit: BoxFit.cover),
+                          if (t.techReport != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Text(
+                                t.techReport!,
+                                style: GoogleFonts.notoSans(
+                                    color: DashboardTheme.textSecondary,
+                                    fontSize: 14,
+                                    height: 1.6),
                               ),
                             ),
+                          if (t.techReportPhotos.isNotEmpty)
+                            SizedBox(
+                              height: 180,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: t.techReportPhotos.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, idx) => GestureDetector(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => GestureDetector(
+                                        onTap: () => Navigator.pop(ctx),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.9),
+                                          child: Image.network(
+                                            t.techReportPhotos[idx],
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (c, e, s) => const Center(
+                                                child: Icon(Icons.broken_image,
+                                                    color: Colors.white24, size: 48)),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      t.techReportPhotos[idx],
+                                      width: 260,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (c, child, progress) {
+                                        if (progress == null) return child;
+                                        return Container(
+                                          width: 260,
+                                          color: Colors.white.withOpacity(0.05),
+                                          child: const Center(
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2)),
+                                        );
+                                      },
+                                      errorBuilder: (c, e, s) => Container(
+                                        width: 260,
+                                        color: Colors.white.withOpacity(0.05),
+                                        child: const Icon(Icons.broken_image,
+                                            color: Colors.white24),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // ── Assessment ──
+                        if (t.rating != null) ...[
+                          const SizedBox(height: 8),
+                          Divider(color: DashboardTheme.border, height: 1),
+                          const SizedBox(height: 24),
+                          Text("Your assessment",
+                              style: GoogleFonts.shareTechMono(
+                                  color: DashboardTheme.accentAmber,
+                                  fontSize: 12,
+                                  letterSpacing: 2)),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: List.generate(5, (i) {
+                              return Icon(
+                                i < t.rating!
+                                    ? Icons.star_rounded
+                                    : Icons.star_outline_rounded,
+                                color: DashboardTheme.accentAmber,
+                                size: 24,
+                              );
+                            }),
                           ),
+                          if (t.assessmentComment != null &&
+                              t.assessmentComment!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              t.assessmentComment!,
+                              style: GoogleFonts.notoSans(
+                                color: DashboardTheme.textMain,
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 32),
                         ],
                       ],
                     ),
@@ -1065,7 +1201,7 @@ class _TactileFeedbackCard extends StatelessWidget {
     );
   }
 
-  Widget _infoLine(String label, String value) {
+  Widget _infoLine(String label, String value, {bool isRed = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1078,12 +1214,15 @@ class _TactileFeedbackCard extends StatelessWidget {
             letterSpacing: 1,
           ),
         ),
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.white70,
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isRed ? Colors.redAccent : Colors.white70,
+            ),
           ),
         ),
       ],

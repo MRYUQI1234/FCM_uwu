@@ -11,7 +11,9 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/core/data/repair_repository.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:fcm_app/features/chat/presentation/widgets/ai_chat_panel.dart';
+import 'package:fcm_app/features/chat/data/repositories/ai_chat_repository.dart';
 import 'package:fcm_app/core/services/translation_service.dart';
+import 'package:fcm_app/shared/widgets/pin_verification_overlay.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:js' as js;
 
@@ -22,6 +24,7 @@ import 'dart:js' as js;
 class ResidentHomeView extends StatefulWidget {
   final String displayUser;
   final String houseId;
+  final String? activateDate;
   final bool isDark;
   final VoidCallback? onMenuTap;
   final VoidCallback? onHistoryRequested;
@@ -30,6 +33,7 @@ class ResidentHomeView extends StatefulWidget {
     super.key,
     required this.displayUser,
     required this.houseId,
+    this.activateDate,
     required this.isDark,
     this.onMenuTap,
     this.onHistoryRequested,
@@ -59,6 +63,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
   bool _isUrgent = false;
   bool _isSubmitting = false;
   bool _showSuccess = false;
+  String? _aiMessageId;
+  String? _aiConversationId;
 
   String _selectedCategory = '';
   DateTime? _selectedDate;
@@ -79,74 +85,58 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
   String _cameraOrbit = '45deg 60deg 90%';
   final ImagePicker _picker = ImagePicker();
 
+  // Values are translation keys: 'cat_appliances', 'cat_infrastructure', etc.
   static const Map<String, String> _objectCategoryMap = {
-    'bathtub': 'Infrastructure: Plumbing',
-    'toilet': 'Infrastructure: Plumbing',
-    'water heater': 'HVAC & Appliances: Washing Machine',
-    'basin': 'Infrastructure: Plumbing',
-    'mirror': 'Furniture & Decor: Sofa/Carpet',
-    'refrigerator': 'HVAC & Appliances: Refrigerator',
-    'fridge': 'HVAC & Appliances: Refrigerator',
-    'sink': 'Infrastructure: Plumbing',
-    'stove': 'HVAC & Appliances: Oven',
-    'oven': 'HVAC & Appliances: Oven',
-    'air conditioner': 'HVAC & Appliances: Air Conditioner',
-    'ac remote': 'HVAC & Appliances: Air Conditioner',
-    'tv': 'HVAC & Appliances: Air Conditioner',
-    'smart panel': 'Infrastructure: Lighting',
-    'door': 'Infrastructure: Doors/Windows',
-    'window': 'Infrastructure: Doors/Windows',
-    'light': 'Infrastructure: Lighting',
-    'switch': 'Infrastructure: Lighting',
-    'washing machine': 'HVAC & Appliances: Washing Machine',
-    'dryer': 'HVAC & Appliances: Washing Machine',
-    'porch': 'Infrastructure: Doors/Windows',
-    'wall': 'Structure & Build: Wall',
-    'floor': 'Structure & Build: Floor',
-    'ceiling': 'Structure & Build: Ceiling',
-    'roof': 'Structure & Build: Roof',
-    'wall tablet': 'Furniture & Decor: Wall Tablet',
-    'cube023': 'Furniture & Decor: Wall Tablet',
-    'condenser': 'HVAC & Appliances: Air Conditioner',
-    'sofa': 'Furniture & Decor: Sofa/Carpet',
-    'couch': 'Furniture & Decor: Sofa/Carpet',
-    'carpet': 'Furniture & Decor: Sofa/Carpet',
-    'rug': 'Furniture & Decor: Sofa/Carpet',
-    'closet': 'Furniture & Decor: Closet/Cabinet',
-    'cabinet': 'Furniture & Decor: Closet/Cabinet',
-    'nightstand': 'Furniture & Decor: Bed/Table',
-    'downpipe': 'Infrastructure: Plumbing',
-    'gutter': 'Infrastructure: Plumbing',
+    // Appliances — matched against raw mesh name (lowercase, underscore)
+    'aircon': 'cat_appliances',
+    'condenser': 'cat_appliances',
+    'fridge': 'cat_appliances',
+    'stove': 'cat_appliances',
+    'oven': 'cat_appliances',
+    'washingmachine': 'cat_appliances',
+    'dryer': 'cat_appliances',
+    'water_heater': 'cat_appliances',
+    'tv': 'cat_appliances',
+    'tablet': 'cat_appliances',
+    // Infrastructure
+    'door': 'cat_infrastructure',
+    'window': 'cat_infrastructure',
+    'smartdoor': 'cat_infrastructure',
+    'lock': 'cat_infrastructure',
+    'light': 'cat_infrastructure',
+    'switch': 'cat_infrastructure',
+    'sink': 'cat_infrastructure',
+    'tub': 'cat_infrastructure',
+    'toilet': 'cat_infrastructure',
+    'raintrack': 'cat_infrastructure',
+    // Structure
+    'wall': 'cat_structure',
+    'floor': 'cat_structure',
+    'ceiling': 'cat_structure',
+    'roof': 'cat_structure',
+    'rampart': 'cat_structure',
+    'decoration': 'cat_structure',
+    // Furniture
+    'sofa': 'cat_furniture',
+    'couch': 'cat_furniture',
+    'tapis': 'cat_furniture',
+    'closet': 'cat_furniture',
+    'cabinet': 'cat_furniture',
+    'drawer': 'cat_furniture',
+    'bed': 'cat_furniture',
+    'table': 'cat_furniture',
   };
 
-  final _categories = [
-    {
-      'group': 'HVAC & Appliances',
-      'items': ['Air Conditioner', 'Refrigerator', 'Oven', 'Washing Machine']
-    },
-    {
-      'group': 'Infrastructure',
-      'items': ['Doors/Windows', 'Lighting', 'Plumbing']
-    },
-    {
-      'group': 'Structure & Build',
-      'items': ['Wall', 'Floor', 'Ceiling', 'Roof']
-    },
-    {
-      'group': 'Furniture & Decor',
-      'items': ['Sofa/Carpet', 'Closet/Cabinet', 'Bed/Table', 'Wall Tablet']
-    },
-  ];
-
+  //ticler
   final List<_Announcement> _announcements = const [
     _Announcement(
         icon: Icons.water_drop_rounded,
         color: Color(0xFF60A5FA),
         text: 'Water Tank Cleaning — Water off 09:00 – 12:00 (Feb 15)'),
-    _Announcement(
-        icon: Icons.bug_report_rounded,
-        color: Color(0xFFFBBF24),
-        text: 'Mosquito Spraying — Close all windows & doors (Feb 20)'),
+    // _Announcement(
+    //     icon: Icons.bug_report_rounded,
+    //     color: Color(0xFFFBBF24),
+    //     text: 'Mosquito Spraying — Close all windows & doors (Feb 20)'),
     _Announcement(
         icon: Icons.groups_rounded,
         color: Color(0xFF34D399),
@@ -284,23 +274,58 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
 
           // ── Roof toggle ──
           window.toggleRoof = function() {
-              if (window._fcmRoofVis === undefined) window._fcmRoofVis = true;
+              //ไม่จำเป็น
+              // if (window._fcmRoofVis === undefined) 
+              // window._fcmRoofVis = true;
+
               window._fcmRoofVis = !window._fcmRoofVis;
               const state = window._fcmRoofVis;
-              const isProtected = n => {
-                  let c = n; while(c) { const nm=(c.name||'').toLowerCase();
-                      if(nm.includes('couch')||nm.includes('sofa')||nm.includes('door')||nm.includes('gate')||nm.includes('window'))return true;
-                      c=c.parent; } return false;
-              };
+
+              //สปาเก็ตตี้
+              // const isProtected = n => {
+              //     let c = n; while(c) { const nm=(c.name||'').toLowerCase();
+              //         if(nm.includes('couch')||nm.includes('sofa')||nm.includes('door')||nm.includes('gate')||nm.includes('window'))return true;
+              //         c=c.parent; } return false;
+              // };
+
               document.querySelectorAll('model-viewer').forEach(mv => {
-                  const scene = getScene(mv); if(!scene)return;
+                  const scene = getScene(mv); 
+                  
+                  if(!scene)return;
+
                   scene.traverse(node => {
-                      if(isProtected(node))return;
+                      // if(isProtected(node))return;
+
+                      //ชื่อ obj
                       const l=(node.name||'').toLowerCase().trim();
-                      if(l.includes('cube032')||l.includes('cube_032')||l.includes('cube.032')||l.includes('roof')) node.visible=state;
+                      if(l.includes('cube032')||l.includes('roof')) 
+                        node.visible=state;
                   });
               });
           };
+
+          window.toggleWall = function()
+          {
+            window._fcmWallVis = !window._fcmWallVis;
+            const state = window._fcmWallVis;
+
+            document.querySelectorAll('model-viewer').forEach(mv => {
+                const scene = getScene(mv); 
+                
+                if(!scene)return;
+
+                scene.traverse(node => {
+                    // if(isProtected(node))return;
+
+                    //ชื่อ obj
+                    const l=(node.name||'').toLowerCase().trim();
+
+                    //เงื่อนไข
+                    if(l.includes('cube032')||l.includes('roof')) 
+                      node.visible=state;
+                });
+            });
+          }
 
           window.hideBadNodes = function() {
               document.querySelectorAll('model-viewer').forEach(mv => {
@@ -443,9 +468,9 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                           let bestName = targetMesh.name || 'Mesh';
                           let bestNode = targetMesh;
                           const hierarchySkip = ['scene', 'target', 'root', 'model', 'house'];
-                          const selectionIgnore = ['wall', 'floor', 'ceiling', 'bed', 'vase', 'plant', 'table', 'carpet', 'rug', 'curtain', 'blind', 'glass', 'stone', 'louvers', 'pillar', 'beam', 'brick', 'stair', 'grass', 'ground', 'sky', 'fence'];
-                          const interactive = ['ac', 'conditioner', 'toilet', 'sink', 'bathtub', 'stove', 'fridge', 'refrigerator', 'panel', 'door', 'window', 'light', 'fixture', 'switch', 'washing', 'dryer', 'smart', 'pump', 'condenser', 'lock', 'handle', 'faucet', 'shower', 'cabinet', 'closet', 'sensor', 'intercom', 'unit'];
-                          const propIds = ['plane046', 'plane045', 'plane043', 'cube015', 'cube046', 'cube047'];
+                          const selectionIgnore = [];//['wall', 'floor', 'ceiling', 'bed', 'vase', 'plant', 'tapis', 'carpet', 'rug', 'curtain', 'blind', 'glass', 'stone', 'louvers', 'pillar', 'beam', 'brick', 'stair', 'grass', 'ground', 'sky', 'fence', 'decoration', 'rampart', 'sofa', 'couch', 'coffee_table', 'tv_closet', 'drawer'];
+                          const interactive = ['aircon', 'toilet', 'sink', 'tub', 'stove', 'fridge', 'refrigerator', 'door', 'window', 'light', 'switch', 'washing', 'dryer', 'smart', 'condenser', 'lock', 'tablet', 'tv', 'closet', 'cabinet', 'raintrack', 'roof'];
+                          const propIds = ['unselectable'];
                           
                           let curr = targetMesh.parent;
                           while (curr && curr.type !== 'Scene') {
@@ -546,38 +571,29 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
 
       if (name.isEmpty) return;
 
-      String shortName = name.split(' [').first;
-      final displayName = _formatObjectName(shortName);
+      // Strip hierarchy suffix, e.g. 'bathroom_door [bathroom_door>...]' → 'bathroom_door'
+      String shortName = name.split(' [').first.toLowerCase();
+      // Strip numeric suffix (e.g. '.001') for key lookup
+      final cleanKey = shortName.replaceAll(RegExp(r'\.\d+$'), '');
+      // Build the obj_* translation key
+      final objKey = _getMeshTranslationKey(cleanKey);
+
+      // Derive category key from raw mesh name
+      String catKey = '';
+      _objectCategoryMap.forEach((keyword, catTransKey) {
+        if (cleanKey.contains(keyword)) catKey = catTransKey;
+      });
+
+      final ts = TranslationService.instance;
+      final translatedName = ts.t(objKey);
 
       setState(() {
-        _selectedObjectName = displayName;
+        _selectedObjectName = objKey; // store translation key
+        _selectedCategory = catKey; // store 'cat_*' key
         _cameraTarget = focusPos;
         _repairFabOffset.value = const Offset(40, 110);
-        _titleCtrl.text = displayName;
-
-        // Auto-select category (Robust matching)
-        _selectedCategory = '';
-        final lowerDisplay = displayName.toLowerCase();
-
-        _objectCategoryMap.forEach((key, value) {
-          if (lowerDisplay.contains(key)) _selectedCategory = value;
-        });
-
-        // Final fallback if the above soft-match fails, try exact group items
-        if (_selectedCategory.isEmpty) {
-          for (final cat in _categories) {
-            final group = cat['group'] as String;
-            final items = cat['items'] as List<String>;
-            for (final item in items) {
-              if (lowerDisplay.contains(item.toLowerCase())) {
-                _selectedCategory = '$group: $item';
-                break;
-              }
-            }
-            if (_selectedCategory.isNotEmpty) break;
-          }
-        }
-
+        _titleCtrl.text =
+            translatedName; // pre-fill subject with translated name
         _showSuccess = false;
         _showConfirmation = false;
         _showRepairPopup = true;
@@ -589,259 +605,86 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
     } catch (e) {}
   }
 
-  String _formatObjectName(String rawName) {
-    final lower = rawName.toLowerCase();
-
-    if (lower == 'plane') return 'MainbedroomWall3';
-    if (lower == 'floor' || lower == 'floors') return 'Laundry Floor';
-
-    final Map<String, String> detailedMap = {
-      // Structure & Floors
-      'plane.008': 'SecBedroomWall1',
-      'plane008': 'SecBedroomWall1',
-      'plane.012': 'SecBedroomWall2',
-      'plane012': 'SecBedroomWall2',
-      'plane.007': 'SecBedroomWall3',
-      'plane007': 'SecBedroomWall3',
-      'plane.025': 'SecbedroomWall4',
-      'plane025': 'SecbedroomWall4',
-      'plane.778': 'RightExteriorWall',
-      'plane778': 'RightExteriorWall',
-      'plane.010': 'Left Exterior Wall',
-      'plane010': 'Left Exterior Wall',
-      'plane.011': 'Back Exterior Wall',
-      'plane011': 'Back Exterior Wall',
-      'plane.009': 'Front Exterior Wall 1',
-      'plane009': 'Front Exterior Wall 1',
-      'plane.779': 'Front Exterior Wall 2',
-      'plane779': 'Front Exterior Wall 2',
-      'plane.052': 'Inner Front Wall (Porch)',
-      'plane052': 'Inner Front Wall (Porch)',
-      'plane.020': 'MainbedroomWall4',
-      'plane020': 'MainbedroomWall4',
-      'plane.036': 'MainbedroomWall1',
-      'plane036': 'MainbedroomWall1',
-      'plane.014': 'MainbedroomWall2',
-      'plane014': 'MainbedroomWall2',
-      'plane.017': 'MainbedroomWall5',
-      'plane017': 'MainbedroomWall5',
-      'plane.019': 'MainbedroomWall6',
-      'plane019': 'MainbedroomWall6',
-      'plane.001': 'LivingSwitch',
-      'plane001': 'LivingSwitch',
-      'plane.002': 'BathroomSwitch1',
-      'plane002': 'BathroomSwitch1',
-      'plane.003': 'KitchenSwitch',
-      'plane003': 'KitchenSwitch',
-      'plane.004': 'MainbedroomSwitch',
-      'plane004': 'MainbedroomSwitch',
-      'plane.049': 'SecbedroomSwitch',
-      'plane049': 'SecbedroomSwitch',
-      'plane.015': 'LivingWall1',
-      'plane015': 'LivingWall1',
-      'plane.777': 'LivingWall2',
-      'plane777': 'LivingWall2',
-      'plane.024': 'LivingWall3',
-      'plane024': 'LivingWall3',
-      'plane.018': 'LivingWall4',
-      'plane018': 'LivingWall4',
-      'plane.037': 'LivingWall5',
-      'plane037': 'LivingWall5',
-      'plane.021': 'KitchenWall1',
-      'plane021': 'KitchenWall1',
-      'plane.023': 'KitchenWall2',
-      'plane023': 'KitchenWall2',
-      'plane.027': 'KitchenWall3',
-      'plane027': 'KitchenWall3',
-      'plane.038': 'KitchenWall4',
-      'plane038': 'KitchenWall4',
-      'plane.041': '1BathroomWall1',
-      'plane041': '1BathroomWall1',
-      'plane.040': '1BathroomWall2',
-      'plane040': '1BathroomWall2',
-      'plane.042': '1BathroomWall3',
-      'plane042': '1BathroomWall3',
-      'plane.013': '1BathroomWall4',
-      'plane013': '1BathroomWall4',
-      'plane.016': '1BathroomWall5',
-      'plane016': '1BathroomWall5',
-      'plane.022': '1BathroomWall6',
-      'plane022': '1BathroomWall6',
-      'plane.039': 'LivingWall6',
-      'plane039': 'LivingWall6',
-      'cube.032': 'Extension Roof',
-      'cube032': 'Extension Roof',
-      'cube.022': 'RightSideExtension',
-      'cube022': 'RightSideExtension',
-      'house.001': 'Stone Veneer Column',
-      'house001': 'Stone Veneer Column',
-      'roof.001': 'Main Roof',
-      'roof001': 'Main Roof',
-      'cube.016': 'Wooden Louvers1',
-      'cube016': 'Wooden Louvers1',
-      'cube.018': 'Wooden Louvers2',
-      'cube018': 'Wooden Louvers2',
-      'трубаводостcylinder': 'Rain Water Downpipe',
-      'floors.001': 'Living Room Floor',
-      'floors001': 'Living Room Floor',
-      'floors.002': 'MainBedroom Floor',
-      'floors002': 'MainBedroom Floor',
-      'floors.009': 'SecBedroom Floor',
-      'floors009': 'SecBedroom Floor',
-      'floors.003': 'Kitchen Floor',
-      'floors003': 'Kitchen Floor',
-      'floors.004': 'Bathroom Floor1',
-      'floors004': 'Bathroom Floor1',
-      'floors.005': 'SecBedroom Floor',
-      'floors005': 'SecBedroom Floor',
-      'floors.006': 'Bathroom Floor2',
-      'floors006': 'Bathroom Floor2',
-      'strike plate 010.001': 'Smart Door Lock',
-      'strike plate 010001': 'Smart Door Lock',
-      'handle.002': 'RightWindow1',
-      'handle002': 'RightWindow1',
-      'windowr.002': 'RightWindow3',
-      'windowr002': 'RightWindow3',
-      'windowframe.007': 'RearWindow1',
-      'windowframe007': 'RearWindow1',
-      'windowl.006': 'RearWindow2',
-      'windowl006': 'RearWindow2',
-      'handle.009': 'LeftWindow1',
-      'handle009': 'LeftWindow1',
-      'windowr.005': 'LeftWindow2',
-      'windowr005': 'LeftWindow2',
-      'windowr.003': 'FrontWindow',
-      'windowr003': 'FrontWindow',
-      'handle_front.010': 'SecBedroomDoor',
-      'handle_front010': 'SecBedroomDoor',
-      'handle_front.001': 'BathroomDoor1',
-      'handle_front001': 'BathroomDoor1',
-      'handle_back.002': 'MainBedroomDoor',
-      'handle_back002': 'MainBedroomDoor',
-      'handle_front.006': 'BathroomDoor2',
-      'handle_front006': 'BathroomDoor2',
-      'door.006': 'LaundryDoor',
-      'door006': 'LaundryDoor',
-      'handle': 'RightWindow2',
-      'direction.001': 'Air Conditioner1',
-      'direction001': 'Air Conditioner1',
-      'direction.002': 'Air Conditioner2',
-      'direction002': 'Air Conditioner2',
-      'air conditioner split midea': 'Air Conditioner (Indoor)',
-      'air conditioner outdoor unit': 'Air Conditioner (Outdoor)',
-      'remote for air conditioning unit': 'AC Remote',
-      'digital door lock': 'Digital Door Lock',
-      'light switch a': 'Light Switch',
-      'qbic': 'Smart Panel PC',
-      'washingmachine': 'Washing Machine',
-      'dryer': 'Dryer',
-      'fridge': 'Refrigerator',
-      'refrigerator': 'Refrigerator',
-      'lampbase.002': 'LivingLight',
-      'lampbase002': 'LivingLight',
-      'lampbase.007': 'KitchenLight',
-      'lampbase007': 'KitchenLight',
-      'lampbase.003': 'MainBedroomLight',
-      'lampbase003': 'MainBedroomLight',
-      'lampbase.001': 'SecBedroomLight',
-      'lampbase001': 'SecBedroomLight',
-      'double_spot_light.002': 'LaundryLight',
-      'double_spot_light002': 'LaundryLight',
-      'double_spot_light.001': 'BathroomLight1',
-      'double_spot_light001': 'BathroomLight1',
-      'double_spot_light.004': 'BathroomLight2',
-      'double_spot_light004': 'BathroomLight2',
-      'spot light.001': 'BathroomLight1',
-      'spot light001': 'BathroomLight1',
-      'spot light.002': 'LaundryLight',
-      'spot light002': 'LaundryLight',
-      'spot light.004': 'BathroomLight2',
-      'spot light004': 'BathroomLight2',
-      'cube.024': 'Condenser1',
-      'cube024': 'Condenser1',
-      '円柱.003': 'Condenser2',
-      '円柱003': 'Condenser2',
-      'modern ceiling light 01': 'Ceiling Light',
-      'double spot light': 'Spot Light',
-      'bollard lighting': 'Bollard Garden Light',
-      'cube.017': 'Outdoor Light',
-      'cube017': 'Outdoor Light',
-      'couchdouble': 'Sofa (Living)',
-      'coffeetable': 'Coffee Table',
-      'designer carpet': 'Carpet/Rug',
-      'closetr': 'Bedroom Closet',
-      'closettv': 'TV Cabinet',
-      'nightstand': 'Nightstand',
-      'floorcabinet001': 'Floor Cabinet 1',
-      'floorcabinet.001': 'Floor Cabinet 1',
-      'floorcabinet002': 'Floor Cabinet 2',
-      'floorcabinet.002': 'Floor Cabinet 2',
-      'floorcabinet003': 'Floor Cabinet 3',
-      'floorcabinet.003': 'Floor Cabinet 3',
-      'floorcabinet': 'Floor Cabinet',
-      'wallcabinet2': 'Wall Cabinet 1',
-      'wallcabinet.002': 'Wall Cabinet 1',
-      'wallcabinet4002': 'Wall Cabinet 2',
-      'wallcabinet.4002': 'Wall Cabinet 2',
-      'wallcabinet4001': 'Wall Cabinet 3',
-      'wallcabinet.4001': 'Wall Cabinet 3',
-      'wallcabinet4': 'Wall Cabinet 4',
-      'wallcabinet.004': 'Wall Cabinet 4',
-      'wallcabinet': 'Wall Cabinet',
-      'kitchensinkl': 'Kitchen Sink',
-      'cube023': 'Wall Tablet',
-      'stover': 'Kitchen Stove',
-      'sink001': 'Bathroom Sink2',
-      'sink.001': 'Bathroom Sink2',
-      'sink': 'Bathroom Sink1',
-      'toilet001': 'Toilet2',
-      'toilet.001': 'Toilet2',
-      'toilet2': 'Toilet2',
-      'toilet': 'Toilet1',
-      'tub2': 'Bathtub2',
-      'tub.002': 'Bathtub2',
-      'tub': 'Bathtub1',
-      'mirror': 'Bathroom Mirror',
-      'basin': 'Bathroom Basin',
+  /// Returns the obj_* translation key for a raw GLB mesh name.
+  /// Falls back to a generated key if no exact match is found.
+  String _getMeshTranslationKey(String meshName) {
+    // Map of raw glb mesh keys → obj_* translation keys
+    const Map<String, String> keyMap = {
+      // Bathroom
+      'bathroom_door': 'obj_bathroom_door',
+      'bathroom_light': 'obj_bathroom_light',
+      'bathroom_light_switch': 'obj_bathroom_light_switch',
+      'bathroom_sink': 'obj_bathroom_sink',
+      'bathroom_tub': 'obj_bathroom_tub',
+      'bathroom_toilet': 'obj_bathroom_toilet',
+      'bathroom_window': 'obj_bathroom_window',
+      // Exterior
+      'exterior_back_raintrack': 'obj_exterior_back_raintrack',
+      'exterior_left_condenser': 'obj_exterior_left_condenser',
+      'exterior_right_condenser': 'obj_exterior_right_condenser',
+      'exterior_roof': 'obj_exterior_roof',
+      'exterior_front_roof': 'obj_exterior_front_roof',
+      // Kitchen
+      'kitchen_light': 'obj_kitchen_light',
+      'kitchen_light_switch': 'obj_kitchen_light_switch',
+      'kitchen_sink': 'obj_kitchen_sink',
+      'kitchen_fridge': 'obj_kitchen_fridge',
+      'kitchen_stove': 'obj_kitchen_stove',
+      'kitchen_hanged_cabinet': 'obj_kitchen_hanged_cabinet',
+      'kitchen_small_floor_cabinet': 'obj_kitchen_small_floor_cabinet',
+      'kitchen_window': 'obj_kitchen_window',
+      // Living Room
+      'livingroom_light': 'obj_livingroom_light',
+      'livingroom_light_switch': 'obj_livingroom_light_switch',
+      'livingroom_lock': 'obj_livingroom_lock',
+      'livingroom_smartdoor': 'obj_livingroom_smartdoor',
+      'livingroom_smartdoor_tablet': 'obj_livingroom_smartdoor_tablet',
+      'livingroom_tv': 'obj_livingroom_tv',
+      'livingroom_tv_closet': 'obj_livingroom_tv_closet',
+      'livingroom_window': 'obj_livingroom_window',
+      // Main Bedroom
+      'main_bedroom_aircon': 'obj_main_bedroom_aircon',
+      'main_bedroom_aircon_remote': 'obj_main_bedroom_aircon_remote',
+      'main_bedroom_bathroom_door': 'obj_main_bedroom_bathroom_door',
+      'main_bedroom_bathroom_light': 'obj_main_bedroom_bathroom_light',
+      'main_bedroom_bathroom_light_switch':
+          'obj_main_bedroom_bathroom_light_switch',
+      'main_bedroom_bathroom_sink': 'obj_main_bedroom_bathroom_sink',
+      'main_bedroom_bathroom_toilet': 'obj_main_bedroom_bathroom_toilet',
+      'main_bedroom_bathroom_tub': 'obj_main_bedroom_bathroom_tub',
+      'main_bedroom_bathroom_window': 'obj_main_bedroom_bathroom_window',
+      'main_bedroom_door': 'obj_main_bedroom_door',
+      'main_bedroom_drawer': 'obj_main_bedroom_drawer',
+      'main_bedroom_light': 'obj_main_bedroom_light',
+      'main_bedroom_light_switch': 'obj_main_bedroom_light_switch',
+      'main_bedroom_window': 'obj_main_bedroom_window',
+      // Secondary Bedroom
+      'secondary_bedroom_aircon': 'obj_secondary_bedroom_aircon',
+      'secondary_bedroom_aircon_remote': 'obj_secondary_bedroom_aircon_remote',
+      'secondary_bedroom_closet': 'obj_secondary_bedroom_closet',
+      'secondary_bedroom_door': 'obj_secondary_bedroom_door',
+      'secondary_bedroom_light': 'obj_secondary_bedroom_light',
+      'secondary_bedroom_light_switch': 'obj_secondary_bedroom_light_switch',
+      'secondary_bedroom_window': 'obj_secondary_bedroom_window',
+      // Washroom
+      'washingmachine': 'obj_washingmachine',
+      'washroom_door': 'obj_washroom_door',
+      'washroom_dryer': 'obj_washroom_dryer',
+      'washroom_light': 'obj_washroom_light',
+      'washroom_switch': 'obj_washroom_switch',
+      'washroom_window': 'obj_washroom_window',
     };
 
-    for (final entry in detailedMap.entries) {
-      if (lower.contains(entry.key)) {
-        String base = entry.value;
-        if (rawName.contains('.')) {
-          final suffix = rawName.split('.').last;
-          if (RegExp(r'^\d+$').hasMatch(suffix)) {
-            return '$base ${int.parse(suffix)}';
-          }
-        }
-        return base;
-      }
+    // Exact match
+    if (keyMap.containsKey(meshName)) return keyMap[meshName]!;
+
+    // Partial match (for mesh names with no exact key, e.g. walls/floors)
+    for (final entry in keyMap.entries) {
+      if (meshName.contains(entry.key)) return entry.value;
     }
 
-    String cleaned = rawName.replaceAll(RegExp(r'[_.]'), ' ').trim();
-    cleaned = cleaned.replaceAll(
-        RegExp(r'Modern Ceiling Light 01', caseSensitive: false),
-        'Ceiling Light');
-    cleaned = cleaned.replaceAll(
-        RegExp(r'Double spot light', caseSensitive: false), 'Spot Light');
-    cleaned = cleaned.replaceAllMapped(
-        RegExp(r'([a-zA-Z])(\d)'), (m) => '${m[1]} ${m[2]}');
-    cleaned =
-        cleaned.replaceAll(RegExp(r'plane', caseSensitive: false), 'Wall');
-    if (lower.startsWith('light') ||
-        lower.startsWith('point') ||
-        lower.startsWith('spot')) {
-      cleaned = cleaned.replaceAll(
-          RegExp(r'light|point|spot', caseSensitive: false), 'Light Fixture');
-    }
-
-    if (cleaned.isNotEmpty) {
-      cleaned = cleaned.split(' ').map((word) {
-        if (word.isEmpty) return '';
-        return word[0].toUpperCase() + word.substring(1).toLowerCase();
-      }).join(' ');
-    }
-    return cleaned;
+    // Fallback: return the raw mesh name itself so t() can display it cleanly
+    return meshName;
   }
 
   void _updateTime() {
@@ -902,6 +745,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       _attachedImages.clear();
       _showSuccess = false;
       _showConfirmation = false;
+      _aiMessageId = null;
+      _aiConversationId = null;
     });
     // Removed fcmReset call
     try {
@@ -916,22 +761,6 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
         firstDate: DateTime.now(),
         lastDate: DateTime.now().add(const Duration(days: 30)));
     if (d != null) setState(() => _selectedDate = d);
-  }
-
-  Future<void> _pickTime() async {
-    final t = await showTimePicker(
-        context: context, initialTime: const TimeOfDay(hour: 9, minute: 30));
-    if (t != null) {
-      final double m = t.hour * 60.0 + t.minute;
-      final bool valid = (m >= (9 * 60 + 30) && m <= (12 * 60)) ||
-          (m >= (13 * 60) && m <= (16 * 60));
-      if (valid)
-        setState(() => _selectedTime = t);
-      else
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('กรุณาเลือกเวลาในช่วง 09:30-12:00 หรือ 13:00-16:00'),
-            backgroundColor: Colors.redAccent));
-    }
   }
 
   Future<void> _pickImages() async {
@@ -983,23 +812,50 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
 
     if (confirm != true) return;
 
+    // PIN verification before submitting
+    final pinOk = await showPinVerificationOverlay(context);
+    if (pinOk != true) return;
+
     setState(() => _isSubmitting = true);
-    RepairRepository.instance.addRequest(
-      title: _titleCtrl.text.isEmpty ? _selectedObjectName : _titleCtrl.text,
+
+    final success = await RepairRepository.instance.submitRequest(
+      title: _titleCtrl.text.isEmpty
+          ? TranslationService.instance.t(_selectedObjectName)
+          : _titleCtrl.text,
       description: _detailCtrl.text,
       isEmergency: _isUrgent,
       appointmentDate: _selectedDate,
       appointmentTime: _selectedTime,
+      objectId: _selectedObjectName,
+      objectType: _selectedCategory,
       imagePaths: _attachedImages,
     );
-    await Future.delayed(const Duration(milliseconds: 1500));
+
     if (mounted) {
       setState(() {
         _isSubmitting = false;
-        _showConfirmation = false;
-        _showSuccess = true;
+        if (success) {
+          _showConfirmation = false;
+          _showSuccess = true;
+          
+          // Complete the AI Chat flow if applicable
+          if (_aiMessageId != null && _aiConversationId != null) {
+            AIChatRepository.instance.updateMessageActionState(_aiMessageId!, 'confirmed');
+            AIChatRepository.instance.archiveConversation(_aiConversationId!);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Failed to submit repair request. Please try again.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
       });
     }
+
+    //ไปหน้าประวัติ
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
       _closePopup();
@@ -1013,6 +869,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
     final gold = DashboardTheme.primary;
     final isRepairActive = _selectedObjectName.isNotEmpty && !_showRepairPopup;
 
+    //โมเดล 3 มิติ
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
       body: Stack(
@@ -1021,11 +878,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
             child: ModelViewer(
               key: const ValueKey('fcm_v16_full'),
               id: 'fcmHouseModel',
-              src: 'assets/models/VivornFinal8.4.glb',
+              src: 'assets/models/Vivorn7.8.glb',
               alt: 'FCM House Model',
               autoRotate: false,
               cameraControls: true,
-              backgroundColor: Colors.transparent,
+              backgroundColor:
+                  widget.isDark ? Colors.transparent : Colors.white,
               exposure: 1.2,
               shadowIntensity: 1.0,
               loading: Loading.eager,
@@ -1050,6 +908,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
               ]))))),
 
           // ── Header ──
+          // ส่วนของคำทักทาย
           Positioned(
             top: 32,
             left: 40,
@@ -1074,6 +933,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                           fontWeight: FontWeight.bold)),
                 ]),
                 const Spacer(),
+                //ส่วนปุ่มเปิดหลังคา
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -1082,7 +942,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
+                          color:
+                              widget.isDark ? Colors.black26 : Colors.white24,
                           shape: BoxShape.circle,
                           border:
                               Border.all(color: Colors.white24, width: 1.5)),
@@ -1090,6 +951,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                     ),
                   ),
                 ),
+                //วันที่เวลา
                 const SizedBox(width: 24),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text(_timeStr,
@@ -1172,7 +1034,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                         TranslationService.instance.t('v_chat_with_ai'),
                         style: GoogleFonts.outfit(
                           fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.bold,
                           color: Colors.black,
                         ),
                       ),
@@ -1203,6 +1065,34 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                       setState(() => _showAIChatPanel = false);
                       if (widget.onHistoryRequested != null)
                         widget.onHistoryRequested!();
+                    },
+                    onTaskTap: (requestData, tasks, msgId, convoId) {
+                      if (tasks.isEmpty) return;
+                      final firstTask = tasks.first;
+                      setState(() {
+                        _showAIChatPanel = false;
+                        _showRepairPopup = true;
+                        _aiMessageId = msgId;
+                        _aiConversationId = convoId;
+                        _selectedObjectName = firstTask.objectId ?? '';
+                        _selectedCategory = firstTask.objectType;
+                        _isUrgent = firstTask.urgency == 'emergency' ||
+                            (requestData['type'] == 'URGENT');
+                        _titleCtrl.text =
+                            requestData['title'] ?? firstTask.objectName ?? '';
+                        _detailCtrl.text = firstTask.description;
+
+                        // Pre-select date if AI suggested one
+                        if (firstTask.preferDate != null) {
+                          try {
+                            final dt = DateTime.parse(firstTask.preferDate!);
+                            _selectedDate = dt;
+                            _selectedTime =
+                                TimeOfDay(hour: dt.hour, minute: dt.minute);
+                          } catch (e) {}
+                        }
+                      });
+                      _popupAnim.forward(from: 0);
                     })),
 
           // ── Repair Popup ──
@@ -1424,7 +1314,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-              color: Colors.black.withOpacity(isDragging ? 0.9 : 0.8),
+              color: widget.isDark ? Colors.black87 : Colors.white70,
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: Colors.white10)),
           padding: const EdgeInsets.all(32),
@@ -1465,89 +1355,160 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                       Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('OBJECT',
+                            Text(
+                                TranslationService.instance
+                                    .t('repair_label_object')
+                                    .toUpperCase(),
                                 style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     color: gold.withOpacity(0.7),
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 2)),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             Text(
-                                _titleCtrl.text.isEmpty
-                                    ? _selectedObjectName
-                                    : _titleCtrl.text,
+                                TranslationService.instance
+                                    .t(_selectedObjectName),
                                 style: GoogleFonts.outfit(
-                                    fontSize: 36,
-                                    color: Colors.white,
+                                    fontSize: 30,
+                                    color: widget.isDark
+                                        ? Colors.white
+                                        : Colors.black87,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: -1)),
                           ]),
                       IconButton(
                           onPressed: _closePopup,
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white38)),
+                          icon: Icon(Icons.close_rounded,
+                              color: widget.isDark
+                                  ? Colors.white38
+                                  : Colors.black38)),
                     ]),
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Current Object', glowColor),
-                          Text(_selectedObjectName,
-                              style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -1)),
-                          _buildLabel('Category', glowColor),
-                          _PremiumDropdown(
-                              selected: _selectedCategory,
-                              items: _categories,
-                              onChanged: (v) =>
-                                  setState(() => _selectedCategory = v)),
+                          // ── Category chip (read-only) ──
+                          _buildLabel(
+                              TranslationService.instance
+                                  .t('repair_label_category'),
+                              glowColor),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: glowColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: glowColor.withOpacity(0.35)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.category_rounded,
+                                    size: 16, color: glowColor),
+                                const SizedBox(width: 8),
+                                Text(
+                                    _selectedCategory.isEmpty
+                                        ? TranslationService.instance
+                                            .t('repair_label_uncategorized')
+                                        : TranslationService.instance
+                                            .t(_selectedCategory),
+                                    style: GoogleFonts.outfit(
+                                        color: widget.isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 24),
-                          _buildLabel('Subject', glowColor),
+                          // ── Subject ──
+                          _buildLabel(
+                              TranslationService.instance
+                                  .t('repair_label_subject'),
+                              glowColor),
                           _PremiumInput(
                               controller: _titleCtrl,
-                              hint: 'e.g. Water leak...',
-                              activeColor: glowColor),
+                              hint: TranslationService.instance
+                                  .t('repair_hint_subject'),
+                              activeColor: glowColor,
+                              isDark: widget.isDark),
                           const SizedBox(height: 24),
-                          _buildLabel('Issue Details', glowColor),
+                          // ── Issue Details ──
+                          _buildLabel(
+                              TranslationService.instance
+                                  .t('repair_label_detail'),
+                              glowColor),
                           _PremiumInput(
                               controller: _detailCtrl,
-                              hint: 'Describe the issue...',
+                              hint: TranslationService.instance
+                                  .t('repair_hint_detail'),
                               activeColor: glowColor,
+                              isDark: widget.isDark,
                               maxLines: 3),
                           const SizedBox(height: 24),
-                          _buildLabel('Appointment', glowColor),
+                          // ── Date ──
+                          _buildLabel(
+                              TranslationService.instance
+                                  .t('repair_label_date'),
+                              glowColor),
+                          _ScheduleTrigger(
+                              label: TranslationService.instance
+                                  .t('repair_slot_date'),
+                              value: _selectedDate == null
+                                  ? null
+                                  : DateFormat('MMM dd').format(_selectedDate!),
+                              icon: Icons.event,
+                              onTap: _pickDate,
+                              activeColor: glowColor,
+                              isDark: widget.isDark),
+                          const SizedBox(height: 16),
+                          // ── Time Slots ──
+                          _buildLabel(
+                              TranslationService.instance
+                                  .t('repair_label_slot'),
+                              glowColor),
                           Row(children: [
                             Expanded(
-                                child: _ScheduleTrigger(
-                                    label: 'Date',
-                                    value: _selectedDate == null
-                                        ? null
-                                        : DateFormat('MMM dd')
-                                            .format(_selectedDate!),
-                                    icon: Icons.event,
-                                    onTap: _pickDate,
-                                    activeColor: glowColor)),
+                              child: _TimeSlotButton(
+                                label: '9:30 – 12:00',
+                                selected: _selectedTime ==
+                                    const TimeOfDay(hour: 9, minute: 30),
+                                activeColor: glowColor,
+                                isDark: widget.isDark,
+                                onTap: () => setState(() => _selectedTime =
+                                    const TimeOfDay(hour: 9, minute: 30)),
+                              ),
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
-                                child: _ScheduleTrigger(
-                                    label: 'Time',
-                                    value: _selectedTime?.format(context),
-                                    icon: Icons.schedule,
-                                    onTap: _pickTime,
-                                    activeColor: glowColor)),
+                              child: _TimeSlotButton(
+                                label: '13:00 – 16:00',
+                                selected: _selectedTime ==
+                                    const TimeOfDay(hour: 13, minute: 0),
+                                activeColor: glowColor,
+                                isDark: widget.isDark,
+                                onTap: () => setState(() => _selectedTime =
+                                    const TimeOfDay(hour: 13, minute: 0)),
+                              ),
+                            ),
                           ]),
                           const SizedBox(height: 24),
-                          _buildLabel('Photos', glowColor),
+                          // ── Photos ──
+                          _buildLabel(
+                              TranslationService.instance
+                                  .t('repair_label_photos'),
+                              glowColor),
                           _PhotoPicker(
-                              imagePaths: _attachedImages,
-                              onTap: _pickImages,
-                              onRemove: _removeImage,
-                              activeColor: glowColor),
+                            imagePaths: _attachedImages,
+                            onTap: _pickImages,
+                            onRemove: _removeImage,
+                            activeColor: glowColor,
+                            isDark: widget.isDark,
+                          ),
                           const SizedBox(height: 32),
                           _EmergencyToggle(
                               value: _isUrgent,
@@ -1557,13 +1518,23 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                           const SizedBox(height: 16),
                           _SubmitAction(
                               onTap: () {
-                                if (_selectedCategory.isEmpty ||
-                                    _titleCtrl.text.isEmpty ||
+                                if (_titleCtrl.text.isEmpty ||
                                     _detailCtrl.text.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'กรุณาระบุหมวดหมู่ หัวข้อ และรายละเอียดปัญหาให้ครบถ้วน'),
+                                      SnackBar(
+                                          content: Text(TranslationService
+                                              .instance
+                                              .t('repair_validation_error')),
+                                          backgroundColor: Colors.redAccent));
+                                  return;
+                                }
+                                if (_selectedDate == null ||
+                                    _selectedTime == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(TranslationService
+                                              .instance
+                                              .t('repair_validation_datetime')),
                                           backgroundColor: Colors.redAccent));
                                   return;
                                 }
@@ -1572,12 +1543,6 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                               isUrgent: _isUrgent,
                               gold: gold),
                           const SizedBox(height: 20),
-                          Center(
-                              child: Text('SECURE ENCRYPTED FILING',
-                                  style: GoogleFonts.outfit(
-                                      fontSize: 10,
-                                      color: Colors.white12,
-                                      letterSpacing: 2))),
                         ]),
                   ),
                 ),
@@ -1599,7 +1564,18 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
               letterSpacing: 2)));
 
   Widget _buildWarrantyBadge(Color gold) {
-    final expiryDate = DateTime.now().add(const Duration(days: 365 * 5));
+    DateTime expiryDate;
+    if (widget.activateDate != null && widget.activateDate!.isNotEmpty) {
+      try {
+        final activated = DateTime.parse(widget.activateDate!);
+        expiryDate =
+            DateTime(activated.year + 5, activated.month, activated.day);
+      } catch (e) {
+        expiryDate = DateTime.now().add(const Duration(days: 365 * 5));
+      }
+    } else {
+      expiryDate = DateTime.now().add(const Duration(days: 365 * 5));
+    }
     final expiryStr = DateFormat('dd/MM/yyyy').format(expiryDate);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1857,11 +1833,13 @@ class _PremiumInput extends StatefulWidget {
   final String hint;
   final Color activeColor;
   final int maxLines;
+  final bool isDark;
   const _PremiumInput(
       {required this.controller,
       required this.hint,
       required this.activeColor,
-      this.maxLines = 1});
+      this.maxLines = 1,
+      this.isDark = true});
 
   @override
   State<_PremiumInput> createState() => _PremiumInputState();
@@ -1879,6 +1857,14 @@ class _PremiumInputState extends State<_PremiumInput> {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = widget.isDark ? Colors.white : Colors.black87;
+    final hintColor =
+        widget.isDark ? Colors.white.withOpacity(0.2) : Colors.black26;
+    final bgColor = widget.isDark
+        ? Colors.white.withOpacity(0.05)
+        : Colors.black.withOpacity(0.04);
+    final borderIdle = widget.isDark ? Colors.white10 : Colors.black12;
+    final borderHover = widget.isDark ? Colors.white38 : Colors.black38;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -1889,14 +1875,13 @@ class _PremiumInputState extends State<_PremiumInput> {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isFocused
-                    ? widget.activeColor.withOpacity(0.05)
-                    : Colors.white.withOpacity(0.05),
+                color:
+                    isFocused ? widget.activeColor.withOpacity(0.05) : bgColor,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isFocused
                       ? widget.activeColor
-                      : (_isHovered ? Colors.white38 : Colors.white10),
+                      : (_isHovered ? borderHover : borderIdle),
                   width: isFocused ? 1.5 : 1.0,
                 ),
                 boxShadow: isFocused
@@ -1913,12 +1898,11 @@ class _PremiumInputState extends State<_PremiumInput> {
                 controller: widget.controller,
                 focusNode: _focusNode,
                 maxLines: widget.maxLines,
-                style: GoogleFonts.outfit(color: Colors.white, fontSize: 17),
+                style: GoogleFonts.outfit(color: textColor, fontSize: 17),
                 cursorColor: widget.activeColor,
                 decoration: InputDecoration(
                   hintText: widget.hint,
-                  hintStyle: GoogleFonts.outfit(
-                      color: Colors.white.withOpacity(0.2), fontSize: 16),
+                  hintStyle: GoogleFonts.outfit(color: hintColor, fontSize: 16),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -1936,7 +1920,7 @@ class _PremiumInputState extends State<_PremiumInput> {
 
 class _PremiumDropdown extends StatefulWidget {
   final String selected;
-  final List<Map<String, dynamic>> items;
+  final List<String> items;
   final ValueChanged<String> onChanged;
   const _PremiumDropdown(
       {required this.selected, required this.items, required this.onChanged});
@@ -1972,17 +1956,16 @@ class _PremiumDropdownState extends State<_PremiumDropdown> {
                 color: _isHovered ? Colors.white70 : Colors.white24),
             hint: Text('Select Category',
                 style: GoogleFonts.outfit(color: Colors.white24, fontSize: 16)),
-            items: widget.items.expand((c) {
-              final g = c['group'] as String;
-              return (c['items'] as List<String>).map((i) => DropdownMenuItem(
-                    value: '$g: $i',
-                    child: Text('$g: $i',
-                        style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.normal)),
-                  ));
-            }).toList(),
+            items: widget.items
+                .map((item) => DropdownMenuItem(
+                      value: item,
+                      child: Text(item,
+                          style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal)),
+                    ))
+                .toList(),
             onChanged: (v) => widget.onChanged(v ?? ''),
           ),
         ),
@@ -1997,41 +1980,97 @@ class _ScheduleTrigger extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final Color activeColor;
+  final bool isDark;
   const _ScheduleTrigger(
       {required this.label,
       this.value,
       required this.icon,
       required this.onTap,
-      required this.activeColor});
+      required this.activeColor,
+      this.isDark = true});
   @override
   Widget build(BuildContext context) {
     final hasVal = value != null;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final emptyBg = isDark
+        ? Colors.white.withOpacity(0.05)
+        : Colors.black.withOpacity(0.04);
+    final emptyBorder = isDark ? Colors.white10 : Colors.black12;
+    final labelColor = isDark ? Colors.white38 : Colors.black38;
     return GestureDetector(
         onTap: onTap,
         child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-                color: hasVal
-                    ? activeColor.withOpacity(0.1)
-                    : Colors.white.withOpacity(0.05),
+                color: hasVal ? activeColor.withOpacity(0.1) : emptyBg,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: hasVal
-                        ? activeColor.withOpacity(0.5)
-                        : Colors.white10)),
+                    color:
+                        hasVal ? activeColor.withOpacity(0.5) : emptyBorder)),
             child: Column(children: [
               Icon(icon,
-                  color: hasVal ? activeColor : Colors.white24, size: 24),
+                  color: hasVal
+                      ? activeColor
+                      : (isDark ? Colors.white24 : Colors.black26),
+                  size: 24),
               const SizedBox(height: 8),
               Text(label,
                   style: GoogleFonts.shareTechMono(
-                      fontSize: 10, color: Colors.white38)),
+                      fontSize: 10, color: labelColor)),
               Text(value ?? 'Set',
                   style: GoogleFonts.outfit(
                       fontSize: 14,
-                      color: Colors.white,
+                      color: textColor,
                       fontWeight: hasVal ? FontWeight.bold : FontWeight.normal))
             ])));
+  }
+}
+
+class _TimeSlotButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color activeColor;
+  final bool isDark;
+  final VoidCallback onTap;
+  const _TimeSlotButton({
+    required this.label,
+    required this.selected,
+    required this.activeColor,
+    required this.onTap,
+    this.isDark = true,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final emptyBg = isDark
+        ? Colors.white.withOpacity(0.05)
+        : Colors.black.withOpacity(0.04);
+    final emptyBorder = isDark ? Colors.white10 : Colors.black12;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? activeColor.withOpacity(0.15) : emptyBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? activeColor : emptyBorder,
+            width: selected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: selected ? activeColor : textColor.withOpacity(0.6),
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -2040,11 +2079,13 @@ class _PhotoPicker extends StatelessWidget {
   final VoidCallback onTap;
   final Function(int) onRemove;
   final Color activeColor;
+  final bool isDark;
   const _PhotoPicker(
       {required this.imagePaths,
       required this.onTap,
       required this.onRemove,
-      required this.activeColor});
+      required this.activeColor,
+      required this.isDark});
   @override
   Widget build(BuildContext context) {
     return Column(children: [
@@ -2053,7 +2094,9 @@ class _PhotoPicker extends StatelessWidget {
           child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: this.isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.black.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white10)),
               child: Row(children: [
@@ -2061,7 +2104,7 @@ class _PhotoPicker extends StatelessWidget {
                 const SizedBox(width: 16),
                 Text('ATTACH PHOTOS',
                     style: GoogleFonts.shareTechMono(
-                        color: Colors.white70,
+                        color: this.isDark ? Colors.white70 : Colors.black87,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                         letterSpacing: 1))

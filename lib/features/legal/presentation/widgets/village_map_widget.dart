@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
+import 'package:fcm_app/core/data/repair_repository.dart';
 
 class VillageMapWidget extends StatefulWidget {
   final Function(String house, String issue)? onMarkerTap;
@@ -44,153 +45,200 @@ class _VillageMapWidgetState extends State<VillageMapWidget>
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-              // Real Village Map Asset
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/village_map.jpg',
-                  fit: BoxFit.cover,
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.0), // Darken only in Dark Mode
-                  colorBlendMode: BlendMode.darken,
-                ),
-              ),
+                  // Real Village Map Asset
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/village_map.jpg',
+                      fit: BoxFit.cover,
+                      color: Colors.black.withOpacity(
+                          isDark ? 0.3 : 0.0), // Darken only in Dark Mode
+                      colorBlendMode: BlendMode.darken,
+                    ),
+                  ),
 
-              // Tech Grid Overlay
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Opacity(
-                    opacity: 0.1,
-                    child: RepaintBoundary(
-                      child: CustomPaint(
-                        painter: GridPainter(),
+                  // Tech Grid Overlay
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: 0.1,
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: GridPainter(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
 
-              // Animated Scan Line
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: AnimatedBuilder(
-                    animation: _scanController,
-                    builder: (context, child) {
-                      return CustomPaint(
-                        painter: ScanLinePainter(
-                          progress: _scanController.value,
-                        ),
+                  // Animated Scan Line
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: AnimatedBuilder(
+                        animation: _scanController,
+                        builder: (context, child) {
+                          return CustomPaint(
+                            painter: ScanLinePainter(
+                              progress: _scanController.value,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // HUD Corner Brackets
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: HudCornerPainter(),
+                    ),
+                  ),
+
+                  // Dynamic Issue Markers from RepairRepository
+                  ValueListenableBuilder<List<RepairRequest>>(
+                    valueListenable: RepairRepository.instance.repairsNotifier,
+                    builder: (context, repairs, _) {
+                      final activeRepairs = repairs.where((r) {
+                        final String house = r.requesterHouse ?? "";
+                        return (house.startsWith('UNIT-') ||
+                                DashboardData.houseMarkerPositions
+                                    .containsKey(house)) &&
+                            (r.status == "CREATED" ||
+                                r.status == "PENDING" ||
+                                r.status == "URGENT" ||
+                                r.isEmergency);
+                      }).toList();
+
+                      return Stack(
+                        children: [
+                          ...activeRepairs.map((r) {
+                            final String house = r.requesterHouse ?? "";
+                            final Offset pos =
+                                DashboardData.houseMarkerPositions[house] ??
+                                    DashboardData.houseMarkerPositions[
+                                        house.replaceFirst('UNIT-', '')] ??
+                                    const Offset(0.5, 0.5);
+
+                            return Positioned(
+                              top: constraints.maxHeight * pos.dy,
+                              left: constraints.maxWidth * pos.dx,
+                              child: _buildMarkerWidget(
+                                icon: r.isEmergency
+                                    ? Icons.warning_rounded
+                                    : Icons.handyman_rounded,
+                                color: r.status == 'URGENT' || r.isEmergency
+                                    ? DashboardTheme.error
+                                    : DashboardTheme.primary,
+                                house: house.replaceFirst('UNIT-', ''),
+                                issue: r.title.length > 30
+                                    ? "${r.title.substring(0, 30)}..."
+                                    : r.title,
+                                requester: r.requesterName ??
+                                    r.requesterEmail ??
+                                    "Resident",
+                                category: r.tasks.isNotEmpty
+                                    ? (r.tasks.first.category ?? "Repair")
+                                    : "Repair",
+                                status: r.status,
+                              ),
+                            );
+                          }),
+                        ],
                       );
                     },
                   ),
-                ),
-              ),
 
-              // HUD Corner Brackets
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: HudCornerPainter(),
-                ),
-              ),
-
-
-              // Dynamic Issue Markers from DashboardData
-              ...DashboardData.tasks.where((task) {
-                // Show markers ONLY for RESIDENTIAL UNITS (UNIT-*) that are PENDING or URGENT
-                final String house = task['house']?.toString() ?? "";
-                return house.startsWith('UNIT-') && 
-                       DashboardData.houseMarkerPositions.containsKey(house) && 
-                       (task['status'] == "PENDING" || task['status'] == "URGENT");
-              }).map((task) {
-                final Offset pos = DashboardData.houseMarkerPositions[task['house']]!;
-                return Positioned(
-                  top: constraints.maxHeight * pos.dy,
-                  left: constraints.maxWidth * pos.dx,
-                  child: _buildMarkerWidget(
-                    icon: (task['icon'] is IconData) ? task['icon'] as IconData : Icons.warning_rounded,
-                    color: task['status'] == 'URGENT' ? DashboardTheme.error : (task['status'] == 'WORKING' ? DashboardTheme.success : DashboardTheme.primary),
-                    house: (task['house'] as String).replaceFirst('UNIT-', ''),
-                    issue: (task['title'] as String).length > 30 
-                      ? "${(task['title'] as String).substring(0, 30)}..."
-                      : task['title'] as String,
-                    requester: task['requester'] ?? "Admin",
-                    category: task['category'] ?? "Maintenance",
-                    status: task['status'] ?? "PENDING",
-                  ),
-                );
-              }),
-
-              // Bottom status bar overlay
-              Positioned(
-                bottom: 14,
-                left: 28,
-                right: 28,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  // Bottom status bar overlay
+                  Positioned(
+                    bottom: 14,
+                    left: 28,
+                    right: 28,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-                          child: Text(
-                            "RESIDENT TASKS",
-                            style: GoogleFonts.shareTechMono(
-                              color: Colors.white,
-                              fontSize: 10,
-                              letterSpacing: 1.2,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.8),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _hudBadge(
-                              "Pending", 
-                              DashboardData.tasks.where((t) => t['status'] == 'PENDING' && t['house'].toString().startsWith('UNIT-')).length.toString(), 
-                              DashboardTheme.primary
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: 8.0, left: 4.0),
+                              child: Text(
+                                "RESIDENT TASKS",
+                                style: GoogleFonts.shareTechMono(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withOpacity(0.8),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 16),
-                            _hudBadge(
-                              "Urgent", 
-                              DashboardData.tasks.where((t) => t['status'] == 'URGENT' && t['house'].toString().startsWith('UNIT-')).length.toString(), 
-                              DashboardTheme.error
+                            ValueListenableBuilder<List<RepairRequest>>(
+                              valueListenable:
+                                  RepairRepository.instance.repairsNotifier,
+                              builder: (context, repairs, _) {
+                                final pendingUnits = repairs
+                                    .where((t) =>
+                                        t.status == 'PENDING' &&
+                                        (t.requesterHouse
+                                                ?.startsWith('UNIT-') ??
+                                            false))
+                                    .length;
+                                final urgentUnits = repairs
+                                    .where((t) =>
+                                        (t.status == 'URGENT' ||
+                                            t.isEmergency) &&
+                                        (t.requesterHouse
+                                                ?.startsWith('UNIT-') ??
+                                            false))
+                                    .length;
+
+                                return Row(
+                                  children: [
+                                    _hudBadge(
+                                        "Pending",
+                                        pendingUnits.toString(),
+                                        DashboardTheme.primary),
+                                    const SizedBox(width: 16),
+                                    _hudBadge("Urgent", urgentUnits.toString(),
+                                        DashboardTheme.error),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
+                        Text(
+                          "VIVORN Village  ·  SECTOR OVERVIEW",
+                          style: GoogleFonts.notoSans(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.8),
+                                blurRadius: 8,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    Text(
-                      "VIVORN Village  ·  SECTOR OVERVIEW",
-                      style: GoogleFonts.notoSans(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.5,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withOpacity(0.8),
-                            blurRadius: 8,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           );
         },
-      );
-    },
-  ),
-);
+      ),
+    );
   }
 
   Widget _hudBadge(String label, String count, Color color) {
@@ -324,24 +372,27 @@ class _PulsingMarkerState extends State<_PulsingMarker>
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: DashboardTheme.isDarkMode.value ? DashboardTheme.surface : Colors.white, // Dark marker in Dark Mode
+                      color: DashboardTheme.isDarkMode.value
+                          ? DashboardTheme.surface
+                          : Colors.white, // Dark marker in Dark Mode
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: widget.color, 
-                        width: 1.8, 
+                        color: widget.color,
+                        width: 1.8,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: widget.color.withOpacity(0.2 + pulseValue * 0.2),
-                          blurRadius: 8 + (pulseValue * 4), 
+                          color:
+                              widget.color.withOpacity(0.2 + pulseValue * 0.2),
+                          blurRadius: 8 + (pulseValue * 4),
                           spreadRadius: 1 + (pulseValue * 1),
                         ),
                       ],
                     ),
                     child: Icon(
-                      widget.icon, 
-                      color: widget.color, 
-                      size: widget.color == DashboardTheme.error ? 20 : 16, 
+                      widget.icon,
+                      color: widget.color,
+                      size: widget.color == DashboardTheme.error ? 20 : 16,
                     ),
                   ),
                 ),
@@ -360,12 +411,12 @@ class _PulsingMarkerState extends State<_PulsingMarker>
               ],
             ),
             const SizedBox(width: 6),
-              // Glass label - High Contrast
+            // Glass label - High Contrast
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: DashboardTheme.isDarkMode.value 
-                    ? Colors.black.withOpacity(0.8) 
+                color: DashboardTheme.isDarkMode.value
+                    ? Colors.black.withOpacity(0.8)
                     : Colors.white.withOpacity(0.9),
                 border: Border.all(
                   color: widget.color.withOpacity(0.5),
@@ -385,9 +436,11 @@ class _PulsingMarkerState extends State<_PulsingMarker>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.status == 'URGENT' 
-                      ? '🚨 URGENT: ${widget.house} | ${widget.requester.split(' ')[0]}' 
-                      : (widget.status == 'WORKING' ? '🛠️ ON-GOING: ${widget.house} | ${widget.requester.split(' ')[0]}' : 'H: ${widget.house} | ${widget.requester.split(' ')[0]}'),
+                    widget.status == 'URGENT'
+                        ? '🚨 URGENT: ${widget.house} | ${widget.requester.split(' ')[0]}'
+                        : (widget.status == 'WORKING'
+                            ? '🛠️ ON-GOING: ${widget.house} | ${widget.requester.split(' ')[0]}'
+                            : 'H: ${widget.house} | ${widget.requester.split(' ')[0]}'),
                     style: GoogleFonts.shareTechMono(
                       color: widget.color,
                       fontWeight: FontWeight.w900,
@@ -397,14 +450,14 @@ class _PulsingMarkerState extends State<_PulsingMarker>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                  widget.issue.toUpperCase(),
-                  style: GoogleFonts.shareTechMono(
-                    color: DashboardTheme.textMain,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                    widget.issue.toUpperCase(),
+                    style: GoogleFonts.shareTechMono(
+                      color: DashboardTheme.textMain,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
                 ],
               ),
             ),

@@ -10,17 +10,21 @@ import '../../data/repositories/ai_chat_repository.dart';
 import '../../data/models/ai_conversation_model.dart';
 import '../../data/models/ai_message_model.dart';
 import 'dart:convert';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class AIChatPanel extends StatefulWidget {
   final VoidCallback onClose;
   final String residentName;
   final VoidCallback? onHistoryRequested;
+  final Function(Map<String, dynamic> requestData, List<ParsedTask> tasks,
+      String messageId, String conversationId)? onTaskTap;
 
   const AIChatPanel({
     super.key,
     required this.onClose,
     required this.residentName,
     this.onHistoryRequested,
+    this.onTaskTap,
   });
 
   @override
@@ -42,6 +46,10 @@ class _AIChatPanelState extends State<AIChatPanel> {
 
   String _searchQuery = '';
   bool _isNewChat = false;
+
+  // Speech to Text
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
 
   AIConversationModel? get _activeConversation {
     try {
@@ -68,12 +76,22 @@ class _AIChatPanelState extends State<AIChatPanel> {
     setState(() {
       _conversations = threads;
       _isLoadingThreads = false;
-      if (threads.isNotEmpty) {
-        _setActiveConversation(threads.first.id);
-      } else {
-        // Start a fresh thread
-        _currentMessages = [];
+
+      // Auto-threading Logic:
+      // If there are no conversations, or if the latest conversation is complete (archived),
+      // we start fresh.
+      if (threads.isEmpty) {
         _activeConversationId = null;
+        _isNewChat = true;
+      } else {
+        final latest = threads.first;
+        if (latest.isArchived) {
+          _activeConversationId = null;
+          _isNewChat = true;
+        } else {
+          _setActiveConversation(latest.id);
+          _isNewChat = false;
+        }
       }
     });
   }
@@ -96,7 +114,16 @@ class _AIChatPanelState extends State<AIChatPanel> {
 
   Future<void> _sendMessage() async {
     final text = _msgCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSending) return;
+
+    // Stop STT first so onResult callback can't refill the field after clear
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    }
+
+    _msgCtrl.clear();
+    _voiceOriginalText = '';
 
     setState(() {
       _isSending = true;
@@ -108,7 +135,6 @@ class _AIChatPanelState extends State<AIChatPanel> {
         content: text,
         createdAt: DateTime.now(),
       ));
-      _msgCtrl.clear();
     });
     _scrollToBottom();
 
@@ -345,6 +371,19 @@ class _AIChatPanelState extends State<AIChatPanel> {
                     ),
                   ),
                   const Spacer(),
+                  if (_conversations.isNotEmpty &&
+                      (_activeConversationId != null || _isNewChat))
+                    IconButton(
+                      tooltip: 'Chat History',
+                      icon: Icon(Icons.history,
+                          color: DashboardTheme.textSecondary, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _activeConversationId = null;
+                          _isNewChat = false;
+                        });
+                      },
+                    ),
                   IconButton(
                     icon:
                         Icon(Icons.close, color: DashboardTheme.textSecondary),
@@ -359,27 +398,7 @@ class _AIChatPanelState extends State<AIChatPanel> {
                       _conversations.isNotEmpty &&
                       !_isNewChat
                   ? _buildSidebar()
-                  : Stack(
-                      children: [
-                        _buildChatArea(),
-                        // Add a button to go back to history if needed
-                        if (_conversations.isNotEmpty)
-                          Positioned(
-                            top: 12,
-                            right: 16,
-                            child: IconButton(
-                              icon: Icon(Icons.history,
-                                  color: DashboardTheme.textSecondary),
-                              onPressed: () {
-                                setState(() {
-                                  _activeConversationId = null;
-                                  _isNewChat = false;
-                                });
-                              },
-                            ),
-                          )
-                      ],
-                    ),
+                  : _buildChatArea(),
             ),
           ],
         ),
@@ -623,15 +642,23 @@ class _AIChatPanelState extends State<AIChatPanel> {
       ),
       child: Row(
         children: [
+          // Microphone / Voice to Text
+          _buildMicButton(),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _msgCtrl,
               style: GoogleFonts.outfit(
                   color: DashboardTheme.textMain, fontSize: 14),
               decoration: InputDecoration(
-                hintText: TranslationService.instance.t('ai_panel_input_hint'),
+                hintText: _isListening
+                    ? 'Listening...'
+                    : TranslationService.instance.t('ai_panel_input_hint'),
                 hintStyle: GoogleFonts.outfit(
-                    color: DashboardTheme.textPale, fontSize: 14),
+                    color: _isListening
+                        ? DashboardTheme.primary
+                        : DashboardTheme.textPale,
+                    fontSize: 14),
                 filled: true,
                 fillColor: DashboardTheme.background,
                 border: OutlineInputBorder(
@@ -650,16 +677,18 @@ class _AIChatPanelState extends State<AIChatPanel> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              onSubmitted: (_) => _sendMessage(),
+              onSubmitted: (_) => (_isSending || _isListening) ? null : _sendMessage(),
             ),
           ),
           const SizedBox(width: 12),
           InkWell(
-            onTap: _isSending ? null : _sendMessage,
+            onTap: (_isSending || _isListening) ? null : _sendMessage,
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: DashboardTheme.primary,
+                color: (_isSending || _isListening)
+                    ? DashboardTheme.primary.withOpacity(0.3)
+                    : DashboardTheme.primary,
                 shape: BoxShape.circle,
               ),
               child: _isSending
@@ -668,13 +697,102 @@ class _AIChatPanelState extends State<AIChatPanel> {
                       height: 18,
                       child: CircularProgressIndicator(
                           color: Colors.black, strokeWidth: 2))
-                  : const Icon(Icons.send_rounded,
-                      color: Colors.black, size: 18),
+                  : Icon(Icons.send_rounded,
+                      color: _isListening
+                          ? Colors.black38
+                          : Colors.black,
+                      size: 18),
             ),
           )
         ],
       ),
     );
+  }
+
+  Widget _buildMicButton() {
+    return GestureDetector(
+      onTapDown: (_) => _startListening(),
+      onTapUp: (_) => _stopListening(),
+      onTapCancel: () => _stopListening(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _isListening
+              ? Colors.redAccent.withOpacity(0.2)
+              : DashboardTheme.background,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: _isListening ? Colors.redAccent : DashboardTheme.border,
+            width: _isListening ? 2 : 1,
+          ),
+        ),
+        child: Icon(
+          _isListening ? Icons.graphic_eq : Icons.mic_none_rounded,
+          color: _isListening ? Colors.redAccent : DashboardTheme.textSecondary,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  String _voiceOriginalText = '';
+
+  Future<void> _startListening() async {
+    try {
+      bool available = await _speech.initialize(
+        onError: (val) => print('onError: $val'),
+        onStatus: (val) => print('onStatus: $val'),
+      );
+      if (available) {
+        setState(() {
+          _isListening = true;
+          // Capture the text before we start this specific voice session
+          _voiceOriginalText = _msgCtrl.text.trim();
+        });
+
+        // Determine locale based on app language
+        String localeId = 'en-US';
+        final currentLang = TranslationService.instance.lang;
+        if (currentLang == 'th') {
+          localeId = 'th-TH';
+        } else if (currentLang == 'zh') {
+          localeId = 'zh-CN';
+        }
+
+        _speech.listen(
+          localeId: localeId,
+          onResult: (val) {
+            // Also guard on _isListening: after stop() the STT engine can fire
+            // one final onResult callback — we must ignore it if already stopped.
+            if (mounted && _isListening) {
+              final voiceText = val.recognizedWords.trim();
+              if (voiceText.isNotEmpty) {
+                setState(() {
+                  final prefix =
+                      _voiceOriginalText.isEmpty ? "" : "$_voiceOriginalText ";
+                  _msgCtrl.text = prefix + voiceText;
+
+                  // Keep cursor at the end
+                  _msgCtrl.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _msgCtrl.text.length),
+                  );
+                });
+              }
+            }
+          },
+        );
+      }
+    } catch (e) {
+      print('FCM AIChatPanel: Speech Initialize Error -> $e');
+    }
+  }
+
+  Future<void> _stopListening() async {
+    await _speech.stop();
+    setState(() {
+      _isListening = false;
+    });
   }
 
   Widget _buildMessageBubble(AIMessageModel msg) {
@@ -752,7 +870,14 @@ class _AIChatPanelState extends State<AIChatPanel> {
               : SystemMouseCursors.basic,
           child: GestureDetector(
             onTap: isLatestPending
-                ? () => _showConfirmationOverlay(parsedTasks, msg.id)
+                ? () {
+                    if (widget.onTaskTap != null) {
+                      widget.onTaskTap!(
+                          requestObj, parsedTasks, msg.id, msg.conversationId);
+                    } else {
+                      _showConfirmationOverlay(parsedTasks, msg.id);
+                    }
+                  }
                 : (msg.actionState == 'confirmed' &&
                         widget.onHistoryRequested != null)
                     ? () => widget.onHistoryRequested!()
@@ -864,15 +989,13 @@ class _HistoryItem extends StatefulWidget {
 }
 
 class _HistoryItemState extends State<_HistoryItem> {
-  bool _isHovered = false;
   bool _isDeleteHovered = false;
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
+      onEnter: (_) => {},
       onExit: (_) => setState(() {
-        _isHovered = false;
         _isDeleteHovered = false;
       }),
       child: InkWell(
@@ -931,34 +1054,33 @@ class _HistoryItemState extends State<_HistoryItem> {
                   ],
                 ),
               ),
-              if (_isHovered)
-                MouseRegion(
-                  onEnter: (_) => setState(() => _isDeleteHovered = true),
-                  onExit: (_) => setState(() => _isDeleteHovered = false),
-                  child: GestureDetector(
-                    onTap: widget.onDelete,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _isDeleteHovered
-                            ? Colors.red.withOpacity(0.15)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: _isDeleteHovered
-                            ? Border.all(color: Colors.red.withOpacity(0.3))
-                            : null,
-                      ),
-                      child: Icon(
-                        Icons.delete_outline,
-                        color: _isDeleteHovered
-                            ? Colors.red
-                            : DashboardTheme.textPale,
-                        size: 20,
-                      ),
+              MouseRegion(
+                onEnter: (_) => setState(() => _isDeleteHovered = true),
+                onExit: (_) => setState(() => _isDeleteHovered = false),
+                child: GestureDetector(
+                  onTap: widget.onDelete,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _isDeleteHovered
+                          ? Colors.red.withOpacity(0.15)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: _isDeleteHovered
+                          ? Border.all(color: Colors.red.withOpacity(0.3))
+                          : null,
+                    ),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: _isDeleteHovered
+                          ? Colors.red
+                          : DashboardTheme.textPale,
+                      size: 20,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ),

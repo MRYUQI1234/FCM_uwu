@@ -2,145 +2,198 @@ import 'package:flutter/material.dart';
 
 class DashboardData {
   static List<Map<String, dynamic>> get technicians => [
-    {
-      'name': 'Jib', 
-      'role': 'AIR COND. SPECIALIST', 
-      'id': 'TECH-401', 
-      'shiftOffset': 1,
-      'phone': '+66 81 234 5678',
-      'email': 'jib.ice@gmail.com',
-      'image': 'assets/jib_air.jpg',
-      'age': 28,
-      'height': "165 cm",
-      'birthplace': 'Bangkok, Thailand',
-      'abilities': ['Air Conditioning', 'System Leak Fix', 'Energy Saving'],
-      'bio': 'Precise and efficient. Specialized in complex VRF systems and energy-saving cooling solutions.',
-      'stats': {'AIR': 0.95, 'POWER': 0.4, 'PIPE': 0.3, 'BUILD': 0.2, 'PAINT': 0.3},
-      'rating': 4.9,
-      'isActive': true,
-      'icon': Icons.ac_unit_rounded,
-    },
-    {
-      'name': 'Wichai', 
-      'role': 'SENIOR ELECTRICIAN', 
-      'id': 'TECH-402', 
-      'shiftOffset': 0,
-      'phone': '+66 82 345 6789',
-      'email': 'wichai.volt@gmail.com',
-      'image': 'assets/wichai_electric.jpg',
-      'age': 45,
-      'height': "175 cm",
-      'birthplace': 'Udon Thani, Thailand',
-      'abilities': ['High-Voltage Wiring', 'Fault Detection', 'Safety Control'],
-      'bio': 'The most senior electrician in the team. Known for identifying electrical leaks before they happen.',
-      'stats': {'AIR': 0.3, 'POWER': 0.98, 'PIPE': 0.4, 'BUILD': 0.3, 'PAINT': 0.2},
-      'rating': 4.8,
-      'isActive': true,
-      'icon': Icons.bolt_rounded,
-    },
-    {
-      'name': 'Kong', 
-      'role': 'SENIOR PLUMBER', 
-      'id': 'TECH-403', 
-      'shiftOffset': 2,
-      'phone': '+66 83 456 7890',
-      'email': 'kong.pipe@gmail.com',
-      'image': 'assets/kong_plumbing.jpg',
-      'age': 34,
-      'height': "182 cm",
-      'birthplace': 'Chiang Mai, Thailand',
-      'abilities': ['Pipe Welding', 'Water Main Fix', 'Drain Cleaning'],
-      'bio': 'Calm under pressure. Excellent at handling major water main bursts and system rerouting.',
-      'stats': {'AIR': 0.4, 'POWER': 0.5, 'PIPE': 0.92, 'BUILD': 0.6, 'PAINT': 0.2},
-      'rating': 4.6,
-      'isActive': false,
-      'icon': Icons.water_drop_rounded,
-    },
-    {
-      'name': 'Keng', 
-      'role': 'MASONRY EXPERT', 
-      'id': 'TECH-404', 
-      'shiftOffset': 3,
-      'phone': '+66 84 567 8901',
-      'email': 'keng.stone@gmail.com',
-      'image': 'assets/jack_senior.jpg',
-      'age': 39,
-      'height': "170 cm",
-      'birthplace': 'Phuket, Thailand',
-      'abilities': ['Wall Building', 'Tile Precision', 'Waterproofing'],
-      'bio': 'Obsessed with structural integrity. His tile work is legendary for its millimeter accuracy.',
-      'stats': {'AIR': 0.2, 'POWER': 0.3, 'PIPE': 0.5, 'BUILD': 0.95, 'PAINT': 0.4},
-      'rating': 4.7,
-      'isActive': true,
-      'icon': Icons.architecture_rounded,
-    },
-    {
-      'name': 'Grace', 
-      'role': 'PAINTING SPECIALIST', 
-      'id': 'TECH-405', 
-      'shiftOffset': 4,
-      'phone': '+66 85 678 9012',
-      'email': 'grace.hue@gmail.com',
-      'image': 'assets/grace_paint.jpg',
-      'age': 26,
-      'height': "162 cm",
-      'birthplace': 'Bangkok, Thailand',
-      'abilities': ['House Painting', 'Wall Textures', 'Color Matching'],
-      'bio': 'Brings aesthetic perfection to functional spaces. Expert in industrial-grade protective coatings.',
-      'stats': {'AIR': 0.3, 'POWER': 0.2, 'PIPE': 0.2, 'BUILD': 0.3, 'PAINT': 0.95},
-      'rating': 4.5,
-      'isActive': true,
-      'icon': Icons.format_paint_rounded,
-    },
-    {
-      'name': 'Pee', 
-      'role': 'SYSTEMS ENGINEER', 
-      'id': 'TECH-406', 
-      'shiftOffset': 5,
-      'phone': '+66 86 789 0123',
-      'email': 'pee.tech@gmail.com',
-      'image': 'assets/prism_it.jpg',
-      'age': 31,
-      'height': "178 cm",
-      'birthplace': 'Nonthaburi, Thailand',
-      'abilities': ['CCTV Setup', 'Smart Locks', 'Wi-Fi Systems'],
-      'bio': 'Bridges the gap between hardware and software. Ensures the whole facility remains "Smart".',
-      'stats': {'AIR': 0.5, 'POWER': 0.85, 'PIPE': 0.4, 'BUILD': 0.3, 'PAINT': 0.3},
-      'rating': 4.9,
-      'isActive': false,
-      'icon': Icons.settings_suggest_rounded,
-    },
-    {
-      'name': 'Serm', 
-      'role': 'MAINTENANCE HEAD', 
-      'id': 'TECH-407', 
-      'shiftOffset': 6,
-      'phone': '+66 87 890 1234',
-      'email': 'serm.lead@gmail.com',
-      'image': 'assets/coupe_maint.jpg',
-      'age': 50,
-      'height': "172 cm",
-      'birthplace': 'Nakhon Pathom, Thailand',
-      'abilities': ['Team Management', 'Master Planning', 'Crisis Control'],
-      'bio': 'The leader who knows every bolt and pipe in the facility. Commands respect with absolute knowledge.',
-      'stats': {'AIR': 0.8, 'POWER': 0.8, 'PIPE': 0.8, 'BUILD': 0.8, 'PAINT': 0.7},
-      'rating': 5.0,
-      'isActive': true,
-      'icon': Icons.engineering_rounded,
-    },
-  ];
+        {
+          'name': 'Jib',
+          'role': 'AIR COND. SPECIALIST',
+          'id': 'TECH-401',
+          'shiftOffset': 1,
+          'phone': '+66 81 234 5678',
+          'email': 'jib.ice@gmail.com',
+          'image': 'assets/jib_air.jpg',
+          'age': 28,
+          'height': "165 cm",
+          'birthplace': 'Bangkok, Thailand',
+          'abilities': ['Air Conditioning', 'System Leak Fix', 'Energy Saving'],
+          'bio':
+              'Precise and efficient. Specialized in complex VRF systems and energy-saving cooling solutions.',
+          'stats': {
+            'AIR': 0.95,
+            'POWER': 0.4,
+            'PIPE': 0.3,
+            'BUILD': 0.2,
+            'PAINT': 0.3
+          },
+          'rating': 4.9,
+          'isActive': true,
+          'icon': Icons.ac_unit_rounded,
+        },
+        {
+          'name': 'Wichai',
+          'role': 'SENIOR ELECTRICIAN',
+          'id': 'TECH-402',
+          'shiftOffset': 0,
+          'phone': '+66 82 345 6789',
+          'email': 'wichai.volt@gmail.com',
+          'image': 'assets/wichai_electric.jpg',
+          'age': 45,
+          'height': "175 cm",
+          'birthplace': 'Udon Thani, Thailand',
+          'abilities': [
+            'High-Voltage Wiring',
+            'Fault Detection',
+            'Safety Control'
+          ],
+          'bio':
+              'The most senior electrician in the team. Known for identifying electrical leaks before they happen.',
+          'stats': {
+            'AIR': 0.3,
+            'POWER': 0.98,
+            'PIPE': 0.4,
+            'BUILD': 0.3,
+            'PAINT': 0.2
+          },
+          'rating': 4.8,
+          'isActive': true,
+          'icon': Icons.bolt_rounded,
+        },
+        {
+          'name': 'Kong',
+          'role': 'SENIOR PLUMBER',
+          'id': 'TECH-403',
+          'shiftOffset': 2,
+          'phone': '+66 83 456 7890',
+          'email': 'kong.pipe@gmail.com',
+          'image': 'assets/kong_plumbing.jpg',
+          'age': 34,
+          'height': "182 cm",
+          'birthplace': 'Chiang Mai, Thailand',
+          'abilities': ['Pipe Welding', 'Water Main Fix', 'Drain Cleaning'],
+          'bio':
+              'Calm under pressure. Excellent at handling major water main bursts and system rerouting.',
+          'stats': {
+            'AIR': 0.4,
+            'POWER': 0.5,
+            'PIPE': 0.92,
+            'BUILD': 0.6,
+            'PAINT': 0.2
+          },
+          'rating': 4.6,
+          'isActive': false,
+          'icon': Icons.water_drop_rounded,
+        },
+        {
+          'name': 'Keng',
+          'role': 'MASONRY EXPERT',
+          'id': 'TECH-404',
+          'shiftOffset': 3,
+          'phone': '+66 84 567 8901',
+          'email': 'keng.stone@gmail.com',
+          'image': 'assets/jack_senior.jpg',
+          'age': 39,
+          'height': "170 cm",
+          'birthplace': 'Phuket, Thailand',
+          'abilities': ['Wall Building', 'Tile Precision', 'Waterproofing'],
+          'bio':
+              'Obsessed with structural integrity. His tile work is legendary for its millimeter accuracy.',
+          'stats': {
+            'AIR': 0.2,
+            'POWER': 0.3,
+            'PIPE': 0.5,
+            'BUILD': 0.95,
+            'PAINT': 0.4
+          },
+          'rating': 4.7,
+          'isActive': true,
+          'icon': Icons.architecture_rounded,
+        },
+        {
+          'name': 'Grace',
+          'role': 'PAINTING SPECIALIST',
+          'id': 'TECH-405',
+          'shiftOffset': 4,
+          'phone': '+66 85 678 9012',
+          'email': 'grace.hue@gmail.com',
+          'image': 'assets/grace_paint.jpg',
+          'age': 26,
+          'height': "162 cm",
+          'birthplace': 'Bangkok, Thailand',
+          'abilities': ['House Painting', 'Wall Textures', 'Color Matching'],
+          'bio':
+              'Brings aesthetic perfection to functional spaces. Expert in industrial-grade protective coatings.',
+          'stats': {
+            'AIR': 0.3,
+            'POWER': 0.2,
+            'PIPE': 0.2,
+            'BUILD': 0.3,
+            'PAINT': 0.95
+          },
+          'rating': 4.5,
+          'isActive': true,
+          'icon': Icons.format_paint_rounded,
+        },
+        {
+          'name': 'Pee',
+          'role': 'SYSTEMS ENGINEER',
+          'id': 'TECH-406',
+          'shiftOffset': 5,
+          'phone': '+66 86 789 0123',
+          'email': 'pee.tech@gmail.com',
+          'image': 'assets/prism_it.jpg',
+          'age': 31,
+          'height': "178 cm",
+          'birthplace': 'Nonthaburi, Thailand',
+          'abilities': ['CCTV Setup', 'Smart Locks', 'Wi-Fi Systems'],
+          'bio':
+              'Bridges the gap between hardware and software. Ensures the whole facility remains "Smart".',
+          'stats': {
+            'AIR': 0.5,
+            'POWER': 0.85,
+            'PIPE': 0.4,
+            'BUILD': 0.3,
+            'PAINT': 0.3
+          },
+          'rating': 4.9,
+          'isActive': false,
+          'icon': Icons.settings_suggest_rounded,
+        },
+        {
+          'name': 'Serm',
+          'role': 'MAINTENANCE HEAD',
+          'id': 'TECH-407',
+          'shiftOffset': 6,
+          'phone': '+66 87 890 1234',
+          'email': 'serm.lead@gmail.com',
+          'image': 'assets/coupe_maint.jpg',
+          'age': 50,
+          'height': "172 cm",
+          'birthplace': 'Nakhon Pathom, Thailand',
+          'abilities': ['Team Management', 'Master Planning', 'Crisis Control'],
+          'bio':
+              'The leader who knows every bolt and pipe in the facility. Commands respect with absolute knowledge.',
+          'stats': {
+            'AIR': 0.8,
+            'POWER': 0.8,
+            'PIPE': 0.8,
+            'BUILD': 0.8,
+            'PAINT': 0.7
+          },
+          'rating': 5.0,
+          'isActive': true,
+          'icon': Icons.engineering_rounded,
+        },
+      ];
 
   static Map<String, Offset> get houseMarkerPositions => {
-    'UNIT-B12': const Offset(0.35, 0.15),
-    'UNIT-A85': const Offset(0.55, 0.45),
-    'UNIT-C08': const Offset(0.70, 0.25),
-    'UNIT-E11': const Offset(0.85, 0.35),
-    'UNIT-D03': const Offset(0.45, 0.65),
-    'UNIT-A12': const Offset(0.25, 0.35),
-    'MAIN GATE': const Offset(0.55, 0.85),
-    'FACILITY': const Offset(0.90, 0.15),
-    'UNIT-B01': const Offset(0.15, 0.10),
-  };
+        'UNIT-B12': const Offset(0.35, 0.15),
+        'UNIT-A85': const Offset(0.55, 0.45),
+        'UNIT-C08': const Offset(0.70, 0.25),
+        'UNIT-E11': const Offset(0.85, 0.35),
+        'UNIT-D03': const Offset(0.45, 0.65),
+        'UNIT-A12': const Offset(0.25, 0.35),
+        'MAIN GATE': const Offset(0.55, 0.85),
+        'FACILITY': const Offset(0.90, 0.15),
+        'UNIT-B01': const Offset(0.15, 0.10),
+      };
 
   static List<Map<String, dynamic>> get tasks => residentTasks;
 
@@ -148,20 +201,22 @@ class DashboardData {
 
   static double get calculatedAvgRating {
     if (_reviews.isEmpty) return 0.0;
-    double sum = _reviews.fold(0.0, (prev, element) => prev + (element['rating'] as double));
+    double sum = _reviews.fold(
+        0.0, (prev, element) => prev + (element['rating'] as double));
     return sum / _reviews.length;
   }
 
-  static List<Map<String, dynamic>> get residentTasks => 
-    _tasks.where((t) => t['house'].toString().startsWith('UNIT-')).toList();
+  static List<Map<String, dynamic>> get residentTasks =>
+      _tasks.where((t) => t['house'].toString().startsWith('UNIT-')).toList();
 
   static final List<Map<String, dynamic>> _tasks = [
     {
       "id": "REQ-1007",
       "title": "อินเทอร์เน็ตขัดข้อง",
-      "report": "สัญญาณ Wi-Fi ที่บ้านแกว่งมากเลยค่ะ ทำงานไม่ได้เลย รบกวนส่งเจ้าหน้าที่ระบบมาเช็คให้ที",
+      "report":
+          "สัญญาณ Wi-Fi ที่บ้านแกว่งมากเลยค่ะ ทำงานไม่ได้เลย รบกวนส่งเจ้าหน้าที่ระบบมาเช็คให้ที",
       "house": "UNIT-D03",
-      "status": "WORKING",
+      "status": "BEGAN",
       "requester": "WONYOUNG JANG",
       "requesterAccount": "wonyo.j@gmail.com",
       "requesterImage": "assets/rose_req.jpg",
@@ -175,9 +230,10 @@ class DashboardData {
     {
       "id": "REQ-1001",
       "title": "น้ำรั่วซึมจากเพดาน",
-      "report": "มีน้ำหยดลงมาจากฝ้าเพดานห้องนอนใหญ่ครับ กลัวฝ้าจะถล่มลงมา รบกวนส่งช่างมาดูให้ทีครับ",
+      "report":
+          "มีน้ำหยดลงมาจากฝ้าเพดานห้องนอนใหญ่ครับ กลัวฝ้าจะถล่มลงมา รบกวนส่งช่างมาดูให้ทีครับ",
       "house": "UNIT-B12",
-      "status": "WORKING",
+      "status": "BEGAN",
       "requester": "LISA MANOBAL",
       "requesterAccount": "lisa.m@gmail.com",
       "requesterImage": "assets/lisa_req.jpg",
@@ -191,9 +247,10 @@ class DashboardData {
     {
       "id": "REQ-1008",
       "title": "รอยร้าวที่ผนังห้องรับแขก",
-      "report": "พบรอยร้าวแนวยาวที่ผนังห้องรับแขกครับ กลัวจะเป็นเรื่องโครงสร้าง ฝากเข้ามาประเมินด่วน",
+      "report":
+          "พบรอยร้าวแนวยาวที่ผนังห้องรับแขกครับ กลัวจะเป็นเรื่องโครงสร้าง ฝากเข้ามาประเมินด่วน",
       "house": "UNIT-A12",
-      "status": "WORKING",
+      "status": "BEGAN",
       "requester": "SUZU NAKAMURA",
       "requesterAccount": "suzu.n@gmail.com",
       "requesterImage": "assets/jisoo_req.jpg",
@@ -207,9 +264,10 @@ class DashboardData {
     {
       "id": "REQ-1002",
       "title": "ไฟดับทั้งบ้าน",
-      "report": "ไฟดับทั้งบ้านเลยครับ เช็คเบรกเกอร์แล้วก็ยังเด้งลงตลอด รบกวนมาตรวจสอบระบบไฟให้หน่อย",
+      "report":
+          "ไฟดับทั้งบ้านเลยครับ เช็คเบรกเกอร์แล้วก็ยังเด้งลงตลอด รบกวนมาตรวจสอบระบบไฟให้หน่อย",
       "house": "UNIT-A85",
-      "status": "WORKING",
+      "status": "BEGAN",
       "requester": "JENNIE KIM",
       "requesterAccount": "jennie.k@gmail.com",
       "requesterImage": "assets/jennie_req.jpg",
@@ -223,9 +281,10 @@ class DashboardData {
     {
       "id": "REQ-1005",
       "title": "เซนเซอร์ประตูมีปัญหา",
-      "report": "เซนเซอร์ประตูหน้าโครงการไม่ทำงานค่ะ รอนานมากจนรถติดยาวแล้ว รบกวนรีเช็คด้วย",
+      "report":
+          "เซนเซอร์ประตูหน้าโครงการไม่ทำงานค่ะ รอนานมากจนรถติดยาวแล้ว รบกวนรีเช็คด้วย",
       "house": "MAIN GATE",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "requester": "HANNI PHAM",
       "requesterAccount": "admin@gmail.com",
       "requesterImage": "assets/hanni_req.jpg",
@@ -239,9 +298,10 @@ class DashboardData {
     {
       "id": "REQ-1009",
       "title": "ตัดแต่งกิ่งไม้หน้าบ้าน",
-      "report": "กิ่งไม้เริ่มบังไฟกิ่งหน้าบ้านแล้วค่ะ อยากให้มาช่วยตัดแต่งให้เรียบร้อยหน่อย",
+      "report":
+          "กิ่งไม้เริ่มบังไฟกิ่งหน้าบ้านแล้วค่ะ อยากให้มาช่วยตัดแต่งให้เรียบร้อยหน่อย",
       "house": "UNIT-B01",
-      "status": "DONE",
+      "status": "EVALUATED",
       "requester": "SAKURA MIYAWAKI",
       "requesterAccount": "sakura.m@gmail.com",
       "requesterImage": "assets/minji_req.jpg",
@@ -255,9 +315,10 @@ class DashboardData {
     {
       "id": "REQ-1004",
       "title": "เครื่องปรับอากาศไม่เย็น",
-      "report": "แอร์ที่ห้องนั่งเล่นไม่เย็นเลยค่ะ มีเสียงดังแปลกๆ เหมือนมีเศษอะไรติดอยู่ข้างใน",
+      "report":
+          "แอร์ที่ห้องนั่งเล่นไม่เย็นเลยค่ะ มีเสียงดังแปลกๆ เหมือนมีเศษอะไรติดอยู่ข้างใน",
       "house": "UNIT-E11",
-      "status": "PENDING",
+      "status": "ASSIGNED",
       "requester": "ROSE PARK",
       "requesterAccount": "rose.p@gmail.com",
       "requesterImage": "assets/rose_req.jpg",
@@ -271,9 +332,10 @@ class DashboardData {
     {
       "id": "REQ-1006",
       "title": "ไฟทางเดินส่วนกลางดับ",
-      "report": "ไฟทางเดินในโครงการดับหลายจุดเลยค่ะ ตอนกลางคืนมืดมาก อันตรายต่อลูกบ้าน รบกวนแก้ไขด้วย",
+      "report":
+          "ไฟทางเดินในโครงการดับหลายจุดเลยค่ะ ตอนกลางคืนมืดมาก อันตรายต่อลูกบ้าน รบกวนแก้ไขด้วย",
       "house": "FACILITY",
-      "status": "PENDING",
+      "status": "ASSIGNED",
       "requester": "MINJI KIM",
       "requesterAccount": "admin@gmail.com",
       "requesterImage": "assets/minji_req.jpg",
@@ -287,7 +349,8 @@ class DashboardData {
     {
       "id": "REQ-1003",
       "title": "กระแสไฟฟ้าลัดวงจร",
-      "report": "มีประกายไฟออกมาจากแผงควบคุมหลัก! รบกวนส่งช่างมาตรวจสอบด่วนก่อนจะเกิดไฟไหม้ครับ",
+      "report":
+          "มีประกายไฟออกมาจากแผงควบคุมหลัก! รบกวนส่งช่างมาตรวจสอบด่วนก่อนจะเกิดไฟไหม้ครับ",
       "house": "UNIT-C08",
       "status": "URGENT",
       "requester": "JISOO KIM",
@@ -303,9 +366,10 @@ class DashboardData {
     {
       "id": "REQ-1010",
       "title": "ขอติดตั้งเหล็กดัดเพิ่มเติม",
-      "report": "ต้องการติดเหล็กดัดรอบบ้านและระเบียงครับ รบกวนเสนอราคาและรูปแบบให้ด้วยครับ",
+      "report":
+          "ต้องการติดเหล็กดัดรอบบ้านและระเบียงครับ รบกวนเสนอราคาและรูปแบบให้ด้วยครับ",
       "house": "UNIT-B12",
-      "status": "DENIED",
+      "status": "CANCELED",
       "requester": "LISA MANOBAL",
       "requesterAccount": "lisa.m@gmail.com",
       "requesterImage": "assets/lisa_req.jpg",
@@ -319,9 +383,10 @@ class DashboardData {
     {
       "id": "REQ-1011",
       "title": "สมาร์ทล็อคขัดข้อง",
-      "report": "สมาร์ทล็อคที่ประตูหน้าบ้านไม่ตอบสนองเลยครับ ใช้แอปหรือบัตรก็เปิดไม่ได้ ตอนนี้เข้าบ้านไม่ได้เลย",
+      "report":
+          "สมาร์ทล็อคที่ประตูหน้าบ้านไม่ตอบสนองเลยครับ ใช้แอปหรือบัตรก็เปิดไม่ได้ ตอนนี้เข้าบ้านไม่ได้เลย",
       "house": "UNIT-D03",
-      "status": "PENDING",
+      "status": "ASSIGNED",
       "requester": "WONYOUNG JANG",
       "requesterAccount": "wonyo.j@gmail.com",
       "requesterImage": "assets/rose_req.jpg",
@@ -335,9 +400,10 @@ class DashboardData {
     {
       "id": "REQ-1012",
       "title": "แมลงรบกวนในสวน",
-      "report": "มีแมลงจำนวนมากกัดกินต้นไม้ในสวนหน้าบ้านครับ รบกวนส่งช่างจัดสวนมาช่วยดูแลและพ่นยากำจัดแมลงให้ที",
+      "report":
+          "มีแมลงจำนวนมากกัดกินต้นไม้ในสวนหน้าบ้านครับ รบกวนส่งช่างจัดสวนมาช่วยดูแลและพ่นยากำจัดแมลงให้ที",
       "house": "UNIT-B01",
-      "status": "PENDING",
+      "status": "ASSIGNED",
       "requester": "SAKURA MIYAWAKI",
       "requesterAccount": "sakura.m@gmail.com",
       "requesterImage": "assets/minji_req.jpg",
@@ -351,9 +417,10 @@ class DashboardData {
     {
       "id": "REQ-1013",
       "title": "กระจังหน้าต่างแตก",
-      "report": "กระจกหน้าต่างห้องนอนแขกแตกครับ น่าจะโดนนกบินชน รบกวนส่งช่างมาเปลี่ยนด่วนที่สุดครับ",
+      "report":
+          "กระจกหน้าต่างห้องนอนแขกแตกครับ น่าจะโดนนกบินชน รบกวนส่งช่างมาเปลี่ยนด่วนที่สุดครับ",
       "house": "UNIT-A12",
-      "status": "PENDING",
+      "status": "ASSIGNED",
       "requester": "SUZU NAKAMURA",
       "requesterAccount": "suzu.n@gmail.com",
       "requesterImage": "assets/jisoo_req.jpg",
@@ -367,9 +434,10 @@ class DashboardData {
     {
       "id": "REQ-1014",
       "title": "ตรวจเช็คเครื่องปั่นไปสำรอง",
-      "report": "ตรวจสอบระบบเครื่องปั่นไฟสำรองประจำเดือน และเช็คสภาพแบตเตอรี่ของระบบไฟฟ้าส่วนกลาง",
+      "report":
+          "ตรวจสอบระบบเครื่องปั่นไฟสำรองประจำเดือน และเช็คสภาพแบตเตอรี่ของระบบไฟฟ้าส่วนกลาง",
       "house": "FACILITY",
-      "status": "DONE",
+      "status": "COMPLETED",
       "requester": "ADMINISTRATION",
       "requesterAccount": "admin@gmail.com",
       "requesterImage": "assets/hanni_req.jpg",
@@ -383,9 +451,10 @@ class DashboardData {
     {
       "id": "REQ-1015",
       "title": "จุดชาร์จ EV ไฟรั่ว",
-      "report": "ลูกบ้านแจ้งว่าโดนไฟดูดตอนเสียบสายชาร์จ EV ครับ รบกวนตรวจสอบระบบสายดินที่จุดจอดรถ B-04 ด่วน",
+      "report":
+          "ลูกบ้านแจ้งว่าโดนไฟดูดตอนเสียบสายชาร์จ EV ครับ รบกวนตรวจสอบระบบสายดินที่จุดจอดรถ B-04 ด่วน",
       "house": "FACILITY",
-      "status": "PENDING",
+      "status": "ASSIGNED",
       "requester": "MINJI KIM",
       "requesterAccount": "minji.k@gmail.com",
       "requesterImage": "assets/minji_req.jpg",
@@ -402,42 +471,48 @@ class DashboardData {
     {
       'name': 'SANA MINATOZAKI',
       'rating': 5.0,
-      'comment': 'บริการดีเยี่ยมจริงๆ ค่ะ ช่างสุภาพและเก็บกวาดเรียบร้อย หลังซ่อมเสร็จบ้านสะอาดเหมือนเดิมเลย!',
+      'comment':
+          'บริการดีเยี่ยมจริงๆ ค่ะ ช่างสุภาพและเก็บกวาดเรียบร้อย หลังซ่อมเสร็จบ้านสะอาดเหมือนเดิมเลย!',
       'tag': 'PAST // HVAC_SERVICE',
       'avatarColor': const Color(0xFFC5A059),
     },
     {
       'name': 'MOMO HIRAI',
       'rating': 5.0,
-      'comment': 'งานซ่อมไฟฟ้าเรียบร้อยมากค่ะ ทีมงานมืออาชีพจริงๆ อุปกรณ์ทันสมัย ตรวจเช็คละเอียดทุกจุด',
+      'comment':
+          'งานซ่อมไฟฟ้าเรียบร้อยมากค่ะ ทีมงานมืออาชีพจริงๆ อุปกรณ์ทันสมัย ตรวจเช็คละเอียดทุกจุด',
       'tag': 'PAST // ELECTRICAL_CHECK',
       'avatarColor': const Color(0xFF00FF9F),
     },
     {
       'name': 'MINA MYOI',
       'rating': 4.0,
-      'comment': 'งานประปาที่เคยแจ้งไว้ซ่อมจบในรอบเดียวเลยครับ ไม่มีการรั่วซึมซ้ำอีก ดีกว่าเจ้าเดิมเยอะเลย',
+      'comment':
+          'งานประปาที่เคยแจ้งไว้ซ่อมจบในรอบเดียวเลยครับ ไม่มีการรั่วซึมซ้ำอีก ดีกว่าเจ้าเดิมเยอะเลย',
       'tag': 'PAST // PLUMBING_FIX',
       'avatarColor': const Color(0xFF00FF9F),
     },
     {
       'name': 'TZUYU CHOU',
       'rating': 5.0,
-      'comment': 'ประทับใจระบบรักษาความปลอดภัยและการดูแลส่วนกลางมากค่ะ พนักงานใส่ใจลูกบ้านในโครงการมากจริงๆ',
+      'comment':
+          'ประทับใจระบบรักษาความปลอดภัยและการดูแลส่วนกลางมากค่ะ พนักงานใส่ใจลูกบ้านในโครงการมากจริงๆ',
       'tag': 'PAST // SECURITY_UPGRADE',
       'avatarColor': const Color(0xFF00FF9F),
     },
     {
       'name': 'NAYEON IM',
       'rating': 4.0,
-      'comment': 'สวนหน้าบ้านที่เคยให้มาตัดแต่ง งานดีมากครับ ทรงต้นไม้สวยถูกใจ คอยแนะนำดีตลอดการทำงาน',
+      'comment':
+          'สวนหน้าบ้านที่เคยให้มาตัดแต่ง งานดีมากครับ ทรงต้นไม้สวยถูกใจ คอยแนะนำดีตลอดการทำงาน',
       'tag': 'PAST // LANDSCAPING',
       'avatarColor': const Color(0xFF00FF9F),
     },
     {
       'name': 'JEONGYEON YOO',
       'rating': 5.0,
-      'comment': 'เคยเรียกช่างมาเช็คระบบสมาร์ทโฮม แก้ไขได้ตรงจุดมากค่ะ ตอนนี้ทุกอย่างเสถียรมาก ขอบคุณมากค่ะ',
+      'comment':
+          'เคยเรียกช่างมาเช็คระบบสมาร์ทโฮม แก้ไขได้ตรงจุดมากค่ะ ตอนนี้ทุกอย่างเสถียรมาก ขอบคุณมากค่ะ',
       'tag': 'PAST // SMART_HOME',
       'avatarColor': const Color(0xFF00FF9F),
     },

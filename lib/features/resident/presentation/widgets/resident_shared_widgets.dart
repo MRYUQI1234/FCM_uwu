@@ -40,7 +40,8 @@ class AnnouncementItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: showBorder
-          ? BoxDecoration(border: Border(bottom: BorderSide(color: DashboardTheme.border)))
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: DashboardTheme.border)))
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,7 +74,8 @@ class AnnouncementItem extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             desc,
-            style: GoogleFonts.outfit(fontSize: 13, color: DashboardTheme.textSecondary),
+            style: GoogleFonts.outfit(
+                fontSize: 13, color: DashboardTheme.textSecondary),
           ),
         ],
       ),
@@ -114,7 +116,8 @@ class IconBtn extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label!,
-              style: GoogleFonts.outfit(fontSize: 12, color: DashboardTheme.textMain),
+              style: GoogleFonts.outfit(
+                  fontSize: 12, color: DashboardTheme.textMain),
             ),
           ],
         ],
@@ -210,10 +213,12 @@ class DarkTextField extends StatelessWidget {
       style: GoogleFonts.outfit(fontSize: 14, color: DashboardTheme.textMain),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.outfit(fontSize: 14, color: DashboardTheme.textPale),
+        hintStyle:
+            GoogleFonts.outfit(fontSize: 14, color: DashboardTheme.textPale),
         filled: true,
         fillColor: DashboardTheme.surfaceSecondary,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: DashboardTheme.border),

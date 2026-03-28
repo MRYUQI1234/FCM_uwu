@@ -1,20 +1,17 @@
 import 'dart:ui';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_painters.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
-import 'package:pointer_interceptor/pointer_interceptor.dart';
+
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:js' as js;
 
 class TaskAssignmentOverlay extends StatefulWidget {
   final RepairRequest task;
   final List<String> draftStaffNames;
+  final List<Map<String, dynamic>> technicians;
   final VoidCallback onDismiss;
   final VoidCallback onConfirm;
   final VoidCallback onAbort;
@@ -23,6 +20,7 @@ class TaskAssignmentOverlay extends StatefulWidget {
     super.key,
     required this.task,
     required this.draftStaffNames,
+    required this.technicians,
     required this.onDismiss,
     required this.onConfirm,
     required this.onAbort,
@@ -35,8 +33,7 @@ class TaskAssignmentOverlay extends StatefulWidget {
 class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
   final TextEditingController _denialReasonController = TextEditingController();
   String? _selectedDenialTemplate;
-  String _cameraTarget = '0m 1m 0m';
-  String _cameraOrbit = '45deg 75deg 5m';
+
   RepairTask? _focusedTask;
 
   @override
@@ -259,14 +256,23 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                       .trim()
                                       .isEmpty
                                   ? null
-                                  : () {
-                                      RepairRepository.instance.rejectRequest(
+                                  : () async {
+                                      bool success = await RepairRepository.instance.rejectRequest(
                                         widget.task.id,
                                         _denialReasonController.text,
                                         template: _selectedDenialTemplate,
                                       );
-                                      Navigator.pop(context);
-                                      widget.onAbort();
+                                      if (Navigator.canPop(context)) {
+                                        Navigator.pop(context);
+                                      }
+                                      if (success) {
+                                        widget.onAbort();
+                                      } else {
+                                        // Still abort to close overlay in case of failure or just show error
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('เกิดข้อผิดพลาดในการปฏิเสธคำขอ'))
+                                        );
+                                      }
                                     },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: DashboardTheme.error,
@@ -379,11 +385,6 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
   @override
   Widget build(BuildContext context) {
     final List<String> attachments = widget.task.imagePaths;
-    final List<Map<String, dynamic>> selectedTechs = DashboardData.technicians
-        .where(
-          (t) => widget.draftStaffNames.contains(t['name']),
-        )
-        .toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -423,7 +424,7 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                     borderRadius: BorderRadius.circular(24),
                     child: Column(
                       children: [
-                        // --- MISSION HEADER (NEW STYLE) ---
+                        // --- MISSION HEADER ---
                         Padding(
                           padding: const EdgeInsets.fromLTRB(40, 32, 32, 10),
                           child: Row(
@@ -434,18 +435,33 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   terminalText(
-                                      "TASK // OPERATIONAL_DOSSIER // ACCESS_GRANTED",
+                                      "TASK OPERATIONAL_DOSSIER",
                                       fontSize: 9,
                                       color: DashboardTheme.primary,
                                       letterSpacing: 2),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    "บ้านเลขที่ ${widget.task.requesterHouse ?? 'N/A'}"
-                                        .toUpperCase(),
-                                    style: GoogleFonts.outfit(
-                                        color: DashboardTheme.textMain,
-                                        fontSize: 36,
-                                        fontWeight: FontWeight.w900),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        "บ้านเลขที่ ${widget.task.requesterHouse ?? 'N/A'}"
+                                            .toUpperCase(),
+                                        style: GoogleFonts.outfit(
+                                            color: DashboardTheme.textMain,
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.w900),
+                                      ),
+                                      const SizedBox(width: 24),
+                                      _buildInfoTag(
+                                        label: "STATUS",
+                                        value: widget.task.status.toUpperCase(),
+                                        color: widget.task.status == "DONE" || widget.task.status == "COMPLETED"
+                                            ? DashboardTheme.success
+                                            : (widget.task.status == "URGENT" 
+                                                ? DashboardTheme.error 
+                                                : DashboardTheme.primary),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -491,13 +507,13 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                           ),
                                           const SizedBox(height: 12),
                                           terminalText(
-                                              "ID_PARAM: ${widget.task.id} // TIMESTAMP: ${widget.task.date}",
+                                              "ID: ${widget.task.id}   DATE: ${widget.task.date}",
                                               fontSize: 9,
                                               color: DashboardTheme.textPale),
                                           const SizedBox(height: 48),
 
                                           terminalText(
-                                              "TASK_OBJECT_DETAILS // INTERFACE",
+                                              "TASK OBJECT DETAILS",
                                               fontSize: 10,
                                               color: DashboardTheme.textPale,
                                               letterSpacing: 2),
@@ -513,11 +529,6 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                                 onTap: () {
                                                   setState(() {
                                                     _focusedTask = task;
-                                                    _cameraTarget =
-                                                        task.modelRef3D ??
-                                                            '0m 1.5m 0m';
-                                                    _cameraOrbit =
-                                                        '0deg 90deg 3m';
                                                   });
 
                                                   // Hide shell (roof+walls) for interior tasks, show for roof tasks
@@ -637,6 +648,15 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                                                   DashboardTheme
                                                                       .primary,
                                                             ),
+                                                          if (task.preferDate != null)
+                                                            _buildInfoTag(
+                                                              label: "PREFER DATE",
+                                                              value:
+                                                                  "${task.preferDate!.day.toString().padLeft(2, '0')}/${task.preferDate!.month.toString().padLeft(2, '0')}/${task.preferDate!.year} ${task.preferDate!.hour.toString().padLeft(2, '0')}:${task.preferDate!.minute.toString().padLeft(2, '0')}",
+                                                              color:
+                                                                  DashboardTheme
+                                                                      .success,
+                                                            ),
                                                         ],
                                                       ),
                                                     ],
@@ -702,363 +722,10 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                         ],
                                       ),
                                     ),
-
-                                    const SizedBox(width: 80),
-
-                                    // RIGHT: DEPLOYMENT
-                                    Expanded(
-                                      flex: 4,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              terminalText("DEPLOYED_PERSONNEL",
-                                                  fontSize: 10,
-                                                  color:
-                                                      DashboardTheme.textPale,
-                                                  letterSpacing: 1),
-                                              if (widget
-                                                  .draftStaffNames.isNotEmpty)
-                                                IconButton(
-                                                  onPressed: () =>
-                                                      _showSaveTeamDialog(
-                                                          context),
-                                                  icon: const Icon(
-                                                      Icons.save_as_rounded,
-                                                      size: 18),
-                                                  color:
-                                                      const Color(0xFF00E676),
-                                                  tooltip: "บันทึกเป็น Preset",
-                                                  padding: EdgeInsets.zero,
-                                                  constraints:
-                                                      const BoxConstraints(),
-                                                ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 24),
-                                          Wrap(
-                                            spacing: 12,
-                                            runSpacing: 12,
-                                            children: selectedTechs
-                                                .map((t) => Column(
-                                                      children: [
-                                                        Container(
-                                                          width: 60,
-                                                          height: 60,
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            shape:
-                                                                BoxShape.circle,
-                                                            border: Border.all(
-                                                                color: DashboardTheme
-                                                                    .primary
-                                                                    .withOpacity(
-                                                                        0.3),
-                                                                width: 2),
-                                                          ),
-                                                          child: Padding(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(2),
-                                                            child: ClipOval(
-                                                                child: Image.asset(
-                                                                    t['image'],
-                                                                    fit: BoxFit
-                                                                        .cover)),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 8),
-                                                        terminalText(
-                                                            t['name']
-                                                                .toString()
-                                                                .toUpperCase(),
-                                                            fontSize: 8,
-                                                            color: DashboardTheme
-                                                                .textSecondary,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold),
-                                                      ],
-                                                    ))
-                                                .toList(),
-                                          ),
-                                          if (selectedTechs.isEmpty)
-                                            Text("AWAITING_ASSIGNMENT...",
-                                                style:
-                                                    GoogleFonts.shareTechMono(
-                                                        color: DashboardTheme
-                                                            .textPale,
-                                                        fontSize: 14)),
-
-                                          // ── TEAM PRESET folder icon ──
-                                          ValueListenableBuilder<
-                                              List<TeamPreset>>(
-                                            valueListenable: RepairRepository
-                                                .instance.teamPresetsNotifier,
-                                            builder: (context, presets, _) {
-                                              if (presets.isEmpty)
-                                                return const SizedBox(
-                                                    height: 40);
-                                              return Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 20),
-                                                child: Row(
-                                                  children: [
-                                                    PopupMenuButton<TeamPreset>(
-                                                      tooltip:
-                                                          "เลือกทีม Preset",
-                                                      color: DashboardTheme
-                                                          .surface,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          16)),
-                                                      offset:
-                                                          const Offset(0, 44),
-                                                      onSelected: (preset) {
-                                                        setState(() {
-                                                          final allSelected = preset
-                                                              .memberNames
-                                                              .every((n) => widget
-                                                                  .draftStaffNames
-                                                                  .contains(n));
-                                                          if (allSelected) {
-                                                            widget
-                                                                .draftStaffNames
-                                                                .removeWhere(
-                                                                    (n) => preset
-                                                                        .memberNames
-                                                                        .contains(
-                                                                            n));
-                                                          } else {
-                                                            for (final name
-                                                                in preset
-                                                                    .memberNames) {
-                                                              if (!widget
-                                                                  .draftStaffNames
-                                                                  .contains(
-                                                                      name))
-                                                                widget
-                                                                    .draftStaffNames
-                                                                    .add(name);
-                                                            }
-                                                          }
-                                                        });
-                                                      },
-                                                      itemBuilder: (context) =>
-                                                          presets.map((preset) {
-                                                        final allSelected = preset
-                                                            .memberNames
-                                                            .every((n) => widget
-                                                                .draftStaffNames
-                                                                .contains(n));
-                                                        return PopupMenuItem<
-                                                            TeamPreset>(
-                                                          value: preset,
-                                                          child: Container(
-                                                            constraints:
-                                                                const BoxConstraints(
-                                                                    minWidth:
-                                                                        220),
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                Row(
-                                                                  children: [
-                                                                    Icon(
-                                                                        preset
-                                                                            .icon,
-                                                                        color: allSelected
-                                                                            ? const Color(
-                                                                                0xFF00E676)
-                                                                            : DashboardTheme
-                                                                                .primary,
-                                                                        size:
-                                                                            18),
-                                                                    const SizedBox(
-                                                                        width:
-                                                                            10),
-                                                                    Text(
-                                                                        preset
-                                                                            .name,
-                                                                        style: GoogleFonts.notoSans(
-                                                                            color: allSelected
-                                                                                ? const Color(0xFF00E676)
-                                                                                : DashboardTheme.textMain,
-                                                                            fontSize: 14,
-                                                                            fontWeight: FontWeight.w700)),
-                                                                    const Spacer(),
-                                                                    if (allSelected)
-                                                                      const Icon(
-                                                                          Icons
-                                                                              .check_circle_rounded,
-                                                                          color: Color(
-                                                                              0xFF00E676),
-                                                                          size:
-                                                                              18),
-                                                                  ],
-                                                                ),
-                                                                const SizedBox(
-                                                                    height: 4),
-                                                                Padding(
-                                                                  padding:
-                                                                      const EdgeInsets
-                                                                          .only(
-                                                                          left:
-                                                                              28),
-                                                                  child: Text(
-                                                                    preset
-                                                                        .memberNames
-                                                                        .join(
-                                                                            ', '),
-                                                                    style: GoogleFonts.notoSans(
-                                                                        color: DashboardTheme
-                                                                            .textPale,
-                                                                        fontSize:
-                                                                            11),
-                                                                    maxLines: 2,
-                                                                    overflow:
-                                                                        TextOverflow
-                                                                            .ellipsis,
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }).toList(),
-                                                      child: Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                                horizontal: 14,
-                                                                vertical: 10),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: DashboardTheme
-                                                              .surfaceSecondary,
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(12),
-                                                          border: Border.all(
-                                                              color: DashboardTheme
-                                                                  .primary
-                                                                  .withOpacity(
-                                                                      0.3)),
-                                                        ),
-                                                        child: Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Icon(
-                                                                Icons
-                                                                    .folder_rounded,
-                                                                color:
-                                                                    DashboardTheme
-                                                                        .primary,
-                                                                size: 18),
-                                                            const SizedBox(
-                                                                width: 8),
-                                                            Text("เลือกทีม",
-                                                                style: GoogleFonts.notoSans(
-                                                                    color: DashboardTheme
-                                                                        .textMain,
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w700)),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Text(
-                                                                "(${presets.length})",
-                                                                style: GoogleFonts
-                                                                    .shareTechMono(
-                                                                        color: DashboardTheme
-                                                                            .textPale,
-                                                                        fontSize:
-                                                                            10)),
-                                                            const SizedBox(
-                                                                width: 6),
-                                                            Icon(
-                                                                Icons
-                                                                    .expand_more_rounded,
-                                                                color:
-                                                                    DashboardTheme
-                                                                        .textPale,
-                                                                size: 16),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                          ),
-
-                                          const SizedBox(height: 30),
-                                          Container(
-                                            height: 250,
-                                            width: double.infinity,
-                                            decoration: BoxDecoration(
-                                              color: DashboardTheme.background,
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                              border: Border.all(
-                                                  color: DashboardTheme.border),
-                                            ),
-                                            clipBehavior: Clip.antiAlias,
-                                            child: PointerInterceptor(
-                                              child: ModelViewer(
-                                                // No ValueKey so model-viewer stays alive across taps;
-                                                // camera attrs update reactively via setState.
-                                                src: 'VivornFinal8.4.glb',
-                                                alt: "A 3D model of the house",
-                                                autoRotate: false,
-                                                cameraControls: true,
-                                                cameraTarget: _cameraTarget,
-                                                cameraOrbit: _cameraOrbit,
-                                                backgroundColor:
-                                                    Colors.transparent,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 30),
-                                          terminalText(
-                                              "OPERATIONAL_CAPABILITY // RADAR",
-                                              fontSize: 10,
-                                              color: DashboardTheme.textPale,
-                                              letterSpacing: 1),
-                                          const SizedBox(height: 24),
-                                          Container(
-                                            height: 200,
-                                            width: double.infinity,
-                                            alignment: Alignment.center,
-                                            child: selectedTechs.isEmpty
-                                                ? Icon(Icons.radar_rounded,
-                                                    color: DashboardTheme
-                                                        .background,
-                                                    size: 100)
-                                                : _buildRadarStats(
-                                                    selectedTechs),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ],
                                 ),
 
-                                // FOOTAGE SECTION
+                                // FOOTAGE SECTION (INITIAL)
                                 if (attachments.isNotEmpty) ...[
                                   const SizedBox(height: 80),
                                   terminalText(
@@ -1102,6 +769,135 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                     ),
                                   ),
                                 ],
+
+                                // POST-MAINTENANCE SECTION
+                                if (widget.task.techReport != null || widget.task.techReportPhotos.isNotEmpty) ...[
+                                  const SizedBox(height: 80),
+                                  terminalText(
+                                      "POST_MAINTENANCE_LOG // FIELD_REPORT",
+                                      fontSize: 10,
+                                      color: DashboardTheme.success,
+                                      letterSpacing: 2),
+                                  const SizedBox(height: 24),
+                                  if (widget.task.techReport != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 24),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(24),
+                                        decoration: BoxDecoration(
+                                          color: DashboardTheme.success.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: DashboardTheme.success.withOpacity(0.2)),
+                                        ),
+                                        child: Text(
+                                          widget.task.techReport!,
+                                          style: GoogleFonts.notoSans(
+                                              color: DashboardTheme.textSecondary,
+                                              fontSize: 14,
+                                              height: 1.6),
+                                        ),
+                                      ),
+                                    ),
+                                  if (widget.task.techReportPhotos.isNotEmpty)
+                                    SizedBox(
+                                      height: 180,
+                                      child: ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount: widget.task.techReportPhotos.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(width: 24),
+                                        itemBuilder: (context, index) {
+                                          return GestureDetector(
+                                            onTap: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (ctx) => GestureDetector(
+                                                  onTap: () => Navigator.pop(ctx),
+                                                  child: Container(
+                                                    color: Colors.black.withOpacity(0.9),
+                                                    child: Image.network(
+                                                      widget.task.techReportPhotos[index],
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (c, e, s) => const Center(
+                                                          child: Icon(Icons.broken_image,
+                                                              color: Colors.white24, size: 48)),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(24),
+                                              child: Container(
+                                                width: 300,
+                                                decoration: BoxDecoration(
+                                                  border: Border.all(color: DashboardTheme.border),
+                                                ),
+                                                child: Image.network(
+                                                  widget.task.techReportPhotos[index],
+                                                  fit: BoxFit.cover,
+                                                  loadingBuilder: (c, child, progress) {
+                                                    if (progress == null) return child;
+                                                    return const Center(child: CircularProgressIndicator());
+                                                  },
+                                                  errorBuilder: (c, e, s) => const Center(
+                                                      child: Icon(Icons.broken_image,
+                                                          color: Colors.white24)),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                ],
+
+                                // ASSESSMENT SECTION
+                                if (widget.task.rating != null) ...[
+                                  const SizedBox(height: 80),
+                                  terminalText(
+                                      "RESIDENT_ASSESSMENT // SATISFACTION_METRICS",
+                                      fontSize: 10,
+                                      color: DashboardTheme.accentAmber,
+                                      letterSpacing: 2),
+                                  const SizedBox(height: 24),
+                                  Container(
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: DashboardTheme.accentAmber.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: DashboardTheme.accentAmber.withOpacity(0.2)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: List.generate(5, (i) {
+                                            return Icon(
+                                              i < widget.task.rating!
+                                                  ? Icons.star_rounded
+                                                  : Icons.star_outline_rounded,
+                                              color: DashboardTheme.accentAmber,
+                                              size: 28,
+                                            );
+                                          }),
+                                        ),
+                                        if (widget.task.assessmentComment != null && widget.task.assessmentComment!.isNotEmpty) ...[
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            widget.task.assessmentComment!,
+                                            style: GoogleFonts.notoSans(
+                                              color: DashboardTheme.textMain,
+                                              fontSize: 15,
+                                              fontStyle: FontStyle.italic,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -1115,60 +911,82 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                             border: Border(
                                 top: BorderSide(color: DashboardTheme.border)),
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    if (widget.draftStaffNames.isNotEmpty)
-                                      widget.onConfirm();
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        widget.draftStaffNames.isEmpty
-                                            ? DashboardTheme.surfaceSecondary
-                                            : DashboardTheme.primary,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 28),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    elevation: 0,
+                          child: widget.task.status == "DONE"
+                              ? SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: widget.onDismiss,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: DashboardTheme.primary,
+                                      padding: const EdgeInsets.symmetric(vertical: 28),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20)),
+                                      elevation: 0,
+                                    ),
+                                    child: Text(
+                                      "CLOSE_DOSSIER",
+                                      style: GoogleFonts.outfit(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 16,
+                                          letterSpacing: 1),
+                                    ),
                                   ),
-                                  child: Text(
-                                    widget.draftStaffNames.isEmpty
-                                        ? "SELECT PERSONNEL TO START DEPLOYMENT"
-                                        : "EXECUTE DEPLOYMENT PROTOCOL (${widget.draftStaffNames.length})",
-                                    style: GoogleFonts.outfit(
-                                        color: widget.draftStaffNames.isEmpty
-                                            ? DashboardTheme.textPale
-                                            : Colors.white,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                        letterSpacing: 1),
-                                  ),
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          if (widget.draftStaffNames.isNotEmpty)
+                                            widget.onConfirm();
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              widget.draftStaffNames.isEmpty
+                                                  ? DashboardTheme.surfaceSecondary
+                                                  : DashboardTheme.primary,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 28),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20)),
+                                          elevation: 0,
+                                        ),
+                                        child: Text(
+                                          widget.draftStaffNames.isEmpty
+                                              ? "SELECT PERSONNEL TO START DEPLOYMENT"
+                                              : "EXECUTE DEPLOYMENT PROTOCOL (${widget.draftStaffNames.length})",
+                                          style: GoogleFonts.outfit(
+                                              color: widget.draftStaffNames.isEmpty
+                                                  ? DashboardTheme.textPale
+                                                  : Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 16,
+                                              letterSpacing: 1),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 32),
+                                    TextButton(
+                                      onPressed: () => _showDenialOverlay(context),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 40, vertical: 28),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(20)),
+                                      ),
+                                      child: Text(
+                                        "DENY_REQUEST",
+                                        style: GoogleFonts.outfit(
+                                            color:
+                                                DashboardTheme.error.withOpacity(0.8),
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 32),
-                              TextButton(
-                                onPressed: () => _showDenialOverlay(context),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 40, vertical: 28),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20)),
-                                ),
-                                child: Text(
-                                  "DENY_REQUEST",
-                                  style: GoogleFonts.outfit(
-                                      color:
-                                          DashboardTheme.error.withOpacity(0.8),
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 16),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -1179,117 +997,6 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showSaveTeamDialog(BuildContext context) {
-    final controller = TextEditingController();
-    final memberCount = widget.draftStaffNames.length;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DashboardTheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("สร้างทีมใหม่จากที่เลือก",
-            style: GoogleFonts.notoSans(
-                color: DashboardTheme.textMain,
-                fontSize: 18,
-                fontWeight: FontWeight.w900)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("สมาชิกที่เลือกไว้ $memberCount คน:",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textPale, fontSize: 12)),
-            const SizedBox(height: 8),
-            Text(widget.draftStaffNames.join(', '),
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textSecondary, fontSize: 11),
-                maxLines: 2),
-            const SizedBox(height: 20),
-            TextField(
-              controller: controller,
-              style: GoogleFonts.notoSans(color: DashboardTheme.textMain),
-              decoration: InputDecoration(
-                hintText: "ตั้งชื่อทีม (เช่น ทีมไฟฟ้า, กะเช้า)",
-                hintStyle: GoogleFonts.notoSans(color: DashboardTheme.textPale),
-                filled: true,
-                fillColor: DashboardTheme.background,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("ยกเลิก",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textPale,
-                    fontWeight: FontWeight.bold)),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                RepairRepository.instance.addTeamPreset(
-                  name: name,
-                  memberNames: List<String>.from(widget.draftStaffNames),
-                  icon: Icons.folder_rounded,
-                );
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(
-                      'บันทึกทีม "$name" ($memberCount คน) เรียบร้อยแล้ว',
-                      style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
-                  backgroundColor: const Color(0xFF00E676),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ));
-              }
-            },
-            icon: const Icon(Icons.save_rounded, size: 16),
-            label: Text("บันทึก",
-                style: GoogleFonts.notoSans(
-                    fontWeight: FontWeight.w900, fontSize: 13)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00E676),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRadarStats(List<Map<String, dynamic>> selectedTechs) {
-    Map<String, double> peakStats = {};
-    final keys = selectedTechs.first['stats'].keys.cast<String>().toList();
-    for (var key in keys) {
-      double maxVal = 0;
-      for (var tech in selectedTechs) {
-        maxVal = max(maxVal, (tech['stats'][key] ?? 0.0).toDouble());
-      }
-      peakStats[key] = maxVal;
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return CustomPaint(
-          size: Size(constraints.maxWidth, constraints.maxHeight),
-          painter: RadarChartPainter(
-            stats: peakStats,
-            color: DashboardTheme.primary,
-          ),
-        );
-      },
     );
   }
 

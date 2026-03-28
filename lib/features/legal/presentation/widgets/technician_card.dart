@@ -38,7 +38,6 @@ class _TechnicianCardState extends State<TechnicianCard> {
   @override
   Widget build(BuildContext context) {
     final Color currentColor = widget.statusColor;
-    final String currentStatus = widget.isSelected ? "SELECTED" : (widget.isActive ? "ACTIVE" : "INACTIVE");
     // SRS: Green highlight color when selected
     const Color selectedGreen = Color(0xFF00E676);
 
@@ -91,43 +90,6 @@ class _TechnicianCardState extends State<TechnicianCard> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Status Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: widget.isSelected ? [
-                        selectedGreen.withOpacity(0.9),
-                        selectedGreen.withOpacity(0.6),
-                      ] : [
-                        widget.isActive ? currentColor.withOpacity(0.9) : currentColor.withOpacity(0.15),
-                        widget.isActive ? currentColor.withOpacity(0.6) : currentColor.withOpacity(0.05),
-                      ],
-                    ),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (widget.isSelected) ...[
-                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 10),
-                        const SizedBox(width: 4),
-                      ],
-                      Text(
-                        currentStatus,
-                        style: GoogleFonts.notoSans(
-                          color: widget.isSelected ? Colors.white : (widget.isActive ? Colors.white : currentColor.withOpacity(0.6)),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 // Portrait
                 Stack(
                   children: [
@@ -140,14 +102,22 @@ class _TechnicianCardState extends State<TechnicianCard> {
                           border: Border.all(color: DashboardTheme.border),
                         ),
                         child: ClipRect(
-                          child: widget.imagePath != null
-                              ? Image.asset(
-                                  widget.imagePath!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                                  color: widget.isActive ? null : Colors.grey,
-                                  colorBlendMode: widget.isActive ? null : BlendMode.saturation,
-                                )
+                          child: widget.imagePath != null && widget.imagePath!.isNotEmpty
+                              ? (widget.imagePath!.startsWith('http')
+                                  ? Image.network(
+                                      widget.imagePath!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                                      color: widget.isActive ? null : Colors.grey,
+                                      colorBlendMode: widget.isActive ? null : BlendMode.saturation,
+                                    )
+                                  : Image.asset(
+                                      widget.imagePath!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                                      color: widget.isActive ? null : Colors.grey,
+                                      colorBlendMode: widget.isActive ? null : BlendMode.saturation,
+                                    ))
                               : _buildPlaceholder(),
                         ),
                       ),
@@ -200,20 +170,7 @@ class _TechnicianCardState extends State<TechnicianCard> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 4),
-                      if (widget.role != null)
-                        Text(
-                          widget.role!.toUpperCase(),
-                          style: GoogleFonts.shareTechMono(
-                            color: currentColor.withOpacity(widget.isActive ? 0.7 : 0.3),
-                            fontSize: 7,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+
                     ],
                   ),
                 ),

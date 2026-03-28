@@ -36,7 +36,8 @@ class HoverSidebar extends StatefulWidget {
   State<HoverSidebar> createState() => _HoverSidebarState();
 }
 
-class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderStateMixin {
+class _HoverSidebarState extends State<HoverSidebar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ac;
   late Animation<double> _width;
   late Animation<double> _textOpacity;
@@ -44,9 +45,12 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _width = Tween<double>(begin: 80, end: 260).animate(CurvedAnimation(parent: _ac, curve: Curves.easeInOutCubic));
-    _textOpacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _ac, curve: const Interval(0.4, 1.0, curve: Curves.easeOut)));
+    _ac = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 300));
+    _width = Tween<double>(begin: 80, end: 260)
+        .animate(CurvedAnimation(parent: _ac, curve: Curves.easeInOutCubic));
+    _textOpacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
+        parent: _ac, curve: const Interval(0.4, 1.0, curve: Curves.easeOut)));
   }
 
   @override
@@ -74,10 +78,9 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
               border: Border(right: BorderSide(color: DashboardTheme.border)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04), 
-                  blurRadius: 20, 
-                  offset: const Offset(4, 0)
-                ),
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(4, 0)),
               ],
             ),
             child: Column(
@@ -98,50 +101,52 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
                               color: DashboardTheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Center(child: Icon(Icons.security_rounded, color: DashboardTheme.primary)),
-                        ),
-                      ),
-                    ),
-                    ClipRect(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: expansion,
-                        child: SizedBox(
-                          width: 180,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                widget.brandTitle,
-                                style: GoogleFonts.outfit(
-                                  color: DashboardTheme.textMain,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.5,
-                                  fontSize: 16,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.clip,
-                              ),
-                              Text(
-                                widget.brandSubtitle,
-                                style: GoogleFonts.notoSans(
-                                  color: DashboardTheme.textSecondary,
-                                  fontSize: 7,
-                                  letterSpacing: 0.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.clip,
-                              ),
-                            ],
+                            child: Center(
+                                child: Icon(Icons.security_rounded,
+                                    color: DashboardTheme.primary)),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      ClipRect(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: expansion,
+                          child: SizedBox(
+                            width: 180,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.brandTitle,
+                                  style: GoogleFonts.outfit(
+                                    color: DashboardTheme.textMain,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                    fontSize: 16,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.clip,
+                                ),
+                                Text(
+                                  widget.brandSubtitle,
+                                  style: GoogleFonts.notoSans(
+                                    color: DashboardTheme.textSecondary,
+                                    fontSize: 7,
+                                    letterSpacing: 0.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.clip,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
                 const SizedBox(height: 60),
                 ...widget.items.map((item) => _navItem(
                       item.index,
@@ -172,7 +177,9 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
         child: Ink(
           height: 50,
           decoration: BoxDecoration(
-            color: isSelected ? DashboardTheme.primary.withOpacity(0.08) : Colors.transparent,
+            color: isSelected
+                ? DashboardTheme.primary.withOpacity(0.08)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: InkWell(
@@ -190,11 +197,11 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
                   SizedBox(
                     width: 80 - 16,
                     child: Center(
-                      child: Icon(
-                        icon, 
-                        color: isSelected ? DashboardTheme.primary : DashboardTheme.textPale, 
-                        size: 20
-                      ),
+                      child: Icon(icon,
+                          color: isSelected
+                              ? DashboardTheme.primary
+                              : DashboardTheme.textPale,
+                          size: 20),
                     ),
                   ),
                   ClipRect(
@@ -206,9 +213,12 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
                         child: Text(
                           label,
                           style: GoogleFonts.notoSans(
-                            color: isSelected ? DashboardTheme.textMain : DashboardTheme.textPale,
+                            color: isSelected
+                                ? DashboardTheme.textMain
+                                : DashboardTheme.textPale,
                             fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight:
+                                isSelected ? FontWeight.w800 : FontWeight.w600,
                             letterSpacing: 0.5,
                           ),
                           maxLines: 1,
@@ -252,7 +262,8 @@ class _HoverSidebarState extends State<HoverSidebar> with SingleTickerProviderSt
                   const SizedBox(
                     width: 80 - 16,
                     child: Center(
-                      child: Icon(Icons.logout_rounded, color: DashboardTheme.error, size: 20),
+                      child: Icon(Icons.logout_rounded,
+                          color: DashboardTheme.error, size: 20),
                     ),
                   ),
                   ClipRect(

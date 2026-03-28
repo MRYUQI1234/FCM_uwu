@@ -395,22 +395,22 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
         children: [
           Row(
             children: [
-              Text(
-                "รายการแจ้งซ่อมประจำวัน",
-                style: GoogleFonts.notoSans(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.8),
-                      blurRadius: 8,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
+              // Text(
+              //   "",
+              //   style: GoogleFonts.notoSans(
+              //     color: Colors.white,
+              //     fontSize: 14,
+              //     fontWeight: FontWeight.w900,
+              //     letterSpacing: 0.5,
+              //     shadows: [
+              //       Shadow(
+              //         color: Colors.black.withOpacity(0.8),
+              //         blurRadius: 8,
+              //         offset: const Offset(0, 1),
+              //       ),
+              //     ],
+              //   ),
+              // ),
             ],
           ),
           const SizedBox.shrink(),
@@ -422,14 +422,17 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
   Widget _buildMainContent() {
     switch (_selectedIndex) {
       case 0:
-        return const OverviewView();
+        return OverviewView(technicians: _technicians);
       case 1:
         return TasksView(
           technicians: _technicians,
           onIndexChanged: (i) => setState(() => _selectedIndex = i),
         );
       case 2:
-        return TechniciansView(technicians: _technicians);
+        return TechniciansView(
+          technicians: _technicians,
+          onRefresh: _fetchPersonnel,
+        );
       case 3:
         return const SettingsView();
       case 4:
@@ -440,12 +443,12 @@ class _LegalDashboardScreenState extends State<LegalDashboardScreen>
           email: (_profileData?['email'] as String?) ?? "",
           phone: (_profileData?['phone'] as String?) ?? "",
           role: (_profileData?['role'] as String?) ?? "Jurisdictic",
-          position: _profileData?['position'] as String?,
-          imagePath: 'assets/resident_profile.png',
+          imagePath: (_profileData?['picture_uri'] as String?) ??
+              'assets/resident_profile.png',
           onProfileUpdated: _fetchProfile,
         );
       default:
-        return const OverviewView();
+        return OverviewView(technicians: _technicians);
     }
   }
 }

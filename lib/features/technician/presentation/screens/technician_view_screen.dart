@@ -5,11 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/views/profile_view.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/views/settings_view.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/hover_sidebar.dart';
 import 'package:fcm_app/core/data/auth_repository.dart';
+import 'package:fcm_app/core/data/repair_repository.dart';
+import 'package:fcm_app/shared/widgets/pin_verification_overlay.dart';
 
 class TechnicianViewScreen extends StatefulWidget {
   const TechnicianViewScreen({super.key});
@@ -20,19 +21,25 @@ class TechnicianViewScreen extends StatefulWidget {
 
 class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     with SingleTickerProviderStateMixin {
-  int _selectedNavIndex = 0;
+  int _currentIndex = 0;
+  String _displayName = "Loading...";
+  String _displayRole = "TECHNICIAN";
+  String _displayEmail = "";
+  String _displayPhone = "";
+  String _displayImage = "assets/resident_profile.png";
+  bool _sidebarOpen = false;
+
+  // New state for task management
   String? _selectedTaskFilter = "All";
-  Map<String, dynamic>? _selectedTask;
-  int _selectedCalendarDay = 12;
-  final String _techName = "Wichai";
-  final String _techRole = "SENIOR ELECTRICIAN";
+  bool _isSubmitting = false;
+  RepairRequest? _selectedTask;
+  int _selectedCalendarDay = DateTime.now().day;
+  final TextEditingController _notesController = TextEditingController();
   final List<XFile> _attachedImages = [];
   final ImagePicker _picker = ImagePicker();
 
-  // ── Sidebar auto-hide ──
+  // ── Sidebar animation ──
   late AnimationController _sidebarAnim;
-  Timer? _hideTimer;
-  bool _isHovering = false;
 
   Future<void> _pickImage() async {
     try {
@@ -69,43 +76,61 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
   @override
   void initState() {
     super.initState();
+    _fetchUserProfile();
+    RepairRepository.instance.fetchHistory();
     _sidebarAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-      value: 1.0,
-    );
-    _startHideTimer();
+        vsync: this, duration: const Duration(milliseconds: 150), value: 0.0);
   }
 
   @override
   void dispose() {
-    _hideTimer?.cancel();
     _sidebarAnim.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
-  void _startHideTimer() {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(seconds: 10), () {
-      if (!_isHovering && mounted) {
-        _sidebarAnim.animateTo(0.0, curve: Curves.easeInOutCubic);
+  void _toggleSidebar() {
+    setState(() => _sidebarOpen = !_sidebarOpen);
+    if (_sidebarOpen) {
+      _sidebarAnim.animateTo(1.0, curve: Curves.easeOutCubic);
+    } else {
+      _sidebarAnim.animateTo(0.0, curve: Curves.easeInCubic);
+    }
+  }
+
+  void _closeSidebar() {
+    if (_sidebarOpen) {
+      setState(() => _sidebarOpen = false);
+      _sidebarAnim.animateTo(0.0, curve: Curves.easeInCubic);
+    }
+  }
+
+  List<RepairRequest> _getAssignedTasks(List<RepairRequest> allRepairs) {
+    final searchName = _displayName.trim().toLowerCase();
+    if (searchName == "loading...") return [];
+
+    return allRepairs.where((t) {
+      return t.assignedStaff.any((s) => s.trim().toLowerCase() == searchName);
+    }).toList();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    final result = await AuthRepository.instance.getProfile();
+    if (result['success']) {
+      final data = result['data'];
+      if (mounted) {
+        setState(() {
+          _displayName = (data['name'] ?? '').toString();
+          _displayRole = (data['role'] ?? 'TECHNICIAN').toString();
+          _displayEmail = (data['email'] ?? '').toString();
+          _displayPhone = (data['phone'] ?? '').toString();
+          _displayImage =
+              (data['picture_uri'] ?? 'assets/resident_profile.png').toString();
+        });
       }
-    });
-  }
-
-  void _showSidebar() {
-    _hideTimer?.cancel();
-    if (mounted) _sidebarAnim.animateTo(1.0, curve: Curves.easeOutCubic);
-  }
-
-  void _onSidebarHoverEnter() {
-    _isHovering = true;
-    _showSidebar();
-  }
-
-  void _onSidebarHoverExit() {
-    _isHovering = false;
-    _startHideTimer();
+    } else if (result['expired'] == true && mounted) {
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   @override
@@ -117,79 +142,202 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
           backgroundColor: _bgMain,
           body: Stack(
             children: [
-              Row(
-                children: [
-                  // Animated sidebar
-                  AnimatedBuilder(
-                    animation: _sidebarAnim,
-                    builder: (context, child) {
-                      final value = _sidebarAnim.value;
-                      if (value == 0.0) return const SizedBox.shrink();
-                      return ClipRect(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: value,
-                          child: Opacity(
-                            opacity: value.clamp(0.0, 1.0),
-                            child: child,
-                          ),
-                        ),
-                      );
-                    },
-                    child: RepaintBoundary(
-                      child: MouseRegion(
-                        onEnter: (_) => _onSidebarHoverEnter(),
-                        onExit: (_) => _onSidebarHoverExit(),
-                        child: HoverSidebar(
-                          selectedIndex: _selectedNavIndex,
-                          onIndexChanged: (i) {
-                            setState(() {
-                              _selectedNavIndex = i;
-                              _selectedTask = null;
-                            });
-                            _startHideTimer();
-                          },
-                          onLogout: () => _showLogoutConfirmation(context),
-                          brandTitle: "TECH PORTAL",
-                          brandSubtitle: "WICHAI | SENIOR ELECTRICIAN",
-                          items: _navItems,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: RepaintBoundary(
-                      child: Column(
+              // ── Main Content ──
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: ValueListenableBuilder<List<RepairRequest>>(
+                    valueListenable: RepairRepository.instance.repairsNotifier,
+                    builder: (context, repairs, child) {
+                      final assignedTasks = _getAssignedTasks(repairs);
+                      return Column(
                         children: [
-                          _buildHeader(),
+                          _buildHeader(assignedTasks),
                           Expanded(
                             child: SingleChildScrollView(
                               padding: const EdgeInsets.all(32),
-                              child: _buildPageContent(_selectedNavIndex),
+                              child: _buildPageContent(_currentIndex, repairs),
                             ),
                           ),
                         ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // ── Scrim ──
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !_sidebarOpen,
+                  child: GestureDetector(
+                    onTap: _closeSidebar,
+                    child: AnimatedBuilder(
+                      animation: _sidebarAnim,
+                      builder: (context, _) => Container(
+                        color:
+                            Colors.black.withOpacity(0.45 * _sidebarAnim.value),
                       ),
                     ),
                   ),
-                ],
-              ),
-              // Left edge hover zone
-              Positioned(
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: 16,
-                child: MouseRegion(
-                  opaque: false,
-                  onEnter: (_) => _onSidebarHoverEnter(),
-                  child: const SizedBox.expand(),
                 ),
+              ),
+
+              // ── Sidebar ──
+              AnimatedBuilder(
+                animation: _sidebarAnim,
+                builder: (context, child) {
+                  const w = 260.0;
+                  return Positioned(
+                    top: 0,
+                    bottom: 0,
+                    left: -w + (w * _sidebarAnim.value),
+                    width: w,
+                    child: child!,
+                  );
+                },
+                child: _buildSidebarContent(),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSidebarContent() {
+    return Material(
+      color: _bgSidebar,
+      elevation: 16,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "TECH PORTAL",
+                    style: GoogleFonts.outfit(
+                      color: _primaryBlue,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _displayName,
+                    style: GoogleFonts.outfit(
+                      color: DashboardTheme.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _displayRole,
+                    style: GoogleFonts.outfit(
+                      color: DashboardTheme.textPale,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  )
+                ],
+              ),
+            ),
+            Divider(color: _border, height: 32),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: _navItems.length,
+                itemBuilder: (context, i) {
+                  final item = _navItems[i];
+                  final isSelected = _currentIndex == i;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: InkWell(
+                      onTap: () => setState(() => _currentIndex = i),
+                      borderRadius: BorderRadius.circular(14),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _primaryBlue.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected
+                                ? _primaryBlue.withOpacity(0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(item.icon,
+                                size: 20,
+                                color: isSelected
+                                    ? _primaryBlue
+                                    : DashboardTheme.textPale),
+                            const SizedBox(width: 14),
+                            Text(
+                              item.label,
+                              style: GoogleFonts.outfit(
+                                color: isSelected
+                                    ? _primaryBlue
+                                    : DashboardTheme.textSecondary,
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+              child: InkWell(
+                onTap: () => _showLogoutConfirmation(context),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: DashboardTheme.error.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded,
+                          size: 20,
+                          color: DashboardTheme.error.withOpacity(0.8)),
+                      const SizedBox(width: 14),
+                      Text(
+                        "LOGOUT",
+                        style: GoogleFonts.outfit(
+                          color: DashboardTheme.error.withOpacity(0.8),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -327,23 +475,16 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  List<Map<String, dynamic>> _getAssignedTasks() {
-    return DashboardData.tasks
-        .where((t) => (t['staffNames'] as List).contains(_techName))
-        .toList();
-  }
-
-  Widget _buildHeader() {
-    final assignedTasks = _getAssignedTasks();
+  Widget _buildHeader(List<RepairRequest> assignedTasks) {
     final todayTasks = assignedTasks
         .where((t) =>
-            t['status'] == "WORKING" ||
-            t['status'] == "URGENT" ||
-            t['status'] == "PENDING")
+            t.status == "IN PROGRESS" ||
+            t.status == "URGENT" ||
+            t.status == "ASSIGNED")
         .length;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
       decoration: BoxDecoration(
         color: _bgSidebar,
         border: Border(bottom: BorderSide(color: _border)),
@@ -351,85 +492,131 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                _navItems[_selectedNavIndex].label == "ALL TASKS"
-                    ? "Assigned Tasks"
-                    : _navItems[_selectedNavIndex].label,
-                style: GoogleFonts.kanit(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: _textMain),
+              GestureDetector(
+                onTap: _toggleSidebar,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _primaryBlue.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child:
+                        Icon(Icons.menu_rounded, color: _primaryBlue, size: 24),
+                  ),
+                ),
               ),
-              Text(
-                "Hello $_techName | You have $todayTasks tasks to perform today",
-                style: GoogleFonts.kanit(fontSize: 14, color: _textMuted),
+              const SizedBox(width: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _navItems[_currentIndex].label == "ALL TASKS"
+                        ? "Assigned Tasks"
+                        : _navItems[_currentIndex].label,
+                    style: GoogleFonts.kanit(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                        color: _textMain),
+                  ),
+                  Text(
+                    "Hello $_displayName | You have $todayTasks tasks today",
+                    style: GoogleFonts.kanit(
+                        fontSize: 13,
+                        color: _textMuted,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
               ),
             ],
+          ),
+          // Clean Avatar in header
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border:
+                  Border.all(color: _primaryBlue.withOpacity(0.2), width: 2),
+            ),
+            child: ClipOval(
+              child: _displayImage.startsWith('http')
+                  ? Image.network(_displayImage, fit: BoxFit.cover)
+                  : Image.asset(_displayImage, fit: BoxFit.cover),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPageContent(int index) {
+  Widget _buildPageContent(int index, List<RepairRequest> allRepairs) {
     switch (index) {
       case 0:
         if (_selectedTask != null) {
           return _buildTaskDetailView(_selectedTask!);
         }
-        return _buildTasksPage();
+        return _buildTasksPage(allRepairs);
       case 1:
-        return _buildCalendarPage();
+        return _buildCalendarPage(allRepairs);
       case 2:
-        final wichai =
-            DashboardData.technicians.firstWhere((t) => t['name'] == _techName);
         return ProfileView(
-          name: wichai['name'],
-          email: wichai['email'],
-          phone: wichai['phone'],
-          role: wichai['role'],
-          imagePath: wichai['image'],
+          name: _displayName,
+          email: _displayEmail,
+          phone: _displayPhone,
+          role: _displayRole,
+          imagePath: _displayImage,
+          onMenuTap: _toggleSidebar,
+          onProfileUpdated: _fetchUserProfile,
         );
       case 3:
         return const SettingsView();
       default:
-        return _buildTasksPage();
+        return _buildTasksPage(allRepairs);
     }
   }
 
   // Removed redundant builders as they are now imported from shared views
 
-  Widget _buildTasksPage() {
+  Widget _buildTasksPage(List<RepairRequest> allRepairs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Chip Filters (Matched Mockup)
-        Row(
-          children: [
-            _filterChip("All", _selectedTaskFilter == "All"),
-            const SizedBox(width: 16),
-            _filterChip("Working", _selectedTaskFilter == "Working"),
-            const SizedBox(width: 16),
-            _filterChip("Pending", _selectedTaskFilter == "Pending"),
-            const SizedBox(width: 16),
-            _filterChip("Completed", _selectedTaskFilter == "Completed"),
-          ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _filterChip("All", _selectedTaskFilter == "All"),
+              const SizedBox(width: 16),
+              _filterChip("Assigned", _selectedTaskFilter == "Assigned"),
+              const SizedBox(width: 16),
+              _filterChip("In Progress", _selectedTaskFilter == "In Progress"),
+              const SizedBox(width: 16),
+              _filterChip("Completed", _selectedTaskFilter == "Completed"),
+              const SizedBox(width: 16),
+              _filterChip("Evaluated", _selectedTaskFilter == "Evaluated"),
+            ],
+          ),
         ),
         const SizedBox(height: 32),
         // Task Grid
         (() {
-          final rawTasks = _getAssignedTasks();
+          final rawTasks = _getAssignedTasks(allRepairs);
           final filteredTasks = rawTasks.where((t) {
             if (_selectedTaskFilter == "All") return true;
-            if (_selectedTaskFilter == "Working")
-              return t['status'] == "WORKING";
-            if (_selectedTaskFilter == "Pending")
-              return t['status'] == "PENDING" || t['status'] == "URGENT";
+            if (_selectedTaskFilter == "Assigned")
+              return t.status == "ASSIGNED" || t.status == "URGENT";
+            if (_selectedTaskFilter == "In Progress")
+              return t.status == "IN PROGRESS";
             if (_selectedTaskFilter == "Completed")
-              return t['status'] == "DONE";
+              return t.status == "COMPLETED";
+            if (_selectedTaskFilter == "Evaluated")
+              return t.status == "EVALUATED";
             return true;
           }).toList();
 
@@ -456,19 +643,21 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
             itemBuilder: (context, index) {
               final t = filteredTasks[index];
               // Map DashboardData status to UI status
-              final uiStatus = t['status'].toString().toLowerCase();
-              final displayStatus = t['status'] == "URGENT"
+              final uiStatus = t.status.toLowerCase();
+              final displayStatus = t.status == "URGENT"
                   ? "Urgent"
-                  : (t['status'] == "WORKING"
-                      ? "Working"
-                      : (t['status'] == "DONE" ? "Completed" : "Pending"));
+                  : (t.status == "IN PROGRESS"
+                      ? "In Progress"
+                      : (t.status == "COMPLETED"
+                          ? "Completed"
+                          : (t.status == "EVALUATED"
+                              ? "Evaluated"
+                              : (t.status == "CANCELED" ||
+                                      t.status == "DECLINED"
+                                  ? "Cancelled"
+                                  : "Assigned"))));
 
-              final mappedTask = {
-                ...t,
-                "uiStatus": uiStatus,
-                "statusText": displayStatus,
-              };
-              return _techWorkCard(mappedTask);
+              return _techWorkCard(t, uiStatus, displayStatus);
             },
           );
         })(),
@@ -476,7 +665,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _buildCalendarPage() {
+  Widget _buildCalendarPage(List<RepairRequest> allRepairs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -505,11 +694,11 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 ),
                 child: Column(
                   children: [
-                    Text("February 2026",
+                    Text("March 2026",
                         style: GoogleFonts.kanit(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
-                    _buildCalendarGrid(),
+                    _buildCalendarGrid(allRepairs),
                     const SizedBox(height: 24),
                     _buildCalendarLegend(),
                   ],
@@ -520,7 +709,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
             // Day Details (Right)
             SizedBox(
               width: 350,
-              child: _buildDayDetailCard(),
+              child: _buildDayDetailCard(allRepairs),
             ),
           ],
         ),
@@ -530,12 +719,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
             style: GoogleFonts.kanit(
                 fontSize: 20, fontWeight: FontWeight.bold, color: _textMain)),
         const SizedBox(height: 16),
-        _buildUpcomingList(),
+        _buildUpcomingList(allRepairs),
       ],
     );
   }
 
-  Widget _buildCalendarGrid() {
+  Widget _buildCalendarGrid(List<RepairRequest> allRepairs) {
     final days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return Column(
       children: [
@@ -552,13 +741,16 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
               .toList(),
         ),
         const SizedBox(height: 12),
-        // Calendar Rows (Simplified for Feb 2026 starts on Sunday)
-        for (var i = 0; i < 4; i++) ...[
+        // Calendar Rows (March 2026 starts on Sunday)
+        for (var i = 0; i < 5; i++) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               for (var j = 1; j <= 7; j++) ...[
-                _calendarDay(i * 7 + j),
+                if (i * 7 + j <= 31)
+                  _calendarDay(i * 7 + j, allRepairs)
+                else
+                  const SizedBox(width: 60, height: 48),
                 if (j < 7) const SizedBox(width: 8),
               ],
             ],
@@ -569,20 +761,18 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _calendarDay(int day) {
+  Widget _calendarDay(int day, List<RepairRequest> allRepairs) {
     bool isSelected = _selectedCalendarDay == day;
 
-    final assignedTasks = _getAssignedTasks();
+    final assignedTasks = _getAssignedTasks(allRepairs);
     final dayTasks = assignedTasks.where((t) {
-      final dateStr = t['date'] as String;
-      final dayPart = int.tryParse(dateStr.split(' ')[0]) ?? 0;
-      return dayPart == day;
+      if (t.appointmentDate == null) return false;
+      // Filter for March (3) to match current mockup alignment
+      return t.appointmentDate!.day == day && t.appointmentDate!.month == 3;
     }).toList();
 
-    bool isBusy = dayTasks
-        .any((t) => t['status'] == "WORKING" || t['status'] == "URGENT");
-    bool hasPending = dayTasks.any((t) => t['status'] == "PENDING");
-    bool isAvailable = !isBusy && !hasPending && !isSelected;
+    bool isUpcoming =
+        dayTasks.any((t) => t.status == "IN PROGRESS" || t.status == "URGENT" || t.status == "ASSIGNED");
 
     Color bg = _bgSidebar;
     Color textColor = _textMain;
@@ -592,10 +782,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
       bg = const Color(0xFFFFF7ED); // Amber 50
       textColor = const Color(0xFFD97706); // Amber 600
       border = Border.all(color: const Color(0xFFF59E0B), width: 2);
-    } else if (isBusy) {
-      bg = const Color(0xFFFEF2F2); // Red 50
-      textColor = const Color(0xFFDC2626); // Red 600
-    } else if (hasPending) {
+    } else if (isUpcoming) {
       bg = const Color(0xFFECFDF5); // Green 50
       textColor = const Color(0xFF059669); // Green 600
     }
@@ -616,12 +803,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
             Text(day.toString(),
                 style: GoogleFonts.kanit(
                     fontWeight: FontWeight.w600, color: textColor)),
-            if (isBusy || isSelected)
+            if (isUpcoming || isSelected)
               Container(
                 width: 4,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFF59E0B) : Colors.red,
+                  color: isSelected ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -635,9 +822,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _legendItem("Busy", Colors.red),
-        const SizedBox(width: 16),
-        _legendItem("Available", const Color(0xFF059669)),
+        _legendItem("Upcoming", const Color(0xFF10B981)),
         const SizedBox(width: 16),
         _legendItem("Selected", const Color(0xFFF59E0B)),
       ],
@@ -658,7 +843,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _buildDayDetailCard() {
+  Widget _buildDayDetailCard(List<RepairRequest> allRepairs) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -671,17 +856,21 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
         children: [
           Text("Schedule for",
               style: GoogleFonts.kanit(fontSize: 12, color: _textMuted)),
-          Text("$_selectedCalendarDay February 2026",
+          Text("$_selectedCalendarDay March 2026",
               style: GoogleFonts.kanit(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFFD97706))),
           const SizedBox(height: 24),
           (() {
-            final dayTasks = _getAssignedTasks().where((t) {
-              final dateStr = t['date'] as String;
-              final dayPart = int.tryParse(dateStr.split(' ')[0]) ?? 0;
-              return dayPart == _selectedCalendarDay;
+            final dayTasks = _getAssignedTasks(allRepairs).where((t) {
+              if (t.appointmentDate == null) return false;
+              // Compare day, month, and year with selected calendar day
+              // For now, mockup month is always March (3) as per current design,
+              // but we use DateTime's month to be safe.
+              return t.appointmentDate!.day == _selectedCalendarDay &&
+                  t.appointmentDate!.month ==
+                      3; // Keep alignment with mockup month
             }).toList();
 
             if (dayTasks.isEmpty) {
@@ -696,15 +885,19 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
             return Column(
               children: dayTasks.map((t) {
-                final displayStatus = t['status'] == "URGENT"
+                final displayStatus = t.status == "URGENT"
                     ? "Urgent"
-                    : (t['status'] == "WORKING"
+                    : (t.status == "IN PROGRESS"
                         ? "Working"
-                        : (t['status'] == "DONE" ? "Completed" : "Pending"));
+                        : (t.status == "COMPLETED"
+                            ? "Completed"
+                            : (t.status == "EVALUATED"
+                                ? "Evaluated"
+                                : "Pending")));
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _compactTaskTile(
-                      t['title'], displayStatus, t['house'], t['id']),
+                      t.title, displayStatus, t.requesterHouse ?? 'N/A', t.id),
                 );
               }).toList(),
             );
@@ -749,8 +942,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         fontSize: 10,
                         fontWeight: FontWeight.bold)),
               ),
-              Text(id,
-                  style: GoogleFonts.outfit(color: _textMuted, fontSize: 10)),
             ],
           ),
           const SizedBox(height: 12),
@@ -773,10 +964,21 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _buildUpcomingList() {
-    final upcomingItems = _getAssignedTasks()
-        .where((t) => t['status'] == "PENDING" || t['status'] == "URGENT")
+  Widget _buildUpcomingList(List<RepairRequest> allRepairs) {
+    final upcomingItems = _getAssignedTasks(allRepairs)
+        .where((t) =>
+            t.status == "ASSIGNED" ||
+            t.status == "URGENT" ||
+            t.status == "IN PROGRESS")
         .toList();
+
+    // Sort chronologically by appointmentDate
+    upcomingItems.sort((a, b) {
+      if (a.appointmentDate == null && b.appointmentDate == null) return 0;
+      if (a.appointmentDate == null) return 1;
+      if (b.appointmentDate == null) return -1;
+      return a.appointmentDate!.compareTo(b.appointmentDate!);
+    });
 
     if (upcomingItems.isEmpty) {
       return Center(
@@ -801,12 +1003,19 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(t['title']!,
+                    Text(t.title,
                         style: GoogleFonts.kanit(
                             fontWeight: FontWeight.bold, color: _textMain)),
-                    Text(t['date']!,
-                        style:
-                            GoogleFonts.kanit(fontSize: 12, color: _textMuted)),
+                    if (t.appointmentDate != null)
+                      Text(
+                        "Appointment: ${t.appointmentDate!.day}/${t.appointmentDate!.month}/${t.appointmentDate!.year}",
+                        style: GoogleFonts.kanit(
+                            fontSize: 12, color: _primaryBlue.withOpacity(0.8)),
+                      )
+                    else
+                      Text(t.date,
+                          style: GoogleFonts.kanit(
+                              fontSize: 12, color: _textMuted)),
                   ],
                 ),
               ),
@@ -818,19 +1027,19 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  void _showTaskDetails(Map<String, dynamic> task) {
+  void _showTaskDetails(RepairRequest task) {
     setState(() => _selectedTask = task);
   }
 
-  Widget _buildTaskDetailView(Map<String, dynamic> task) {
-    final statusColor = task['status'] == 'URGENT'
+  Widget _buildTaskDetailView(RepairRequest task) {
+    final statusColor = task.status == 'URGENT'
         ? const Color(0xFFFF3333)
-        : task['status'] == 'WORKING'
+        : task.status == 'IN PROGRESS'
             ? _gold
-            : task['status'] == 'DONE'
+            : (task.status == 'COMPLETED' || task.status == 'EVALUATED')
                 ? const Color(0xFF10B981)
                 : const Color(0xFFF59E0B);
-    final statusLabel = task['statusText'] ?? task['status'] ?? "N/A";
+    final statusLabel = task.status;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,7 +1084,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 children: [
                   // Tiny label
                   Text(
-                      "${task['id'] ?? ''}  ·  ${task['category'] ?? ''}"
+                      "${task.id}  ·  ${task.tasks.isNotEmpty ? task.tasks.first.urgency : ''}"
                           .toUpperCase(),
                       style: GoogleFonts.kanit(
                           fontSize: 11,
@@ -884,7 +1093,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   // MASSIVE title
-                  Text(task['title'] ?? "Task Detail",
+                  Text(task.title,
                       style: GoogleFonts.kanit(
                           fontSize: 42,
                           fontWeight: FontWeight.w900,
@@ -926,18 +1135,26 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   // ▌ REQUESTER — Bold name, clean info
                   Row(
                     children: [
-                      // Simple avatar — no double ring, no gradient
                       Container(
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: _gold, width: 2.5),
-                          image: DecorationImage(
-                            image: AssetImage(task['requesterImage'] ??
-                                'assets/images/profile_placeholder_2.jpg'),
-                            fit: BoxFit.cover,
-                          ),
+                          border: Border.all(color: _gold, width: 2),
+                        ),
+                        child: ClipOval(
+                          child: (task.requesterProfileUrl != null &&
+                                  task.requesterProfileUrl!.isNotEmpty)
+                              ? Image.network(
+                                  task.requesterProfileUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                      Icons.person_rounded,
+                                      size: 32,
+                                      color: _gold.withOpacity(0.5)),
+                                )
+                              : Icon(Icons.person_rounded,
+                                  size: 32, color: _gold.withOpacity(0.5)),
                         ),
                       ),
                       const SizedBox(width: 20),
@@ -945,14 +1162,14 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(task['requester'] ?? "Unknown",
+                            Text(task.requesterName ?? "Unknown Requester",
                                 style: GoogleFonts.kanit(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w700,
                                     color: _textMain)),
                             const SizedBox(height: 4),
                             Text(
-                                "${task['house'] ?? ''}  ·  ${task['requesterAccount'] ?? ''}  ·  ${task['date'] ?? ''}",
+                                "${task.requesterHouse ?? 'N/AAddress'}  ·  ${task.requesterPhone ?? ''}  ·  ${task.requesterEmail ?? ''}  ·  ${task.appointmentDate != null ? 'Appt: ' + task.appointmentDate!.day.toString() + '/' + task.appointmentDate!.month.toString() + '/' + task.appointmentDate!.year.toString() : 'Created: ' + task.date}",
                                 style: GoogleFonts.kanit(
                                     fontSize: 13,
                                     color: _textMuted,
@@ -963,26 +1180,20 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                     ],
                   ),
 
-                  const SizedBox(height: 40),
-
-                  // ▌ REPORT — Raw typography, no frame
-                  Text("REPORT",
+                  // ▌ TASKS / OBJECTS — FE-03 Workflow
+                  Text("JOBS / OBJECTS",
                       style: GoogleFonts.kanit(
                           fontSize: 11,
                           color: _gold,
                           letterSpacing: 4,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
-                  Text(
-                    task['report'] ?? "No details provided.",
-                    style: GoogleFonts.kanit(
-                      color: _textMain.withOpacity(0.85),
-                      fontSize: 16,
-                      height: 1.8,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                  // Thin gold line
+                  if (task.tasks.isEmpty)
+                    Text("No specific tasks listed.",
+                        style: GoogleFonts.kanit(color: _textMuted))
+                  else
+                    ...task.tasks.map((t) => _buildTaskItem(t, task.status)),
+
                   const SizedBox(height: 32),
                   Container(
                       height: 1, width: 80, color: _gold.withOpacity(0.4)),
@@ -1032,7 +1243,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                               color: _bgSidebar,
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text("📍 ${task['house']}",
+                            child: Text("📍 ${task.requesterHouse ?? 'N/A'}",
                                 style: GoogleFonts.kanit(
                                     fontSize: 12, color: _textMuted)),
                           ),
@@ -1061,29 +1272,32 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 24),
                   _stepper([
-                    _StepData("Assigned", task['date'] ?? 'N/A', true),
+                    _StepData("Assigned", task.date, true),
                     _StepData(
-                        "On-Site",
-                        "Arrived at location",
-                        task['status'] == 'WORKING' ||
-                            task['status'] == 'DONE'),
+                        "Began",
+                        "Work started",
+                        task.status == 'IN PROGRESS' ||
+                            task.status == 'COMPLETED' ||
+                            task.status == 'EVALUATED'),
                     _StepData(
-                        "In Progress",
-                        "Work underway",
-                        task['status'] == 'WORKING' ||
-                            task['status'] == 'DONE'),
-                    _StepData("Completed", "Pending review",
-                        task['status'] == 'DONE'),
+                        "Completed",
+                        "Work finished",
+                        task.status == 'COMPLETED' ||
+                            task.status == 'EVALUATED'),
+                    _StepData("Evaluated", "Resident feedback",
+                        task.status == 'EVALUATED'),
                   ]),
 
                   const SizedBox(height: 40),
 
                   // ▌ ACTION BUTTON — Bold, full-width block
                   // ▌ ACTION BUTTON — SRS FE-03 Workflow
-                  if (task['status'] == 'PENDING' || task['status'] == 'URGENT')
+                  if (task.status == 'ASSIGNED' ||
+                      task.status == 'URGENT' ||
+                      task.status == 'CREATED')
                     _actionBlock(
-                      icon: Icons.location_on_rounded,
-                      label: "CHECK-IN AT SITE",
+                      icon: Icons.play_arrow_rounded,
+                      label: "START WORK",
                       color: const Color(0xFFF59E0B),
                       textColor: Colors.black,
                       onPressed: () {
@@ -1098,7 +1312,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                     color: DashboardTheme.textMain,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900)),
-                            content: Text("เริ่มงาน ${task['title']}?",
+                            content: Text("เริ่มงาน ${task.title}?",
                                 style: GoogleFonts.notoSans(
                                     color: DashboardTheme.textSecondary,
                                     fontSize: 13)),
@@ -1111,22 +1325,29 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                         fontWeight: FontWeight.bold)),
                               ),
                               ElevatedButton(
-                                onPressed: () {
+                                onPressed: () async {
                                   Navigator.pop(ctx);
-                                  setState(() => task['status'] = 'WORKING');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          "เริ่มงานเรียบร้อย — สถานะเปลี่ยนเป็น 'กำลังดำเนินการ'",
-                                          style: GoogleFonts.notoSans(
-                                              fontWeight: FontWeight.w600)),
-                                      backgroundColor: DashboardTheme.success,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12)),
-                                    ),
-                                  );
+                                  // PIN verification before starting work
+                                  final pinOk = await showPinVerificationOverlay(context);
+                                  if (pinOk != true) return;
+
+                                  bool success = await RepairRepository.instance
+                                      .updateStatus(task.id, 'BEGAN');
+                                  if (success) {
+                                    // Find the updated task from the repository to refresh the detail view
+                                    if (mounted) {
+                                      final updated = RepairRepository
+                                          .instance.repairsNotifier.value
+                                          .firstWhere((r) => r.id == task.id,
+                                              orElse: () => task);
+                                      setState(() => _selectedTask = updated);
+                                    }
+                                  } else if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                "เกิดข้อผิดพลาดในการเริ่มงาน")));
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFF59E0B),
@@ -1143,7 +1364,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         );
                       },
                     )
-                  else if (task['status'] == 'WORKING')
+                  else if (task.status == 'IN PROGRESS')
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1203,7 +1424,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("ยืนยันการส่งงาน ${task['title']}?",
+                                    Text("ยืนยันการส่งงาน ${task.title}?",
                                         style: GoogleFonts.notoSans(
                                             color: DashboardTheme.textSecondary,
                                             fontSize: 13)),
@@ -1225,24 +1446,61 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                             fontWeight: FontWeight.bold)),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () {
+                                    onPressed: () async {
+                                      // Optional: Check if all tasks have reports
+                                      bool allReported = task.tasks.every((t) =>
+                                          t.taskReport != null &&
+                                          t.taskReport!.isNotEmpty);
+
+                                      if (!allReported) {
+                                        bool confirm = await showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            backgroundColor:
+                                                DashboardTheme.surface,
+                                            title: Text("ยังกรอกรายงานไม่ครบ",
+                                                style: GoogleFonts.notoSans(
+                                                    color: DashboardTheme
+                                                        .textMain)),
+                                            content: Text(
+                                                "คุณยังไม่ได้กรอกรายงานสำหรับบางรายการ ยืนยันที่จะส่งงานหรือไม่?"),
+                                            actions: [
+                                              TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx, false),
+                                                  child: Text("กลับไปกรอก")),
+                                              TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx, true),
+                                                  child: Text("ยืนยันส่งงาน")),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm != true) return;
+                                      }
+
                                       Navigator.pop(ctx);
-                                      setState(() => task['status'] = 'DONE');
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                              "ส่งรายงานเรียบร้อย — สถานะเปลี่ยนเป็น 'เสร็จสิ้น'",
-                                              style: GoogleFonts.notoSans(
-                                                  fontWeight: FontWeight.w600)),
-                                          backgroundColor:
-                                              const Color(0xFF10B981),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12)),
-                                        ),
-                                      );
+                                      // PIN verification before completing work
+                                      final pinOk = await showPinVerificationOverlay(context);
+                                      if (pinOk != true) return;
+
+                                      bool success = await RepairRepository
+                                          .instance
+                                          .updateStatus(task.id, 'COMPLETED');
+                                      if (success) {
+                                        if (mounted) {
+                                          setState(() => _selectedTask = null);
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                                  content:
+                                                      Text("ส่งงานเสร็จสิ้น")));
+                                        }
+                                      } else if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(const SnackBar(
+                                                content: Text(
+                                                    "เกิดข้อผิดพลาดในการส่งงาน")));
+                                      }
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF10B981),
@@ -1262,7 +1520,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         ),
                       ],
                     )
-                  else
+                  else if (task.status == 'COMPLETED' ||
+                      task.status == 'EVALUATED')
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 18),
@@ -1292,6 +1551,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   TextField(
+                    controller: _notesController,
                     maxLines: 5,
                     style: GoogleFonts.kanit(
                         color: _textMain, fontSize: 14, height: 1.6),
@@ -1409,16 +1669,20 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: () => _saveGeneralNote(task),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text("SAVE NOTE",
-                          style: GoogleFonts.kanit(
-                              color: _gold,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                              letterSpacing: 2)),
+                      child: _isSubmitting
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Color(0xFFEAB308)))
+                          : Text("SAVE NOTE",
+                              style: GoogleFonts.kanit(
+                                  color: _gold,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  letterSpacing: 2)),
                     ),
                   ),
                 ],
@@ -1468,36 +1732,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
   // --- Helpers ---
 
-  Widget _card({
-    String? title,
-    Widget? child,
-    bool expand = false,
-    double padding = 24,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        color: _bgSidebar,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title != null) ...[
-            Text(title,
-                style: GoogleFonts.kanit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _textMain)),
-            const SizedBox(height: 20),
-          ],
-          if (child != null) expand ? Expanded(child: child) : child,
-        ],
-      ),
-    );
-  }
-
   Widget _filterChip(String label, bool active) {
     return InkWell(
       onTap: () => setState(() => _selectedTaskFilter = label),
@@ -1520,15 +1754,15 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _techWorkCard(Map<String, dynamic> t) {
-    String category = t['category'] ?? "General";
+  Widget _techWorkCard(RepairRequest t, String uiStatus, String displayStatus) {
+    String category = t.tasks.isNotEmpty ? t.tasks.first.urgency : "General";
 
     Color statusColor = const Color(0xFFF59E0B); // Pending (Gold)
-    if (t['uiStatus'] == 'working')
+    if (uiStatus == 'in progress')
       statusColor = const Color(0xFF10B981); // Working (Green)
-    if (t['uiStatus'] == 'done')
+    if (uiStatus == 'completed' || uiStatus == 'evaluated')
       statusColor = const Color(0xFF3B82F6); // Done (Blue)
-    if (t['uiStatus'] == 'urgent')
+    if (uiStatus == 'urgent')
       statusColor = const Color(0xFFFF3333); // Urgent (Red)
 
     return InkWell(
@@ -1559,7 +1793,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           fontSize: 10,
                           letterSpacing: 2,
                           fontWeight: FontWeight.w700)),
-                  Text((t['statusText'] ?? "PENDING").toUpperCase(),
+                  Text(displayStatus.toUpperCase(),
                       style: GoogleFonts.kanit(
                           color: statusColor,
                           fontSize: 11,
@@ -1583,7 +1817,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       color: statusColor,
                       margin: const EdgeInsets.only(bottom: 16),
                     ),
-                    Text(t['title'] ?? "Task",
+                    Text(t.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.kanit(
@@ -1600,7 +1834,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         Icon(Icons.location_on_rounded,
                             size: 14, color: _textMuted),
                         const SizedBox(width: 8),
-                        Text("${t['house']}",
+                        Text("${t.requesterHouse ?? 'N/A'}",
                             style: GoogleFonts.kanit(
                                 fontSize: 13,
                                 color: _textMuted,
@@ -1613,7 +1847,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         Icon(Icons.calendar_month_rounded,
                             size: 14, color: _textMuted),
                         const SizedBox(width: 8),
-                        Text("${t['date']}",
+                        Text("${t.date}",
                             style: GoogleFonts.kanit(
                                 fontSize: 12,
                                 color: _textMuted.withOpacity(0.6))),
@@ -1636,7 +1870,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("START WORK",
+                    Text(
+                        t.status == 'ASSIGNED' || t.status == 'URGENT'
+                            ? "START WORK"
+                            : (t.status == 'IN PROGRESS'
+                                ? "CONTINUE WORK"
+                                : "VIEW DETAILS"),
                         style: GoogleFonts.kanit(
                             color: _gold,
                             fontSize: 12,
@@ -1654,16 +1893,129 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     );
   }
 
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
+  Widget _buildTaskItem(RepairTask t, String requestStatus) {
+    final bool canReport = requestStatus == 'IN PROGRESS';
+    final bool hasReport = t.taskReport != null && t.taskReport!.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _bgSidebar.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: hasReport
+                ? Colors.green.withOpacity(0.3)
+                : _border.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(label, style: GoogleFonts.kanit(color: _textMuted)),
+          Row(
+            children: [
+              Icon(
+                hasReport ? Icons.check_circle_rounded : Icons.pending_rounded,
+                size: 18,
+                color: hasReport ? Colors.green : _gold,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  t.objectName ?? t.description,
+                  style: GoogleFonts.kanit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: _textMain,
+                  ),
+                ),
+              ),
+              if (canReport)
+                IconButton(
+                  icon: Icon(Icons.edit_note_rounded, color: _gold),
+                  onPressed: () => _showReportDialog(t),
+                  tooltip: "Add Report",
+                ),
+            ],
           ),
-          Text(value, style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
+          if (hasReport)
+            Padding(
+              padding: const EdgeInsets.only(left: 30, top: 4),
+              child: Text(
+                t.taskReport!,
+                style: GoogleFonts.kanit(
+                  fontSize: 13,
+                  color: _textMain.withOpacity(0.7),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showReportDialog(RepairTask task) {
+    final TextEditingController reportController =
+        TextEditingController(text: task.taskReport);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _bgMain,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("รายงานการซ่อม: ${task.objectName ?? 'สิ่งของ'}",
+            style: GoogleFonts.kanit(color: _textMain, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: reportController,
+              maxLines: 4,
+              cursorColor: _gold,
+              style: GoogleFonts.kanit(color: _textMain),
+              decoration: InputDecoration(
+                hintText: "สรุปผลการซ่อม/อาการที่พบ...",
+                hintStyle: GoogleFonts.kanit(color: _textMuted),
+                filled: true,
+                fillColor: _bgSidebar,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text("ยกเลิก", style: GoogleFonts.kanit(color: _textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              String report = reportController.text.trim();
+              if (report.isNotEmpty) {
+                Navigator.pop(ctx);
+                bool success = await RepairRepository.instance.updateTaskReport(
+                  taskId: task.id,
+                  status: 'InProgress',
+                  report: report,
+                );
+                if (!mounted) return;
+                if (!success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("บันทึกไม่สำเร็จ")));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _gold,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text("บันทึก",
+                style: GoogleFonts.kanit(
+                    color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
@@ -1758,6 +2110,76 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
         );
       }).toList(),
     );
+  }
+
+  Future<void> _saveGeneralNote(RepairRequest request) async {
+    final note = _notesController.text.trim();
+    if (note.isEmpty && _attachedImages.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("กรุณากรอกหมายเหตุหรือแนบรูปภาพ")),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // 1. Upload images
+      List<String> imageUrls = [];
+      for (var file in _attachedImages) {
+        String? url = await RepairRepository.instance.uploadImage(file);
+        if (url != null) imageUrls.add(url);
+      }
+
+      // 2. Pick the first task to attach the report to
+      if (request.tasks.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("ไม่พบรายการงานในคำขอนี้")),
+          );
+        }
+        return;
+      }
+
+      final firstTask = request.tasks.first;
+
+      // 3. Update task report and complete
+      bool success = await RepairRepository.instance.updateTaskReport(
+        taskId: firstTask.id,
+        status: 'Completed',
+        report: note,
+        imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("บันทึกหมายเหตุและส่งงานเสร็จสิ้น")),
+          );
+          setState(() =>
+              _selectedTask = null); // Close detail view and return to list
+          RepairRepository.instance.fetchHistory(); // Refresh
+          _notesController.clear();
+          setState(() {
+            _attachedImages.clear();
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("เกิดข้อผิดพลาดในการบันทึก")),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 }
 

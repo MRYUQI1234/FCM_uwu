@@ -37,25 +37,21 @@ class LineChartPainter extends CustomPainter {
         // Smooth Bezier implementation
         final prevX = (i - 1) * stepX;
         final prevY = size.height - (values[i - 1] / maxValue) * size.height;
-        path.cubicTo(
-          prevX + stepX / 2, prevY,
-          x - stepX / 2, y,
-          x, y
-        );
+        path.cubicTo(prevX + stepX / 2, prevY, x - stepX / 2, y, x, y);
       }
     }
 
     canvas.drawPath(path, glowPaint);
     canvas.drawPath(path, paint);
-    
+
     // Fill under path
     final fillPath = Path.combine(
-      PathOperation.intersect, 
-      Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
-      Path()..moveTo(0, size.height)
-            ..lineTo(0, size.height - (values[0] / maxValue) * size.height)
-    );
-     // Re-implementing fill correctly for curves
+        PathOperation.intersect,
+        Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
+        Path()
+          ..moveTo(0, size.height)
+          ..lineTo(0, size.height - (values[0] / maxValue) * size.height));
+    // Re-implementing fill correctly for curves
     final actualFillPath = Path();
     actualFillPath.moveTo(0, size.height);
     for (int i = 0; i < values.length; i++) {
@@ -66,19 +62,20 @@ class LineChartPainter extends CustomPainter {
       } else {
         final prevX = (i - 1) * stepX;
         final prevY = size.height - (values[i - 1] / maxValue) * size.height;
-        actualFillPath.cubicTo(prevX + stepX / 2, prevY, x - stepX / 2, y, x, y);
+        actualFillPath.cubicTo(
+            prevX + stepX / 2, prevY, x - stepX / 2, y, x, y);
       }
     }
     actualFillPath.lineTo(size.width, size.height);
     actualFillPath.close();
-      
+
     final fillPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [color.withOpacity(0.3), Colors.transparent],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-      
+
     canvas.drawPath(actualFillPath, fillPaint);
   }
 
@@ -93,7 +90,7 @@ class RadarChartPainter extends CustomPainter {
   final Color? gridColor;
 
   RadarChartPainter({
-    required this.stats, 
+    required this.stats,
     required this.color,
     this.labelColor,
     this.gridColor,
@@ -147,7 +144,10 @@ class RadarChartPainter extends CustomPainter {
     // Draw axes
     for (var j = 0; j < axisCount; j++) {
       final angle = j * angleStep - pi / 2;
-      canvas.drawLine(Offset(centerX, centerY), Offset(centerX + radius * cos(angle), centerY + radius * sin(angle)), axisPaint);
+      canvas.drawLine(
+          Offset(centerX, centerY),
+          Offset(centerX + radius * cos(angle), centerY + radius * sin(angle)),
+          axisPaint);
     }
 
     // Draw stat polygon
@@ -205,9 +205,9 @@ class RadarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant RadarChartPainter oldDelegate) {
-    return oldDelegate.stats != stats || 
-           oldDelegate.color != color || 
-           oldDelegate.labelColor != labelColor ||
-           oldDelegate.gridColor != gridColor;
+    return oldDelegate.stats != stats ||
+        oldDelegate.color != color ||
+        oldDelegate.labelColor != labelColor ||
+        oldDelegate.gridColor != gridColor;
   }
 }

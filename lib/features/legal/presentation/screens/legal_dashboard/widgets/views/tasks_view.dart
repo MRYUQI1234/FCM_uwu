@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_stats_widgets.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
@@ -8,6 +7,8 @@ import 'package:fcm_app/features/legal/presentation/widgets/technician_card.dart
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/personnel_dossier_overlay.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/task_assignment_overlay.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
+import 'package:fcm_app/core/services/translation_service.dart';
+import 'package:fcm_app/shared/widgets/pin_verification_overlay.dart';
 import 'dart:async';
 
 class TasksView extends StatefulWidget {
@@ -24,7 +25,7 @@ class TasksView extends StatefulWidget {
   State<TasksView> createState() => _TasksViewState();
 }
 
-enum RegistryTab { staffs, teams }
+
 
 class _TasksViewState extends State<TasksView> {
   String _taskFilter = "ALL";
@@ -32,20 +33,14 @@ class _TasksViewState extends State<TasksView> {
   Map<String, dynamic>? _selectedTech;
   List<String> _draftStaffNames = [];
 
-  // Personnel Registry Selection Mode
-  RegistryTab _personnelRegistryTab = RegistryTab.staffs;
-
   late Timer _urgentTimer;
-  int _urgentIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _urgentTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
-        setState(() {
-          _urgentIndex++;
-        });
+        // Timer kept for potential future use or decoupling, but index increment removed
       }
     });
   }
@@ -63,60 +58,55 @@ class _TasksViewState extends State<TasksView> {
       builder: (context, repairs, child) {
         final filteredTasks = repairs.where((r) {
           if (_taskFilter == "ALL") return true;
+
+          bool isUrgent = r.isEmergency ||
+              r.status == "URGENT" ||
+              r.tasks.any((t) => t.urgency.toUpperCase() == "URGENT");
+
+          if (_taskFilter == "URGENT") return isUrgent;
+
           String mappedStatus = "PENDING";
-          if (r.status == "COMPLETED")
+          if (r.status == "COMPLETED" || r.status == "EVALUATED") {
             mappedStatus = "DONE";
-          else if (r.status == "IN PROGRESS")
+          } else if (r.status == "IN PROGRESS") {
             mappedStatus = "WORKING";
-          else if (r.status == "REJECTED" || r.status == "DENIED")
+          } else if (r.status == "REJECTED" ||
+              r.status == "DENIED" ||
+              r.status == "DECLINED") {
             mappedStatus = "DENIED";
-          else if (r.status == "URGENT" || r.isEmergency)
-            mappedStatus = "URGENT";
+          } else if (r.status == "CREATED" ||
+              r.status == "AWAITING APPROVAL" ||
+              r.status == "PENDING" ||
+              r.status == "ASSIGNED") {
+            mappedStatus = "PENDING";
+          }
           return mappedStatus == _taskFilter;
         }).toList();
 
         final int totalCount = repairs.length;
-        final int urgentCount =
-            repairs.where((r) => r.isEmergency || r.status == "URGENT").length;
+        final int urgentCount = repairs
+            .where((r) =>
+                r.isEmergency ||
+                r.status == "URGENT" ||
+                r.tasks.any((t) => t.urgency.toUpperCase() == "URGENT"))
+            .length;
         final int pendingCount = repairs
-            .where(
-                (r) => r.status == "PENDING" || r.status == "AWAITING APPROVAL")
+            .where((r) =>
+                r.status == "PENDING" ||
+                r.status == "CREATED" ||
+                r.status == "AWAITING APPROVAL" ||
+                r.status == "ASSIGNED")
             .length;
         final int workingCount =
             repairs.where((r) => r.status == "IN PROGRESS").length;
         final int doneCount =
-            repairs.where((r) => r.status == "COMPLETED").length;
+            repairs.where((r) => r.status == "COMPLETED" || r.status == "EVALUATED").length;
         final int deniedCount = repairs
-            .where((r) => r.status == "REJECTED" || r.status == "DENIED")
+            .where((r) =>
+                r.status == "REJECTED" ||
+                r.status == "DENIED" ||
+                r.status == "DECLINED")
             .length;
-
-        const int totalHouses = 120;
-        final activeIssueHouses = repairs
-            .where((r) => r.status != "COMPLETED")
-            .map((r) => r.requesterHouse ?? "FACILITY")
-            .toSet()
-            .length;
-        final double healthScore =
-            ((totalHouses - activeIssueHouses) / totalHouses) * 100;
-
-        final urgentTasks = repairs
-            .where((r) => r.isEmergency || r.status == "URGENT")
-            .toList();
-        final criticalTask = urgentTasks.isNotEmpty
-            ? urgentTasks[_urgentIndex % urgentTasks.length]
-            : (repairs.isNotEmpty
-                ? repairs.firstWhere(
-                    (r) =>
-                        (r.status == "PENDING" ||
-                            r.status == "AWAITING APPROVAL") &&
-                        (r.tasks.any((t) =>
-                            t.category?.toLowerCase() == "electrical" ||
-                            t.category?.toLowerCase() == "plumbing")),
-                    orElse: () => repairs.firstWhere(
-                        (r) => r.status != "COMPLETED",
-                        orElse: () => repairs[0]),
-                  )
-                : null);
 
         // filteredTasks is already defined above
 
@@ -154,46 +144,7 @@ class _TasksViewState extends State<TasksView> {
                                 ),
                               ],
                             ),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 340,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: DashboardTheme.surface,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                        color: DashboardTheme.border),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.02),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      )
-                                    ],
-                                  ),
-                                  child: TextField(
-                                    style: GoogleFonts.notoSans(
-                                        color: DashboardTheme.textMain,
-                                        fontSize: 13),
-                                    cursorColor: DashboardTheme.primary,
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          "ค้นหารายการ, รหัส หรือหมายเลขห้อง...",
-                                      hintStyle: GoogleFonts.notoSans(
-                                          color: DashboardTheme.textPale),
-                                      prefixIcon: Icon(Icons.search_rounded,
-                                          color: DashboardTheme.textPale,
-                                          size: 20),
-                                      border: InputBorder.none,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              vertical: 11),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            const Spacer(),
                           ],
                         ),
                         const SizedBox(height: 50),
@@ -202,243 +153,54 @@ class _TasksViewState extends State<TasksView> {
                           physics: const BouncingScrollPhysics(),
                           child: Row(
                             children: [
-                              SizedBox(
-                                width: 280,
-                                child: MetricCard(
-                                  label: "อัตราความสำเร็จ",
-                                  icon: Icons.track_changes_rounded,
-                                  color: DashboardTheme.success,
-                                  onTap: () {
-                                    final doneCount = repairs
-                                        .where((r) => r.status == "COMPLETED")
-                                        .length;
-                                    const totalHistorical = 4281;
-                                    const resolvedHistorical = 4127;
-                                    final globalVolumeTotal =
-                                        totalHistorical + repairs.length;
-                                    final resolvedTotal =
-                                        resolvedHistorical + doneCount;
-                                    final successRate =
-                                        (resolvedTotal / globalVolumeTotal);
-
-                                    showDashboardOverlay(
-                                      context: context,
-                                      title: "อัตราความสำเร็จ",
-                                      subtitle: "การแก้ไขปัญหาทั้งหมด",
-                                      icon: Icons.track_changes_rounded,
-                                      color: DashboardTheme.primary,
-                                      content: DashboardStatsWidgets
-                                          .buildSuccessExpanded(
-                                              context, successRate),
-                                    );
-                                  },
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text("94.2%",
-                                          style: GoogleFonts.notoSans(
-                                              color: DashboardTheme.textMain,
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.w800)),
-                                      const SizedBox(height: 8),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: 0.942,
-                                          backgroundColor:
-                                              DashboardTheme.border,
-                                          valueColor:
-                                              const AlwaysStoppedAnimation<
-                                                      Color>(
-                                                  DashboardTheme.success),
-                                          minHeight: 6,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: 280,
-                                child: MetricCard(
-                                  label: "สถานะโครงการ",
-                                  icon: Icons.shield_rounded,
-                                  color: DashboardTheme.primary,
-                                  onTap: () {
-                                    final urgentCount = repairs
-                                        .where((r) =>
-                                            r.isEmergency ||
-                                            r.status == "URGENT")
-                                        .length;
-                                    final pendingCount = repairs
-                                        .where((r) =>
-                                            r.status == "PENDING" ||
-                                            r.status == "AWAITING APPROVAL")
-                                        .length;
-                                    final workingCount = repairs
-                                        .where((r) => r.status == "IN PROGRESS")
-                                        .length;
-                                    final healthScore = (100 -
-                                            (urgentCount * 5 +
-                                                pendingCount * 2 +
-                                                workingCount * 1))
-                                        .clamp(0, 100)
-                                        .toDouble();
-
-                                    showDashboardOverlay(
-                                      context: context,
-                                      title: "สถานะโครงการ",
-                                      subtitle:
-                                          "ความสมบูรณ์ของโครงสร้างและระบบ",
-                                      icon: Icons.shield_rounded,
-                                      color: DashboardTheme.primary,
-                                      content: DashboardStatsWidgets
-                                          .buildHealthExpanded(
-                                              context,
-                                              healthScore,
-                                              urgentCount,
-                                              pendingCount),
-                                    );
-                                  },
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 48,
-                                        height: 48,
-                                        child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            CircularProgressIndicator(
-                                              value: healthScore / 100,
-                                              strokeWidth: 4,
-                                              backgroundColor:
-                                                  DashboardTheme.border,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                      DashboardTheme.primary),
-                                            ),
-                                            Text("${healthScore.toInt()}%",
-                                                style:
-                                                    GoogleFonts.shareTechMono(
-                                                        color: DashboardTheme
-                                                            .textMain,
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.bold)),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Text("ปลอดภัย",
-                                          style: GoogleFonts.notoSans(
-                                              color: DashboardTheme.primary
-                                                  .withOpacity(0.8),
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: 280,
-                                child: MetricCard(
-                                  label: "จุดที่ต้องดูแลพิเศษ",
-                                  icon: Icons.notification_important_rounded,
-                                  color: DashboardTheme.error,
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 400),
-                                    child: criticalTask == null
-                                        ? Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 8),
-                                            child: Text("ไม่มีรายการด่วน",
-                                                style: GoogleFonts.notoSans(
-                                                    color: DashboardTheme
-                                                        .textPale)),
-                                          )
-                                        : Container(
-                                            key: ValueKey<String>(
-                                                criticalTask.id),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: DashboardTheme.error
-                                                  .withOpacity(0.05),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                  color: DashboardTheme.error
-                                                      .withOpacity(0.1)),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                    Icons.warning_amber_rounded,
-                                                    color: DashboardTheme.error,
-                                                    size: 18),
-                                                const SizedBox(width: 10),
-                                                Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                        "RESIDENT ${criticalTask.requesterHouse ?? 'FACILITY'}",
-                                                        style: GoogleFonts
-                                                            .shareTechMono(
-                                                                color:
-                                                                    DashboardTheme
-                                                                        .textMain,
-                                                                fontSize: 16,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold)),
-                                                    Text(criticalTask.title,
-                                                        style: GoogleFonts.notoSans(
-                                                            color: DashboardTheme
-                                                                .error
-                                                                .withOpacity(
-                                                                    0.7),
-                                                            fontSize: 10,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600)),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
+                              // Only keep Satisfaction Score as requested
                               SizedBox(
                                 width: 280,
                                 child: MetricCard(
                                   label: "คะแนนความพึงพอใจ",
                                   icon: Icons.star_rate_rounded,
                                   color: DashboardTheme.accentAmber,
-                                  onTap: () => showDashboardOverlay(
-                                    context: context,
-                                    title: "ความพึงพอใจ",
-                                    subtitle: "ค่าเฉลี่ยจากลูกบ้าน",
-                                    icon: Icons.star_rounded,
-                                    color: DashboardTheme.accentAmber,
-                                    content: DashboardStatsWidgets
-                                        .buildRatingExpanded(context,
-                                            DashboardData.calculatedAvgRating),
-                                  ),
+                                  onTap: () {
+                                    final ratedRepairs = repairs
+                                        .where((r) =>
+                                            r.rating != null && r.rating! > 0)
+                                        .toList();
+                                    final avgRating = ratedRepairs.isEmpty
+                                        ? 0.0
+                                        : ratedRepairs.fold(0.0,
+                                                (sum, r) => sum + r.rating!) /
+                                            ratedRepairs.length;
+
+                                    showDashboardOverlay(
+                                      context: context,
+                                      title: "ความพึงพอใจ",
+                                      subtitle: "ค่าเฉลี่ยจากลูกบ้าน",
+                                      icon: Icons.star_rounded,
+                                      color: DashboardTheme.accentAmber,
+                                      content: DashboardStatsWidgets
+                                          .buildRatingExpanded(
+                                              context, avgRating, ratedRepairs),
+                                    );
+                                  },
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: List.generate(5, (index) {
-                                          final currentRating =
-                                              DashboardData.calculatedAvgRating;
+                                          final ratedRepairs = repairs
+                                              .where((r) =>
+                                                  r.rating != null &&
+                                                  r.rating! > 0)
+                                              .toList();
+                                          final currentRating = ratedRepairs
+                                                  .isEmpty
+                                              ? 0.0
+                                              : ratedRepairs.fold(
+                                                      0.0,
+                                                      (sum, r) =>
+                                                          sum + r.rating!) /
+                                                  ratedRepairs.length;
                                           return Icon(
                                             index < currentRating.floor()
                                                 ? Icons.star_rounded
@@ -452,56 +214,32 @@ class _TasksViewState extends State<TasksView> {
                                         }),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                          "${DashboardData.calculatedAvgRating.toStringAsFixed(1)} / 5.0",
-                                          style: GoogleFonts.notoSans(
-                                              color: DashboardTheme.textMain,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800)),
+                                      Builder(builder: (context) {
+                                        final ratedRepairs = repairs
+                                            .where((r) =>
+                                                r.rating != null &&
+                                                r.rating! > 0)
+                                            .toList();
+                                        final currentRating = ratedRepairs
+                                                .isEmpty
+                                            ? 0.0
+                                            : ratedRepairs.fold(
+                                                    0.0,
+                                                    (sum, r) =>
+                                                        sum + r.rating!) /
+                                                ratedRepairs.length;
+                                        return Text(
+                                            "${currentRating.toStringAsFixed(1)} / 5.0",
+                                            style: GoogleFonts.notoSans(
+                                                color: DashboardTheme.textMain,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w800));
+                                      }),
                                     ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () => widget.onIndexChanged(5),
-                                  borderRadius: BorderRadius.circular(20),
-                                  hoverColor:
-                                      DashboardTheme.primary.withOpacity(0.04),
-                                  child: Ink(
-                                    width: 100,
-                                    height: 100,
-                                    decoration: BoxDecoration(
-                                      color: DashboardTheme.surface,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: DashboardTheme.border),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.02),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        )
-                                      ],
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.arrow_forward_rounded,
-                                            color: DashboardTheme.primary),
-                                        const SizedBox(height: 8),
-                                        terminalText("FULL\nSTATS",
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: DashboardTheme.primary),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              // Removed Full Stats action card
                             ],
                           ),
                         ),
@@ -545,37 +283,43 @@ class _TasksViewState extends State<TasksView> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     _buildModernTab(
-                                        "ทั้งหมด",
+                                        TranslationService.instance
+                                            .t('filter_all'),
                                         totalCount.toString(),
                                         _taskFilter == "ALL",
                                         () => setState(
                                             () => _taskFilter = "ALL")),
                                     _buildModernTab(
-                                        "ด่วน",
+                                        TranslationService.instance
+                                            .t('type_urgent'),
                                         urgentCount.toString(),
                                         _taskFilter == "URGENT",
                                         () => setState(
                                             () => _taskFilter = "URGENT")),
                                     _buildModernTab(
-                                        "รอดำเนินการ",
+                                        TranslationService.instance
+                                            .t('status_created'),
                                         pendingCount.toString(),
                                         _taskFilter == "PENDING",
                                         () => setState(
                                             () => _taskFilter = "PENDING")),
                                     _buildModernTab(
-                                        "กำลังทำงาน",
+                                        TranslationService.instance
+                                            .t('status_began'),
                                         workingCount.toString(),
                                         _taskFilter == "WORKING",
                                         () => setState(
                                             () => _taskFilter = "WORKING")),
                                     _buildModernTab(
-                                        "เสร็จสิ้น",
+                                        TranslationService.instance
+                                            .t('status_completed'),
                                         doneCount.toString(),
                                         _taskFilter == "DONE",
                                         () => setState(
                                             () => _taskFilter = "DONE")),
                                     _buildModernTab(
-                                        "ถูกปฏิเสธ",
+                                        TranslationService.instance
+                                            .t('status_declined'),
                                         deniedCount.toString(),
                                         _taskFilter == "DENIED",
                                         () => setState(
@@ -622,14 +366,28 @@ class _TasksViewState extends State<TasksView> {
                   child: TaskAssignmentOverlay(
                     task: _selectedTask!,
                     draftStaffNames: _draftStaffNames,
+                    technicians: widget.technicians
+                        .where((t) => t['role'] == 'TECHNICIAN')
+                        .toList(),
                     onDismiss: () => setState(() {
                       _selectedTask = null;
                       _draftStaffNames = [];
                     }),
-                    onConfirm: () {
+                    onConfirm: () async {
                       if (_draftStaffNames.isNotEmpty) {
-                        RepairRepository.instance
+                        // PIN verification before assigning
+                        final pinOk = await showPinVerificationOverlay(context);
+                        if (pinOk != true) return;
+
+                        bool success = await RepairRepository.instance
                             .assignRequest(_selectedTask!.id, _draftStaffNames);
+                        if (mounted) {
+                          if (!success) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content:
+                                    Text('เกิดข้อผิดพลาดในการมอบหมายงาน')));
+                          }
+                        }
                       }
                       setState(() {
                         _selectedTask = null;
@@ -656,53 +414,7 @@ class _TasksViewState extends State<TasksView> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // ── DOCK TABS ──
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: DashboardTheme.background,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: DashboardTheme.border),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4)),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ValueListenableBuilder<List<TeamPreset>>(
-                                  valueListenable: RepairRepository
-                                      .instance.teamPresetsNotifier,
-                                  builder: (context, presets, _) {
-                                    return Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildModernDockTab(
-                                            "บุคลากร",
-                                            "${DashboardData.technicians.length}",
-                                            _personnelRegistryTab ==
-                                                RegistryTab.staffs,
-                                            () => setState(() =>
-                                                _personnelRegistryTab =
-                                                    RegistryTab.staffs)),
-                                        _buildModernDockTab(
-                                            "ทีม",
-                                            "${presets.length}",
-                                            _personnelRegistryTab ==
-                                                RegistryTab.teams,
-                                            () => setState(() =>
-                                                _personnelRegistryTab =
-                                                    RegistryTab.teams)),
-                                      ],
-                                    );
-                                  }),
-                            ],
-                          ),
-                        ),
+                        const SizedBox(height: 12),
                         SizedBox(
                           height: 210,
                           child: SingleChildScrollView(
@@ -710,172 +422,40 @@ class _TasksViewState extends State<TasksView> {
                             physics: const BouncingScrollPhysics(),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: _personnelRegistryTab ==
-                                      RegistryTab.staffs
-                                  ? (DashboardData.technicians
-                                      .map<Widget>((tech) {
-                                      return TechnicianCard(
-                                        name: tech['name'],
-                                        status: tech['isActive']
-                                            ? "ACTIVE"
-                                            : "INACTIVE",
-                                        statusColor: tech['isActive']
-                                            ? DashboardTheme.success
-                                            : DashboardTheme.accentAmber,
-                                        isActive: tech['isActive'],
-                                        isSelected: _draftStaffNames
-                                            .contains(tech['name']),
-                                        imagePath: tech['image'],
-                                        roleIcon: tech['icon'],
-                                        role: tech['role'],
-                                        onTap: () {
-                                          if (_selectedTask != null &&
-                                              tech['isActive']) {
-                                            setState(() {
-                                              if (_draftStaffNames
-                                                  .contains(tech['name'])) {
-                                                _draftStaffNames
-                                                    .remove(tech['name']);
-                                              } else {
-                                                _draftStaffNames
-                                                    .add(tech['name']);
-                                              }
-                                            });
-                                          }
-                                        },
-                                      );
-                                    }).toList())
-                                  : <Widget>[
-                                      ValueListenableBuilder<List<TeamPreset>>(
-                                        valueListenable: RepairRepository
-                                            .instance.teamPresetsNotifier,
-                                        builder: (context, presets, _) {
-                                          if (presets.isEmpty) {
-                                            return Center(
-                                                child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 40),
-                                              child: Text("ยังไม่มีข้อมูลทีม",
-                                                  style: GoogleFonts.notoSans(
-                                                      color: DashboardTheme
-                                                          .textPale,
-                                                      fontSize: 13)),
-                                            ));
-                                          }
-                                          return Row(
-                                            children: presets.map((preset) {
-                                              final bool allSelected =
-                                                  _selectedTask != null &&
-                                                      preset
-                                                          .memberNames
-                                                          .every((n) =>
-                                                              _draftStaffNames
-                                                                  .contains(n));
-                                              return Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 10),
-                                                child: InkWell(
-                                                  onTap: () {
-                                                    setState(() {
-                                                      if (allSelected) {
-                                                        _draftStaffNames
-                                                            .removeWhere((n) =>
-                                                                preset
-                                                                    .memberNames
-                                                                    .contains(
-                                                                        n));
-                                                      } else {
-                                                        for (final name
-                                                            in preset
-                                                                .memberNames) {
-                                                          if (!_draftStaffNames
-                                                              .contains(name))
-                                                            _draftStaffNames
-                                                                .add(name);
-                                                        }
-                                                      }
-                                                    });
-                                                  },
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                  child: AnimatedContainer(
-                                                    duration: const Duration(
-                                                        milliseconds: 200),
-                                                    width: 180,
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            20),
-                                                    decoration: BoxDecoration(
-                                                      color: DashboardTheme
-                                                          .surface,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              20),
-                                                      border: Border.all(
-                                                          color: allSelected
-                                                              ? const Color(
-                                                                  0xFF00E676)
-                                                              : DashboardTheme
-                                                                  .border,
-                                                          width: 2),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                            color: Colors.black
-                                                                .withOpacity(
-                                                                    0.12),
-                                                            blurRadius: 10,
-                                                            offset:
-                                                                const Offset(
-                                                                    0, 4)),
-                                                      ],
-                                                    ),
-                                                    child: Column(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Icon(preset.icon,
-                                                            color: allSelected
-                                                                ? const Color(
-                                                                    0xFF00E676)
-                                                                : DashboardTheme
-                                                                    .primary,
-                                                            size: 28),
-                                                        const SizedBox(
-                                                            height: 12),
-                                                        Text(preset.name,
-                                                            style: GoogleFonts.notoSans(
-                                                                color: allSelected
-                                                                    ? const Color(
-                                                                        0xFF00E676)
-                                                                    : DashboardTheme
-                                                                        .textMain,
-                                                                fontSize: 15,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w900)),
-                                                        const SizedBox(
-                                                            height: 6),
-                                                        Text(
-                                                            "${preset.memberNames.length} Members",
-                                                            style: GoogleFonts
-                                                                .notoSans(
-                                                                    color: DashboardTheme
-                                                                        .textPale,
-                                                                    fontSize:
-                                                                        11)),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            }).toList(),
-                                          );
-                                        },
-                                      )
-                                    ],
+                              children: widget.technicians
+                                  .where((tech) => tech['role'] == 'TECHNICIAN')
+                                  .map<Widget>((tech) {
+                                return TechnicianCard(
+                                  name: tech['name'],
+                                  status: (tech['isActive'] ?? true)
+                                      ? "ACTIVE"
+                                      : "INACTIVE",
+                                  statusColor: (tech['isActive'] ?? true)
+                                      ? DashboardTheme.success
+                                      : DashboardTheme.accentAmber,
+                                  isActive: tech['isActive'] ?? true,
+                                  isSelected:
+                                      _draftStaffNames.contains(tech['name']),
+                                  imagePath: tech['image'],
+                                  roleIcon: tech['role'] == 'JURISTIC'
+                                      ? Icons.admin_panel_settings_rounded
+                                      : Icons.engineering_rounded,
+                                  role: tech['role'],
+                                  onTap: () {
+                                    if (_selectedTask != null &&
+                                        (tech['isActive'] ?? true)) {
+                                      setState(() {
+                                        if (_draftStaffNames
+                                            .contains(tech['name'])) {
+                                          _draftStaffNames.remove(tech['name']);
+                                        } else {
+                                          _draftStaffNames.add(tech['name']);
+                                        }
+                                      });
+                                    }
+                                  },
+                                );
+                              }).toList(),
                             ),
                           ),
                         ),
@@ -891,58 +471,6 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
-  Widget _buildModernDockTab(
-      String label, String count, bool isActive, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? DashboardTheme.primary.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: isActive
-                  ? DashboardTheme.primary.withOpacity(0.3)
-                  : Colors.transparent),
-        ),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.notoSans(
-                color:
-                    isActive ? DashboardTheme.primary : DashboardTheme.textPale,
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? DashboardTheme.primary
-                    : DashboardTheme.surfaceSecondary,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                count,
-                style: GoogleFonts.shareTechMono(
-                  color: isActive ? Colors.black : DashboardTheme.textPale,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildModernTab(
       String label, String count, bool isActive, VoidCallback onTap) {
@@ -1007,10 +535,10 @@ class _TasksViewState extends State<TasksView> {
       ),
       child: Row(
         children: [
-          _tableHeaderCell("รหัส", flex: 2),
+          _tableHeaderCell("วันที่แจ้ง", flex: 2),
           _tableHeaderCell("เรื่อง", flex: 5),
           _tableHeaderCell("ผู้แจ้ง", flex: 3),
-          _tableHeaderCell("ห้อง / สถานที่", flex: 3),
+          _tableHeaderCell("บ้านเลขที่", flex: 3),
           _tableHeaderCell("ผู้รับผิดชอบ", flex: 3),
           _tableHeaderCell("สถานะ", flex: 2),
         ],
@@ -1034,31 +562,67 @@ class _TasksViewState extends State<TasksView> {
 
   Widget _buildModernTableRow(RepairRequest task) {
     String mappedStatus = "PENDING";
-    if (task.status == "COMPLETED")
+    if (task.status == "EVALUATED")
+      mappedStatus = "EVALUATED";
+    else if (task.status == "COMPLETED")
       mappedStatus = "DONE";
+    else if (task.status == "URGENT" ||
+        task.isEmergency ||
+        task.tasks.any((t) => t.urgency.toUpperCase() == "URGENT"))
+      mappedStatus = "URGENT";
     else if (task.status == "IN PROGRESS")
       mappedStatus = "WORKING";
+    else if (task.status == "CREATED")
+      mappedStatus = "CREATED";
+    else if (task.status == "ASSIGNED")
+      mappedStatus = "ASSIGNED";
+    else if (task.status == "PENDING")
+      mappedStatus = "PENDING";
+    else if (task.status == "DECLINED")
+      mappedStatus = "DECLINED";
     else if (task.status == "REJECTED" || task.status == "DENIED")
       mappedStatus = "DENIED";
-    else if (task.status == "URGENT" || task.isEmergency)
-      mappedStatus = "URGENT";
+    else if (task.status == "CANCELLED") mappedStatus = "CANCELLED";
 
     final status = mappedStatus;
     Color statusColor = DashboardTheme.accentAmber;
     if (status == "URGENT") statusColor = DashboardTheme.error;
+    if (status == "CREATED") statusColor = DashboardTheme.primary;
+    if (status == "ASSIGNED")
+      statusColor = DashboardTheme.primary.withOpacity(0.8);
     if (status == "PENDING") statusColor = DashboardTheme.warning;
     if (status == "WORKING") statusColor = DashboardTheme.success;
     if (status == "DONE") statusColor = const Color(0xFF6366F1);
-    if (status == "DENIED") statusColor = DashboardTheme.error;
+    if (status == "EVALUATED") statusColor = DashboardTheme.success;
+    if (status == "DECLINED" || status == "DENIED")
+      statusColor = DashboardTheme.error;
 
     String statusText = status;
-    if (status == "URGENT") statusText = "ด่วน";
-    if (status == "PENDING") statusText = "รอดำเนินการ";
-    if (status == "WORKING") statusText = "กำลังทำงาน";
-    if (status == "DONE") statusText = "เสร็จสิ้น";
-    if (status == "DENIED") statusText = "ถูกปฏิเสธ";
+    if (status == "URGENT")
+      statusText = TranslationService.instance.t('type_urgent');
+    if (status == "CREATED")
+      statusText = TranslationService.instance.t('status_created');
+    if (status == "ASSIGNED")
+      statusText = TranslationService.instance.t('status_assigned');
+    if (status == "WORKING")
+      statusText = TranslationService.instance.t('status_began');
+    if (status == "DONE")
+      statusText = TranslationService.instance.t('status_completed');
+    if (status == "EVALUATED")
+      statusText = TranslationService.instance.t('status_evaluated');
+    if (status == "DECLINED")
+      statusText = TranslationService.instance.t('status_declined');
+    if (status == "DENIED")
+      statusText = TranslationService.instance.t('status_declined');
+    if (status == "CANCELLED")
+      statusText = TranslationService.instance.t('status_canceled');
 
-    final bool isInteractive = status == "PENDING" || status == "URGENT";
+    final bool isInteractive = status == "CREATED" ||
+        status == "PENDING" ||
+        status == "URGENT" ||
+        status == "ASSIGNED" ||
+        status == "DONE" ||
+        status == "EVALUATED";
 
     return Material(
       color: Colors.transparent,
@@ -1082,7 +646,7 @@ class _TasksViewState extends State<TasksView> {
               // ID
               Expanded(
                 flex: 2,
-                child: terminalText(task.id,
+                child: terminalText(task.date.isNotEmpty ? task.date : task.id,
                     fontSize: 11,
                     color: DashboardTheme.textSecondary,
                     fontWeight: FontWeight.bold),
@@ -1106,15 +670,47 @@ class _TasksViewState extends State<TasksView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            task.title,
-                            style: GoogleFonts.notoSans(
-                                color: DashboardTheme.textMain,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                height: 1.4),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              if (task.isEmergency ||
+                                  task.tasks.any((t) =>
+                                      t.urgency.toUpperCase() == "URGENT")) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        DashboardTheme.error.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                        color: DashboardTheme.error
+                                            .withOpacity(0.3)),
+                                  ),
+                                  child: Text(
+                                    TranslationService.instance
+                                        .t('type_urgent'),
+                                    style: GoogleFonts.notoSans(
+                                      color: DashboardTheme.error,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  task.title,
+                                  style: GoogleFonts.notoSans(
+                                      color: DashboardTheme.textMain,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.4),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -1145,8 +741,10 @@ class _TasksViewState extends State<TasksView> {
                           size: 9, color: DashboardTheme.textPale),
                     ),
                     const SizedBox(width: 8),
-                    terminalText(task.requesterEmail ?? "@unknown",
-                        fontSize: 11, color: DashboardTheme.textSecondary),
+                    terminalText(
+                        task.requesterName ?? task.requesterEmail ?? "@unknown",
+                        fontSize: 11,
+                        color: DashboardTheme.textSecondary),
                   ],
                 ),
               ),

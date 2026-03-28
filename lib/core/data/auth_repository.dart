@@ -12,6 +12,7 @@ class AuthRepository {
 
   // --- Auth Methods ---
 
+  //เข้าสู่ระบบ
   Future<Map<String, dynamic>> login(String email, String password) async {
     print('FCM: Logging in via API...');
     try {
@@ -61,6 +62,7 @@ class AuthRepository {
     }
   }
 
+  //ลงชื่อเข้าใช้
   Future<Map<String, dynamic>> register({
     required String nationalId,
     required String email,
@@ -105,7 +107,8 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> setPin(String userId, String pin) async {
+  //เซ็ตรหัส PIN
+  Future<Map<String, dynamic>> setPin(String pin) async {
     try {
       final token = await getToken();
       final response = await http.post(
@@ -115,7 +118,6 @@ class AuthRepository {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'userId': userId,
           'pin': pin,
         }),
       );
@@ -129,6 +131,32 @@ class AuthRepository {
       }
     } catch (e) {
       return {'success': false, 'error': 'Connection Error: $e'};
+    }
+  }
+
+  /// Verify PIN against backend
+  Future<bool> verifyPin(String pin) async {
+    try {
+      final token = await getToken();
+      if (token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/verify-pin'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'pin': pin}),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        return result['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('FCM: Error verifying PIN: $e');
+      return false;
     }
   }
 
@@ -148,7 +176,7 @@ class AuthRepository {
     return prefs.getString('auth_token');
   }
 
-  // Get list of all personnel
+  // ดึงพนักงาน
   Future<List<Map<String, dynamic>>> getPersonnel() async {
     print('FCM: Fetching personnel via API...');
     try {
@@ -174,11 +202,12 @@ class AuthRepository {
     }
   }
 
-  // Get current user profile from API
+  // ดึงโปร์ไฟล์
   Future<Map<String, dynamic>> getProfile() async {
     print('FCM: Fetching profile via API...');
     try {
       final token = await getToken();
+      print("token : $token");
       if (token == null) return {'success': false, 'error': 'Not logged in'};
 
       final response = await http.get(
@@ -258,6 +287,39 @@ class AuthRepository {
         return {
           'success': false,
           'error': result['message'] ?? 'Failed to send reset email'
+        };
+      }
+    } catch (e) {
+      print('FCM Auth Error: $e');
+      return {'success': false, 'error': 'Connection Error: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> resetPassword(String token, String newPassword) async {
+    print('FCM: Resetting password...');
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': token,
+          'newPassword': newPassword,
+        }),
+      );
+
+      print('FCM: Server Response Status: ${response.statusCode}');
+      print('FCM: Server Response Body: ${response.body}');
+      final result = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': result['message'] ?? 'Your password has been reset successfully.'
+        };
+      } else {
+        return {
+          'success': false,
+          'error': result['message'] ?? 'Failed to reset password'
         };
       }
     } catch (e) {

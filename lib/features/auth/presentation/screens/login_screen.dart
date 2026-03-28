@@ -155,15 +155,22 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  /// Maps backend status_code to Thai user-facing messages
   String _statusCodeToMessage(String? statusCode) {
+    debugPrint("Authentication error : $statusCode");
+
+    if (statusCode == null) {
+      return "Cannot connect to the server. Please contract juristic person for more informations.";
+    }
+
     switch (statusCode) {
       case 'INVALID_CREDENTIALS':
         return 'Email or password is incorrect';
+      //ไม่พบเลขบัตรประชาชน *ยังไม่ได้เพิ่ม passport
       case 'ID_NOT_FOUND':
-        return 'ID card number is incorrect, please try again';
-      // case 'ALREADY_REGISTERED':
-      //   return 'อีเมลนี้ถูกใช้งานแล้ว';
+        return 'ID card number is incorrect, please try again\nor contract juristic person.';
+      //อีเมลซ้ำ
+      case 'ALREADY_REGISTERED':
+        return 'Email is already registered, please try again with new one.';
       default:
         return 'An error has occured, please try again';
     }
@@ -180,6 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
+      //Signin
       if (_isLoginMode) {
         final result = await AuthRepository.instance.login(email, password);
         setState(() => _isLoading = false);
@@ -187,15 +195,27 @@ class _LoginScreenState extends State<LoginScreen>
           if (mounted) {
             final user = result['user'];
             final role = user != null ? user['role'] : '';
+            final statusCode = result['status_code'];
 
-            // REQUIRE_PIN_SETUP is handled by home pages via profile check.
-            // Just proceed to role routing regardless.
-            if (role == 'Jurisdictic') {
-              Navigator.pushReplacementNamed(context, '/legal');
-            } else if (role == 'Technician') {
-              Navigator.pushReplacementNamed(context, '/technician');
+            // Determine target dashboard route based on role
+            String targetRoute;
+            if (role == 'JURISTIC') {
+              targetRoute = '/legal';
+            } else if (role == 'TECHNICIAN') {
+              targetRoute = '/technician';
             } else {
-              Navigator.pushReplacementNamed(context, '/3d_model');
+              targetRoute = '/3d_model';
+            }
+
+            // If PIN is not set, redirect to PIN setup first
+            if (statusCode == 'REQUIRE_PIN_SETUP') {
+              Navigator.pushReplacementNamed(
+                context,
+                '/pin-setup',
+                arguments: targetRoute,
+              );
+            } else {
+              Navigator.pushReplacementNamed(context, targetRoute);
             }
           }
         } else {
@@ -405,7 +425,7 @@ class _LoginScreenState extends State<LoginScreen>
                 child: ModelViewer(
                   key: const ValueKey('fcm_house_vivorn'),
                   backgroundColor: Colors.transparent,
-                  src: 'assets/models/VivornFinal8.4.glb',
+                  src: 'assets/models/Vivorn7.8.glb',
                   alt: 'Vivorn Smart House',
                   autoRotate: true,
                   autoPlay: true,
@@ -683,7 +703,15 @@ class _LoginScreenState extends State<LoginScreen>
             keyboardType: TextInputType.emailAddress,
             validator: (v) {
               if (v == null || v.isEmpty) return 'Please enter email';
-              if (!v.contains('@')) return 'Invalid email format';
+              if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+                  .hasMatch(v)) {
+                return 'Invalid email format';
+              }
+              if (!RegExp(
+                      r'@(gmail.com|outlook.com|hotmail.com|yahoo.com|vivorn.com)$')
+                  .hasMatch(v)) {
+                return 'Email must be a valid email addresses. (ex. gmail.com)';
+              }
               return null;
             },
           ),
@@ -697,6 +725,9 @@ class _LoginScreenState extends State<LoginScreen>
             validator: (v) {
               if (v == null || v.isEmpty) return 'Please enter password';
               if (v.length < 6) return 'Password must be at least 8 characters';
+              if (!RegExp('^(?=.*[a-z])(?=.*[A-Z]).{8}').hasMatch(v)) {
+                return 'Password must contain at least one\nuppercase letter and one lowercase letter';
+              }
               return null;
             },
           ),
@@ -784,16 +815,21 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 20),
 
           _buildValidatedField(
-            label: 'Full Name',
-            controller: _nameController,
-            icon: Icons.person_outline,
+            label: 'Email',
+            controller: _emailController,
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Please enter your full name';
-              if (!v.trim().contains(' ')) {
-                return 'Please enter both first and last name';
+              if (v == null || v.isEmpty) return 'Please enter email';
+              if (!v.contains('@')) return 'Invalid email format';
+              if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+                  .hasMatch(v)) {
+                return 'Invalid email format';
               }
-              if (!RegExp(r'^[a-zA-Z ]{2,}$').hasMatch(v)) {
-                return 'Please enter a valid name';
+              if (!RegExp(
+                      r'@(gmail.com|outlook.com|hotmail.com|yahoo.com|vivorn.com)$')
+                  .hasMatch(v)) {
+                return 'Email must be a valid email addresses. (ex. gmail.com)';
               }
               return null;
             },
@@ -816,28 +852,6 @@ class _LoginScreenState extends State<LoginScreen>
             },
           ),
           const SizedBox(height: 20),
-
-          _buildValidatedField(
-            label: 'Email',
-            controller: _emailController,
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Please enter email';
-              if (!v.contains('@')) return 'Invalid email format';
-              if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-                  .hasMatch(v)) {
-                return 'Invalid email format';
-              }
-              if (!RegExp(
-                      r'@(gmail.com|outlook.com|hotmail.com|yahoo.com|vivorn.com)$')
-                  .hasMatch(v)) {
-                return 'Email must be a valid email addresses. (ex. gmail.com)';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 20),
           _buildValidatedField(
             label: 'Password',
             controller: _passwordController,
@@ -845,7 +859,7 @@ class _LoginScreenState extends State<LoginScreen>
             isPassword: true,
             validator: (v) {
               if (v == null || v.isEmpty) return 'Please enter password';
-              if (v.length < 6) return 'Password must be at least 8 characters';
+              if (v.length < 8) return 'Password must be at least 8 characters';
               if (!RegExp('^(?=.*[a-z])(?=.*[A-Z]).{8}').hasMatch(v)) {
                 return 'Password must contain at least one\nuppercase letter and one lowercase letter';
               }
@@ -856,7 +870,7 @@ class _LoginScreenState extends State<LoginScreen>
 
           // SRS: Confirm Password
           _buildValidatedField(
-            label: 'ยืนยันรหัสผ่าน',
+            label: 'Confirm Password',
             controller: _confirmPasswordController,
             icon: Icons.lock_outline,
             isPassword: true,
@@ -899,7 +913,7 @@ class _LoginScreenState extends State<LoginScreen>
           _buildPrimaryButton('Sign Up'),
           const SizedBox(height: 32),
           _buildSwitchMode(
-              'Your National ID was not found in our database.\n Please contact the legal department at 092-856-6488.',
+              'Already have an account?',
               'Sign In',
               () => setState(() {
                     _isLoginMode = true;

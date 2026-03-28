@@ -22,13 +22,13 @@ class TechnicianScheduleCard extends StatelessWidget {
     // 1. Generate deterministic mock schedule based on name hash (same as in dossier)
     final int seed = name.codeUnits.fold(0, (p, c) => p + c);
     final Set<int> busyDays = {};
-    
+
     // Simulate a 5-day work week with rotating shifts
     for (int i = 1; i <= 28; i++) {
-        int dayInCycle = (i + seed) % 7;
-        if (dayInCycle < 5) {
-            busyDays.add(i);
-        }
+      int dayInCycle = (i + seed) % 7;
+      if (dayInCycle < 5) {
+        busyDays.add(i);
+      }
     }
 
     return Container(
@@ -70,7 +70,7 @@ class TechnicianScheduleCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                            Container(
+                          Container(
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
@@ -91,14 +91,16 @@ class TechnicianScheduleCard extends StatelessWidget {
                                   letterSpacing: 1,
                                 ),
                               ),
-                              terminalText("CURRENT_MONTH // FEBRUARY 2026", fontSize: 8, color: DashboardTheme.textPale),
+                              terminalText("CURRENT_MONTH // FEBRUARY 2026",
+                                  fontSize: 8, color: DashboardTheme.textPale),
                             ],
                           ),
                         ],
                       ),
                       IconButton(
                         onPressed: onRemove,
-                        icon: const Icon(Icons.delete_outline_rounded, color: DashboardTheme.error, size: 20),
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            color: DashboardTheme.error, size: 20),
                         tooltip: "Remove Technician",
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -106,7 +108,7 @@ class TechnicianScheduleCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Month Title
                   Text(
                     "FEBRUARY 2026",
@@ -118,7 +120,7 @@ class TechnicianScheduleCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // Days Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -126,32 +128,36 @@ class TechnicianScheduleCard extends StatelessWidget {
                         .map((d) => SizedBox(
                               width: 32,
                               child: Center(
-                                child: terminalText(d, fontSize: 10, color: DashboardTheme.textPale, fontWeight: FontWeight.bold),
+                                child: terminalText(d,
+                                    fontSize: 10,
+                                    color: DashboardTheme.textPale,
+                                    fontWeight: FontWeight.bold),
                               ),
                             ))
                         .toList(),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Availability Grid
                   GridView.builder(
                     shrinkWrap: true,
                     padding: EdgeInsets.zero,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 7,
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
                     ),
-                    itemCount: 28, 
+                    itemCount: 28,
                     itemBuilder: (context, index) {
                       final int day = index + 1;
                       final bool isBusy = busyDays.contains(day);
-                      final Color statusColor = isBusy 
+                      final Color statusColor = isBusy
                           ? DashboardTheme.success.withOpacity(0.08)
                           : DashboardTheme.surfaceSecondary;
-                      
-                      final Color borderColor = isBusy 
+
+                      final Color borderColor = isBusy
                           ? DashboardTheme.success.withOpacity(0.2)
                           : DashboardTheme.border;
 
@@ -166,13 +172,15 @@ class TechnicianScheduleCard extends StatelessWidget {
                             "$day",
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: isBusy ? DashboardTheme.success : DashboardTheme.textPale,
+                            color: isBusy
+                                ? DashboardTheme.success
+                                : DashboardTheme.textPale,
                           ),
                         ),
                       );
                     },
                   ),
-                
+
                   // Bottom Matrix Legend
                   const SizedBox(height: 24),
                   Row(
@@ -182,7 +190,8 @@ class TechnicianScheduleCard extends StatelessWidget {
                       const SizedBox(width: 24),
                       _buildLegendItem("VACANT", DashboardTheme.textPale),
                       const SizedBox(width: 24),
-                      _buildLegendItem("DUE / SELECTED", DashboardTheme.primary),
+                      _buildLegendItem(
+                          "DUE / SELECTED", DashboardTheme.primary),
                     ],
                   ),
                 ],
@@ -204,12 +213,16 @@ class TechnicianScheduleCard extends StatelessWidget {
             color: color,
             shape: BoxShape.circle,
             boxShadow: [
-              if (color != DashboardTheme.textPale) BoxShadow(color: color.withOpacity(0.3), blurRadius: 4),
+              if (color != DashboardTheme.textPale)
+                BoxShadow(color: color.withOpacity(0.3), blurRadius: 4),
             ],
           ),
         ),
         const SizedBox(width: 8),
-        terminalText(label, fontSize: 8, color: DashboardTheme.textSecondary, letterSpacing: 0.5),
+        terminalText(label,
+            fontSize: 8,
+            color: DashboardTheme.textSecondary,
+            letterSpacing: 0.5),
       ],
     );
   }

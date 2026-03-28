@@ -8,7 +8,7 @@ const repairRouter = Router();
 repairRouter.get(
   "/history",
   authMiddleware,
-  authorizeRole(["Resident", "Jurisdictic", "Technician"]),
+  authorizeRole(["RESIDENT", "JURISTIC", "TECHNICIAN"]),
   RepairController.getResidentHistory
 );
 
@@ -19,14 +19,14 @@ repairRouter.post("/intent", authMiddleware, RepairController.processIntent);
 repairRouter.post("/confirm", authMiddleware, RepairController.confirmRequest);
 
 /**
- * Technician Module: Update Status & Report (FE-03)
- * Access: Technician or Jurisdictic
+ * Technician Module: Task Reporting (FE-03)
+ * Access: Technician Only
  */
 repairRouter.patch(
   "/task/:taskId",
   authMiddleware,
-  authorizeRole(["Technician", "Jurisdictic"]),
-  RepairController.updateTaskStatus
+  authorizeRole(["TECHNICIAN"]),
+  RepairController.updateTask
 );
 
 /**
@@ -36,8 +36,26 @@ repairRouter.patch(
 repairRouter.post(
   "/evaluate",
   authMiddleware,
-  authorizeRole(["Resident"]),
+  authorizeRole(["RESIDENT"]),
   RepairController.submitEvaluation
+);
+
+/**
+ * Juristic Module: Request Management (FE-02)
+ * Access: Juristic Only
+ */
+repairRouter.patch(
+  "/request/:id/assign",
+  authMiddleware,
+  authorizeRole(["JURISTIC"]),
+  RepairController.assignRequest
+);
+
+repairRouter.patch(
+  "/request/:id/reject",
+  authMiddleware,
+  authorizeRole(["JURISTIC"]),
+  RepairController.rejectRequest
 );
 
 export default repairRouter;

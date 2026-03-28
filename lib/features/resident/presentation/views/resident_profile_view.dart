@@ -11,12 +11,18 @@ class ResidentProfileView extends StatefulWidget {
   final bool isDark;
   final VoidCallback? onMenuTap;
 
+  final String? pictureUri;
+
   const ResidentProfileView({
     super.key,
     required this.displayUser,
     required this.isDark,
+    this.pictureUri,
     this.onMenuTap,
+    this.onProfileUpdated,
   });
+
+  final VoidCallback? onProfileUpdated;
 
   @override
   State<ResidentProfileView> createState() => _ResidentProfileViewState();
@@ -26,11 +32,15 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
   String _name = '';
   String _email = '';
   String _phone = '';
+  String _imagePath = 'assets/resident_profile.png';
 
   @override
   void initState() {
     super.initState();
     _name = widget.displayUser;
+    _imagePath = (widget.pictureUri != null && widget.pictureUri!.isNotEmpty)
+        ? widget.pictureUri!
+        : 'assets/resident_profile.png';
     _loadProfile();
   }
 
@@ -42,7 +52,13 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
         _name = (data['name'] ?? '').toString();
         _email = (data['email'] ?? '').toString();
         _phone = (data['phone'] ?? '').toString();
+        final uri = data['picture_uri']?.toString();
+        _imagePath = (uri != null && uri.isNotEmpty)
+            ? uri
+            : 'assets/resident_profile.png';
       });
+      // Also notify parent
+      widget.onProfileUpdated?.call();
     }
   }
 
@@ -52,9 +68,10 @@ class _ResidentProfileViewState extends State<ResidentProfileView> {
       name: _name,
       email: _email,
       phone: _phone,
-      role: 'Resident',
-      imagePath: 'assets/resident_profile.png',
+      role: 'RESIDENT',
+      imagePath: _imagePath,
       onMenuTap: widget.onMenuTap,
+      onProfileUpdated: _loadProfile,
     );
   }
 }

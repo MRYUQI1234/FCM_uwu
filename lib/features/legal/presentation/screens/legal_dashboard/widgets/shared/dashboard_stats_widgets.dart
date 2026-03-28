@@ -3,33 +3,46 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_painters.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
+import 'package:fcm_app/core/data/repair_repository.dart';
 
 class DashboardStatsWidgets {
-  static Widget buildHealthExpanded(BuildContext context, double score, int urgent, int pending) {
+  static Widget buildHealthExpanded(
+      BuildContext context, double score, int urgent, int pending) {
     return Column(
       children: [
         Row(
           children: [
-            Expanded(flex: 3, child: buildHealthCompact(score, score > 90 ? DashboardTheme.success : (score > 70 ? DashboardTheme.warning : DashboardTheme.error))),
+            Expanded(
+                flex: 3,
+                child: buildHealthCompact(
+                    score,
+                    score > 90
+                        ? DashboardTheme.success
+                        : (score > 70
+                            ? DashboardTheme.warning
+                            : DashboardTheme.error))),
             const SizedBox(width: 60),
             Expanded(
               flex: 4,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _healthMiniRow("ZONE A (RESIDENTIAL)", "SAFE", DashboardTheme.success),
+                  _healthMiniRow(
+                      "ZONE A (RESIDENTIAL)", "SAFE", DashboardTheme.success),
                   const SizedBox(height: 16),
-                  _healthMiniRow("ZONE B (FACILITIES)", "WARNING", DashboardTheme.warning),
+                  _healthMiniRow(
+                      "ZONE B (FACILITIES)", "WARNING", DashboardTheme.warning),
                   const SizedBox(height: 16),
-                  _healthMiniRow("ZONE C (UTILITIES)", "SECURE", DashboardTheme.success),
+                  _healthMiniRow(
+                      "ZONE C (UTILITIES)", "SECURE", DashboardTheme.success),
                 ],
               ),
             ),
           ],
         ),
         const SizedBox(height: 80),
-        buildImmersiveChart("SYSTEM STABILITY OVER TIME", [80, 85, 82, 88, 90, 87, score]),
+        buildImmersiveChart(
+            "SYSTEM STABILITY OVER TIME", [80, 85, 82, 88, 90, 87, score]),
       ],
     );
   }
@@ -37,7 +50,11 @@ class DashboardStatsWidgets {
   static Widget buildHealthCompact(double score, Color color) {
     return Row(
       children: [
-        Text("${score.toInt()}%", style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontSize: 44, fontWeight: FontWeight.w800)),
+        Text("${score.toInt()}%",
+            style: GoogleFonts.outfit(
+                color: DashboardTheme.textMain,
+                fontSize: 44,
+                fontWeight: FontWeight.w800)),
         const SizedBox(width: 20),
         Expanded(
           child: ClipRRect(
@@ -54,14 +71,14 @@ class DashboardStatsWidgets {
     );
   }
 
-  static Widget buildRatingExpanded(BuildContext context, double rating) {
-    final reviews = DashboardData.reviews;
+  static Widget buildRatingExpanded(BuildContext context, double rating, List<RepairRequest> reviews) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildRatingCompact(rating),
         const SizedBox(height: 40),
-        terminalText("DETAILED_METRICS // SATISFACTION_INDEX", fontSize: 10, color: DashboardTheme.textPale, letterSpacing: 1.5),
+        terminalText("DETAILED_METRICS // SATISFACTION_INDEX",
+            fontSize: 10, color: DashboardTheme.textPale, letterSpacing: 1.5),
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -85,19 +102,31 @@ class DashboardStatsWidgets {
   static Widget buildRatingCompact(double rating) {
     return Row(
       children: [
-        Text(rating.toStringAsFixed(1), style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontSize: 44, fontWeight: FontWeight.w800)),
+        Text(rating.toStringAsFixed(1),
+            style: GoogleFonts.outfit(
+                color: DashboardTheme.textMain,
+                fontSize: 44,
+                fontWeight: FontWeight.w800)),
         const SizedBox(width: 16),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: List.generate(5, (i) => Icon(
-                i < rating.floor() ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: DashboardTheme.accentAmber,
-                size: 20,
-              )),
+              children: List.generate(
+                  5,
+                  (i) => Icon(
+                        i < rating.floor()
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        color: DashboardTheme.accentAmber,
+                        size: 20,
+                      )),
             ),
-            terminalText("EXCELLENT LEVEL", fontSize: 9, color: DashboardTheme.isDarkMode.value ? DashboardTheme.textPale : DashboardTheme.textSecondary),
+            terminalText("EXCELLENT LEVEL",
+                fontSize: 9,
+                color: DashboardTheme.isDarkMode.value
+                    ? DashboardTheme.textPale
+                    : DashboardTheme.textSecondary),
           ],
         ),
       ],
@@ -109,7 +138,8 @@ class DashboardStatsWidgets {
       children: [
         buildEfficiencyCompact(),
         const SizedBox(height: 60),
-        buildImmersiveChart("RESPONSE TIME BRAKDOWN (MINUTES)", [35, 28, 42, 18, 25, 30, 24]),
+        buildImmersiveChart(
+            "RESPONSE TIME BRAKDOWN (MINUTES)", [35, 28, 42, 18, 25, 30, 24]),
       ],
     );
   }
@@ -122,8 +152,16 @@ class DashboardStatsWidgets {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("24m", style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontSize: 32, fontWeight: FontWeight.w800)),
-            terminalText("RESPONSE TIME", fontSize: 9, color: DashboardTheme.isDarkMode.value ? DashboardTheme.textPale : DashboardTheme.textSecondary),
+            Text("24m",
+                style: GoogleFonts.outfit(
+                    color: DashboardTheme.textMain,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800)),
+            terminalText("RESPONSE TIME",
+                fontSize: 9,
+                color: DashboardTheme.isDarkMode.value
+                    ? DashboardTheme.textPale
+                    : DashboardTheme.textSecondary),
           ],
         ),
       ],
@@ -146,7 +184,8 @@ class DashboardStatsWidgets {
             children: [
               _successRow("LEGAL ADVISORY", "100%", const Color(0xFF6366F1)),
               Divider(color: DashboardTheme.border, height: 24),
-              _successRow("GENERAL MAINT.", "94.2%", DashboardTheme.accentAmber),
+              _successRow(
+                  "GENERAL MAINT.", "94.2%", DashboardTheme.accentAmber),
               Divider(color: DashboardTheme.border, height: 24),
               _successRow("CRITICAL SYSTEM", "98.9%", DashboardTheme.success),
             ],
@@ -161,7 +200,8 @@ class DashboardStatsWidgets {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          width: 120, height: 120,
+          width: 120,
+          height: 120,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -171,17 +211,36 @@ class DashboardStatsWidgets {
                 backgroundColor: DashboardTheme.border,
                 valueColor: AlwaysStoppedAnimation(DashboardTheme.primary),
               ),
-              Text("${(rate * 100).toInt()}%", style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontSize: 28, fontWeight: FontWeight.w900)),
+              Text("${(rate * 100).toInt()}%",
+                  style: GoogleFonts.outfit(
+                      color: DashboardTheme.textMain,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900)),
             ],
           ),
         ),
         const SizedBox(height: 30),
-        terminalText("TOTAL RESOLVED: 4,218", fontSize: 10, color: DashboardTheme.textSecondary),
+        terminalText("TOTAL RESOLVED: 4,218",
+            fontSize: 10, color: DashboardTheme.textSecondary),
       ],
     );
   }
 
-  static Widget buildFeedbackCard(Map<String, dynamic> data) {
+  static Widget buildFeedbackCard(RepairRequest data) {
+    final String name = data.requesterName ?? "RESIDENT";
+    final double rating = (data.rating ?? 0).toDouble();
+    final String comment = data.assessmentComment ?? "";
+    final String tag = "PAST // ${data.title.toUpperCase()}";
+    
+    // Generate a consistent color based on the name
+    final List<Color> avatarColors = [
+      const Color(0xFFC5A059),
+      const Color(0xFF00FF9F),
+      const Color(0xFF6366F1),
+      const Color(0xFFFF3333),
+      const Color(0xFFFF9900),
+    ];
+    final Color avatarColor = avatarColors[name.hashCode % avatarColors.length];
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(24),
@@ -191,7 +250,9 @@ class DashboardStatsWidgets {
         border: Border.all(color: DashboardTheme.border),
         boxShadow: [
           BoxShadow(
-            color: DashboardTheme.isDarkMode.value ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.05),
+            color: DashboardTheme.isDarkMode.value
+                ? Colors.black.withOpacity(0.2)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -204,31 +265,49 @@ class DashboardStatsWidgets {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: (data['avatarColor'] as Color).withOpacity(0.1),
-                child: Text(data['name'][0], style: GoogleFonts.outfit(color: data['avatarColor'] as Color, fontWeight: FontWeight.bold, fontSize: 14)),
+                backgroundColor:
+                    avatarColor.withOpacity(0.1),
+                child: Text(name[0],
+                    style: GoogleFonts.outfit(
+                        color: avatarColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
               ),
               const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(data['name'], style: GoogleFonts.outfit(color: DashboardTheme.textMain, fontWeight: FontWeight.bold, fontSize: 15)),
-                  terminalText(data['tag'], fontSize: 8, color: DashboardTheme.isDarkMode.value ? DashboardTheme.textPale : DashboardTheme.textSecondary),
+                  Text(name,
+                      style: GoogleFonts.outfit(
+                          color: DashboardTheme.textMain,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15)),
+                  terminalText(tag,
+                      fontSize: 8,
+                      color: DashboardTheme.isDarkMode.value
+                          ? DashboardTheme.textPale
+                          : DashboardTheme.textSecondary),
                 ],
               ),
               const Spacer(),
               Row(
-                children: List.generate(5, (i) => Icon(
-                  i < (data['rating'] as double).floor() ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: DashboardTheme.accentAmber,
-                  size: 14,
-                )),
+                children: List.generate(
+                    5,
+                    (i) => Icon(
+                          i < rating.floor()
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          color: DashboardTheme.accentAmber,
+                          size: 14,
+                        )),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            data['comment'],
-            style: GoogleFonts.notoSans(color: DashboardTheme.textSecondary, fontSize: 14, height: 1.6),
+            comment,
+            style: GoogleFonts.notoSans(
+                color: DashboardTheme.textSecondary, fontSize: 14, height: 1.6),
           ),
         ],
       ),
@@ -239,7 +318,12 @@ class DashboardStatsWidgets {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        terminalText(label, fontSize: 10, color: DashboardTheme.isDarkMode.value ? DashboardTheme.textPale : DashboardTheme.textSecondary, letterSpacing: 1.5),
+        terminalText(label,
+            fontSize: 10,
+            color: DashboardTheme.isDarkMode.value
+                ? DashboardTheme.textPale
+                : DashboardTheme.textSecondary,
+            letterSpacing: 1.5),
         const SizedBox(height: 24),
         Container(
           height: 250,
@@ -251,7 +335,8 @@ class DashboardStatsWidgets {
             border: Border.all(color: DashboardTheme.border),
           ),
           child: CustomPaint(
-            painter: LineChartPainter(values: values, color: DashboardTheme.primary),
+            painter:
+                LineChartPainter(values: values, color: DashboardTheme.primary),
           ),
         ),
       ],
@@ -262,13 +347,15 @@ class DashboardStatsWidgets {
     return Row(
       children: [
         Container(
-          width: 8, height: 8,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 12),
         terminalText(label, fontSize: 11, color: DashboardTheme.textSecondary),
         const Spacer(),
-        terminalText(status, fontSize: 11, color: color, fontWeight: FontWeight.bold),
+        terminalText(status,
+            fontSize: 11, color: color, fontWeight: FontWeight.bold),
       ],
     );
   }
@@ -276,8 +363,16 @@ class DashboardStatsWidgets {
   static Widget _ratingMiniStat(String label, String val) {
     return Column(
       children: [
-        terminalText(label, fontSize: 8, color: DashboardTheme.isDarkMode.value ? DashboardTheme.textPale : DashboardTheme.textSecondary),
-        Text(val, style: GoogleFonts.shareTechMono(color: DashboardTheme.accentAmber, fontSize: 14, fontWeight: FontWeight.bold)),
+        terminalText(label,
+            fontSize: 8,
+            color: DashboardTheme.isDarkMode.value
+                ? DashboardTheme.textPale
+                : DashboardTheme.textSecondary),
+        Text(val,
+            style: GoogleFonts.shareTechMono(
+                color: DashboardTheme.accentAmber,
+                fontSize: 14,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -287,7 +382,9 @@ class DashboardStatsWidgets {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         terminalText(label, fontSize: 10, color: DashboardTheme.textMain),
-        Text(val, style: GoogleFonts.shareTechMono(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(val,
+            style: GoogleFonts.shareTechMono(
+                color: color, fontSize: 12, fontWeight: FontWeight.bold)),
       ],
     );
   }

@@ -7,9 +7,24 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Mock Data for Admin (FE-09, FE-10)
     final allRequests = [
-      {'id': 'REQ001', 'resident': 'John Doe', 'type': 'Electrical', 'status': 'Pending'},
-      {'id': 'REQ002', 'resident': 'Jane Smith', 'type': 'Plumbing', 'status': 'In Progress'},
-      {'id': 'REQ003', 'resident': 'Bob Wilson', 'type': 'Other', 'status': 'Completed'},
+      {
+        'id': 'REQ001',
+        'resident': 'John Doe',
+        'type': 'Electrical',
+        'status': 'Pending'
+      },
+      {
+        'id': 'REQ002',
+        'resident': 'Jane Smith',
+        'type': 'Plumbing',
+        'status': 'In Progress'
+      },
+      {
+        'id': 'REQ003',
+        'resident': 'Bob Wilson',
+        'type': 'Other',
+        'status': 'Completed'
+      },
     ];
 
     return Scaffold(
@@ -59,14 +74,17 @@ class AdminDashboardScreen extends StatelessWidget {
                     subtitle: Text('Status: ${req['status']}'),
                     trailing: PopupMenuButton(
                       itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'assign', child: Text('Assign Technician')),
-                        const PopupMenuItem(value: 'view', child: Text('View Report (FE-10)')),
-                        const PopupMenuItem(value: 'reject', child: Text('Reject Request')),
+                        const PopupMenuItem(
+                            value: 'assign', child: Text('Assign Technician')),
+                        const PopupMenuItem(
+                            value: 'view', child: Text('View Report (FE-10)')),
+                        const PopupMenuItem(
+                            value: 'reject', child: Text('Reject Request')),
                       ],
                       onSelected: (value) {
-                         if (value == 'view') {
-                            Navigator.pushNamed(context, '/repor_view');
-                         }
+                        if (value == 'view') {
+                          Navigator.pushNamed(context, '/repor_view');
+                        }
                       },
                     ),
                   ),

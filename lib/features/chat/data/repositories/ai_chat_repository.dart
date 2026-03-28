@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fcm_app/shared/models/parsed_task_model.dart';
 import 'package:fcm_app/shared/models/user_info_model.dart';
+import 'package:fcm_app/core/services/translation_service.dart';
 import '../models/ai_conversation_model.dart';
 import '../models/ai_message_model.dart';
 
@@ -118,6 +119,7 @@ class AIChatRepository {
       final headers = await _getHeaders();
       final body = {
         'content': content,
+        'preferredLanguage': TranslationService.instance.lang,
         if (conversationId != null) 'conversationId': conversationId,
       };
 

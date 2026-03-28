@@ -25,16 +25,20 @@ class DashboardTheme {
   static const Color borderSubtleLight = Color(0xFFF5F5F5);
 
   // --- DYNAMIC GETTERS ---
-  static Color get background => isDarkMode.value ? backgroundDark : backgroundLight;
+  static Color get background =>
+      isDarkMode.value ? backgroundDark : backgroundLight;
   static Color get surface => isDarkMode.value ? surfaceDark : surfaceLight;
-  static Color get surfaceSecondary => isDarkMode.value ? surfaceSecondaryDark : surfaceSecondaryLight;
-  
+  static Color get surfaceSecondary =>
+      isDarkMode.value ? surfaceSecondaryDark : surfaceSecondaryLight;
+
   static Color get textMain => isDarkMode.value ? textMainDark : textMainLight;
-  static Color get textSecondary => isDarkMode.value ? textSecondaryDark : textSecondaryLight;
+  static Color get textSecondary =>
+      isDarkMode.value ? textSecondaryDark : textSecondaryLight;
   static Color get textPale => isDarkMode.value ? textPaleDark : textPaleLight;
-  
+
   static Color get border => isDarkMode.value ? borderDark : borderLight;
-  static Color get borderSubtle => isDarkMode.value ? borderSubtleDark : borderSubtleLight;
+  static Color get borderSubtle =>
+      isDarkMode.value ? borderSubtleDark : borderSubtleLight;
 
   // --- FIXED ACCENTS ---
   static const Color primaryBlue = Color(0xFF0066FF);
@@ -46,13 +50,17 @@ class DashboardTheme {
   // --- DYNAMIC ACCENTS ---
   // "Primary" changes based on mode: Gold for Dark, Blue for Light
   static Color get primary => isDarkMode.value ? accentAmber : primaryBlue;
-  
-  static Color get primaryDim => isDarkMode.value ? accentAmberDim : primaryBlueDim;
-  static Color get primaryBlueDim => isDarkMode.value ? primaryBlue.withOpacity(0.1) : const Color(0xFFE6F0FF);
-  static Color get accentAmberDim => isDarkMode.value ? accentAmber.withOpacity(0.1) : const Color(0xFFFAF3E6);
+
+  static Color get primaryDim =>
+      isDarkMode.value ? accentAmberDim : primaryBlueDim;
+  static Color get primaryBlueDim =>
+      isDarkMode.value ? primaryBlue.withOpacity(0.1) : const Color(0xFFE6F0FF);
+  static Color get accentAmberDim =>
+      isDarkMode.value ? accentAmber.withOpacity(0.1) : const Color(0xFFFAF3E6);
 
   // --- DECORATIONS ---
-  static BoxDecoration cardDecoration({Color? color, Color? borderColor, double borderRadius = 28}) {
+  static BoxDecoration cardDecoration(
+      {Color? color, Color? borderColor, double borderRadius = 28}) {
     return BoxDecoration(
       color: color ?? surface,
       borderRadius: BorderRadius.circular(borderRadius),

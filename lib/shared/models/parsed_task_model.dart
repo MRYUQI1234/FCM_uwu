@@ -20,12 +20,22 @@ class ParsedTask {
   });
 
   factory ParsedTask.fromJson(Map<String, dynamic> json) {
+    // Handle both old 'description' and new 'detail' from backend
+    final desc = (json['detail'] ?? json['description'] ?? '') as String;
+    
+    // Handle both old 'urgency' and new 'type' from backend
+    // AI now returns request.type, but nested task might have it or we map it
+    String urg = (json['urgency'] ?? 'normal') as String;
+    if (json.containsKey('type')) {
+      urg = (json['type'] == 'URGENT') ? 'emergency' : 'normal';
+    }
+
     return ParsedTask(
       objectId: json['object_id'] as String?,
       objectType: (json['object_type'] ?? '') as String,
       objectName: json['object_name'] as String?,
-      description: (json['description'] ?? '') as String,
-      urgency: (json['urgency'] ?? 'normal') as String,
+      description: desc,
+      urgency: urg,
       preferDate: json['prefer_date'] as String?,
       preferTime: json['prefer_time'] as String?,
     );

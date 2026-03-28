@@ -24,7 +24,10 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   String _displayUsername = '';
-  String _houseId = '123/45';
+  String _houseAddress = '123/45';
+  String _houseSoi = '0';
+  String? _activateDate;
+  String? _pictureUri;
   late AnimationController _sidebarAnim;
   bool _sidebarOpen = false;
   final _ts = TranslationService.instance;
@@ -74,9 +77,13 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
       final data = result['data'];
       if (mounted) {
         setState(() {
-          final apiName = data['name'] ?? '';
-          _displayUsername = apiName;
-          if (data['houseId'] != null) _houseId = data['houseId'];
+          _displayUsername =
+              (data['name'] ?? data['fullname'] ?? '').toString();
+          _houseAddress = (data['house_address'] ?? 'N/A').toString();
+          _houseSoi = (data['soi'] ?? 'N/A').toString();
+          _activateDate = data['activate_date']?.toString();
+          _pictureUri = data['picture_uri']?.toString();
+          debugPrint("House ID: $_houseAddress, Activate Date: $_activateDate");
         });
       }
     } else if (result['expired'] == true && mounted) {
@@ -84,6 +91,7 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
     }
   }
 
+  //ส่วนไหนไม่รู้
   @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -141,7 +149,7 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
                         child: child!,
                       );
                     },
-                    child: _buildSidebarContent(displayUser),
+                    child: _buildSidebarContent(),
                   ),
                 ],
               ),
@@ -152,7 +160,7 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
     );
   }
 
-  Widget _buildSidebarContent(String displayUser) {
+  Widget _buildSidebarContent() {
     return Material(
       color: DashboardTheme.surface,
       elevation: 16,
@@ -161,11 +169,23 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Brand ──
+            //ส่วนหัว
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: DashboardTheme.primary.withOpacity(0.1),
+                    backgroundImage: (_pictureUri != null &&
+                            _pictureUri!.isNotEmpty &&
+                            _pictureUri!.startsWith('http'))
+                        ? NetworkImage(_pictureUri!)
+                        : const AssetImage('assets/resident_profile.png')
+                            as ImageProvider,
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     _ts.t('brand_title'),
                     style: GoogleFonts.outfit(
@@ -177,14 +197,28 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _ts.t('brand_subtitle_resident'),
+                    //resident portal
+                    //เปลี่ยน brand subtitle เป็นชื่อผู้ใช้
+                    _displayUsername,
                     style: GoogleFonts.outfit(
                       color: DashboardTheme.textPale,
-                      fontSize: 10,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.5,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    //resident portal
+                    //เปลี่ยน brand subtitle เป็นชื่อผู้ใช้
+                    "${_ts.t('label_houseAddress')} $_houseAddress, ${_ts.t('label_houseSoi')} $_houseSoi",
+                    style: GoogleFonts.outfit(
+                      color: DashboardTheme.textPale,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  )
                 ],
               ),
             ),
@@ -299,7 +333,8 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
         return ResidentHomeView(
             key: const ValueKey('home'),
             displayUser: displayUser,
-            houseId: _houseId,
+            houseId: _houseAddress,
+            activateDate: _activateDate,
             isDark: isDark,
             onMenuTap: _toggleSidebar,
             onHistoryRequested: () {
@@ -314,8 +349,10 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen>
         return ResidentProfileView(
             key: const ValueKey('profile'),
             displayUser: displayUser,
+            pictureUri: _pictureUri,
             isDark: isDark,
-            onMenuTap: _toggleSidebar);
+            onMenuTap: _toggleSidebar,
+            onProfileUpdated: _fetchUserProfile);
       case 3:
         return SettingsView(
             key: const ValueKey('settings'), onMenuTap: _toggleSidebar);

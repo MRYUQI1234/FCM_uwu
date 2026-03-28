@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:fcm_app/features/legal/presentation/widgets/village_map_widget.dart';
 import 'package:fcm_app/features/legal/presentation/widgets/technician_card.dart';
-import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/data/dashboard_data.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_ui_utils.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/dashboard_theme.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/personnel_dossier_overlay.dart';
 import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widgets/shared/task_assignment_overlay.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
+import 'package:fcm_app/shared/widgets/pin_verification_overlay.dart';
 
 class OverviewView extends StatefulWidget {
-  const OverviewView({super.key});
+  final List<Map<String, dynamic>> technicians;
+  const OverviewView({super.key, required this.technicians});
 
   @override
   State<OverviewView> createState() => _OverviewViewState();
@@ -68,12 +69,19 @@ class _OverviewViewState extends State<OverviewView> {
                   child: TaskAssignmentOverlay(
                     task: _selectedTask!,
                     draftStaffNames: _draftStaffNames,
+                    technicians: widget.technicians
+                        .where((t) => t['role'] == 'TECHNICIAN')
+                        .toList(),
                     onDismiss: () => setState(() {
                       _selectedTask = null;
                       _draftStaffNames = [];
                     }),
-                    onConfirm: () {
+                    onConfirm: () async {
                       if (_draftStaffNames.isNotEmpty) {
+                        // PIN verification before assigning
+                        final pinOk = await showPinVerificationOverlay(context);
+                        if (pinOk != true) return;
+
                         RepairRepository.instance
                             .assignRequest(_selectedTask!.id, _draftStaffNames);
                       }
@@ -123,20 +131,25 @@ class _OverviewViewState extends State<OverviewView> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
-                          children: DashboardData.technicians.map((tech) {
+                          children: widget.technicians
+                              .where((tech) => tech['role'] == 'TECHNICIAN')
+                              .map((tech) {
+                            final isActive = tech['isActive'] ?? true;
                             return TechnicianCard(
                               name: tech['name'],
-                              status: tech['isActive'] ? "ACTIVE" : "INACTIVE",
-                              statusColor: tech['isActive']
+                              status: isActive ? "ACTIVE" : "INACTIVE",
+                              statusColor: isActive
                                   ? DashboardTheme.success
                                   : DashboardTheme.primary,
-                              isActive: tech['isActive'],
+                              isActive: isActive,
                               imagePath: tech['image'],
-                              roleIcon: tech['icon'],
+                              roleIcon: tech['role'] == 'JURISTIC'
+                                  ? Icons.admin_panel_settings_rounded
+                                  : Icons.engineering_rounded,
                               role: tech['role'],
                               onTap: () {
                                 if (_selectedTask != null) {
-                                  if (tech['isActive']) {
+                                  if (isActive) {
                                     setState(() {
                                       if (_draftStaffNames
                                           .contains(tech['name'])) {

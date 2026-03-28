@@ -7,12 +7,13 @@ import 'package:fcm_app/core/data/auth_repository.dart';
 class CustomSidebar extends StatelessWidget {
   final String username;
   final VoidCallback? onMenuPressed; // Callback for menu button
-  final Function(bool)? onDialogVisibilityChanged; // NEW: Notify parent of dialog state
+  final Function(bool)?
+      onDialogVisibilityChanged; // NEW: Notify parent of dialog state
   final VoidCallback? onNewRepairPressed; // NEW: Callback for new repair button
 
   const CustomSidebar({
-    super.key, 
-    required this.username, 
+    super.key,
+    required this.username,
     this.onMenuPressed,
     this.onDialogVisibilityChanged,
     this.onNewRepairPressed,
@@ -20,14 +21,16 @@ class CustomSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container( // Changed Drawer to Container
+    return Container(
+      // Changed Drawer to Container
       color: const Color(0xFF121212), // Deeper dark background
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 1. Header Section (Icons + Profile)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -35,18 +38,21 @@ class CustomSidebar extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.menu, color: Color(0xFFC5A059), size: 30),
+                      icon: const Icon(Icons.menu,
+                          color: Color(0xFFC5A059), size: 30),
                       onPressed: onMenuPressed ?? () => Navigator.pop(context),
                     ),
                     const Spacer(),
-                    const Icon(Icons.notifications_none, color: Color(0xFFC5A059), size: 26),
+                    const Icon(Icons.notifications_none,
+                        color: Color(0xFFC5A059), size: 26),
                     const SizedBox(width: 14),
-                    const Icon(Icons.search, color: Color(0xFFC5A059), size: 26),
+                    const Icon(Icons.search,
+                        color: Color(0xFFC5A059), size: 26),
                     const SizedBox(width: 8),
                   ],
                 ),
                 const SizedBox(height: 28),
-                
+
                 // Profile Section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -57,16 +63,21 @@ class CustomSidebar extends StatelessWidget {
                         height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFC5A059).withOpacity(0.6), width: 1.2),
+                          border: Border.all(
+                              color: const Color(0xFFC5A059).withOpacity(0.6),
+                              width: 1.2),
                         ),
-                        child: const Icon(Icons.person_outline, color: Color(0xFFC5A059), size: 30),
+                        child: const Icon(Icons.person_outline,
+                            color: Color(0xFFC5A059), size: 30),
                       ),
                       const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            username.isEmpty || username == 'Resident' ? 'อนาคิน สกายวอล์คเกอร์' : username,
+                            username.isEmpty || username == 'Resident'
+                                ? 'อนาคิน สกายวอล์คเกอร์'
+                                : username,
                             style: GoogleFonts.kanit(
                               color: Colors.white,
                               fontSize: 17,
@@ -89,7 +100,7 @@ class CustomSidebar extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // 2. New Repair Button (FE-03)
           const Divider(color: Colors.white10, height: 1),
           InkWell(
@@ -103,7 +114,8 @@ class CustomSidebar extends StatelessWidget {
                   const SizedBox(
                     width: 44,
                     height: 44,
-                    child: Icon(Icons.assignment, color: Color(0xFFC5A059), size: 36),
+                    child: Icon(Icons.assignment,
+                        color: Color(0xFFC5A059), size: 36),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -145,7 +157,8 @@ class CustomSidebar extends StatelessWidget {
                   );
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24, top: 0),
+                  padding: const EdgeInsets.only(
+                      left: 24, right: 24, bottom: 24, top: 0),
                   itemCount: repairs.length,
                   itemBuilder: (context, index) {
                     final item = repairs[index];
@@ -155,13 +168,14 @@ class CustomSidebar extends StatelessWidget {
               },
             ),
           ),
-          
+
           // 4. Logout Button (New)
           const Divider(color: Colors.white10, height: 1),
           InkWell(
             onTap: () async {
               await AuthRepository.instance.logout();
-              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              Navigator.of(context)
+                  .pushNamedAndRemoveUntil('/login', (route) => false);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -225,11 +239,17 @@ class CustomSidebar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: (item.status == 'เสร็จสิ้น' || item.status == 'Completed') ? const Color(0xFF2E4D2E) :
-                       (item.status == 'ดำเนินการ' || item.status == 'In Progress') ? const Color(0xFF8B7348) :
-                       (item.status == 'รอ' || item.status == 'Pending') ? const Color(0xFF4A4A4A) :
-                       item.status == 'ปฏิเสธ' ? const Color(0xFF8B0000) :
-                       Colors.grey.shade900,
+                color:
+                    (item.status == 'เสร็จสิ้น' || item.status == 'Completed')
+                        ? const Color(0xFF2E4D2E)
+                        : (item.status == 'ดำเนินการ' ||
+                                item.status == 'In Progress')
+                            ? const Color(0xFF8B7348)
+                            : (item.status == 'รอ' || item.status == 'Pending')
+                                ? const Color(0xFF4A4A4A)
+                                : item.status == 'ปฏิเสธ'
+                                    ? const Color(0xFF8B0000)
+                                    : Colors.grey.shade900,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -260,17 +280,19 @@ class CustomSidebar extends StatelessWidget {
             return AlertDialog(
               backgroundColor: const Color(0xFF151515),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: const BorderSide(color: Colors.green),
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: Colors.green),
               ),
-              title: Text('ประเมินความพึงพอใจ', style: GoogleFonts.kanit(color: Colors.green)),
+              title: Text('ประเมินความพึงพอใจ',
+                  style: GoogleFonts.kanit(color: Colors.green)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('งาน "${item.title}" เสร็จสิ้นแล้ว', style: GoogleFonts.kanit(color: Colors.white70)),
+                  Text('งาน "${item.title}" เสร็จสิ้นแล้ว',
+                      style: GoogleFonts.kanit(color: Colors.white70)),
                   const SizedBox(height: 16),
-                  
+
                   // Interactive Star Rating
                   Center(
                     child: Row(
@@ -302,7 +324,8 @@ class CustomSidebar extends StatelessWidget {
                       hintStyle: GoogleFonts.kanit(color: Colors.grey),
                       filled: true,
                       fillColor: Colors.black,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     maxLines: 2,
                   ),
@@ -311,21 +334,28 @@ class CustomSidebar extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('ข้าม', style: GoogleFonts.kanit(color: Colors.grey)),
+                  child: Text('ข้าม',
+                      style: GoogleFonts.kanit(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     // Logic: Submit Rating to Backend (implied)
-                    
+
                     // Archive/Delete request from view as requested
                     RepairRepository.instance.deleteRequest(item.id);
-                    
+
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(content: Text('ขอบคุณสำหรับการประเมินครับ! 🙏 รายการถูกย้ายไปที่ประวัติแล้ว', style: GoogleFonts.kanit()), backgroundColor: Colors.green),
+                      SnackBar(
+                          content: Text(
+                              'ขอบคุณสำหรับการประเมินครับ! 🙏 รายการถูกย้ายไปที่ประวัติแล้ว',
+                              style: GoogleFonts.kanit()),
+                          backgroundColor: Colors.green),
                     );
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white),
                   child: Text('ส่งประเมิน', style: GoogleFonts.kanit()),
                 ),
               ],
@@ -346,15 +376,18 @@ class CustomSidebar extends StatelessWidget {
         return AlertDialog(
           backgroundColor: const Color(0xFF151515),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.red),
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.red),
           ),
-          title: Text('รายการถูกปฏิเสธ', style: GoogleFonts.kanit(color: Colors.red)),
+          title: Text('รายการถูกปฏิเสธ',
+              style: GoogleFonts.kanit(color: Colors.red)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('เหตุผลจากนิติบุคคล:', style: GoogleFonts.kanit(color: Colors.white70, fontWeight: FontWeight.bold)),
+              Text('เหตุผลจากนิติบุคคล:',
+                  style: GoogleFonts.kanit(
+                      color: Colors.white70, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -378,7 +411,8 @@ class CustomSidebar extends StatelessWidget {
                 RepairRepository.instance.deleteRequest(item.id);
                 Navigator.pop(context);
               },
-              child: Text('ลบรายการ', style: GoogleFonts.kanit(color: Colors.red)),
+              child:
+                  Text('ลบรายการ', style: GoogleFonts.kanit(color: Colors.red)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -387,7 +421,8 @@ class CustomSidebar extends StatelessWidget {
 
                 _showEditDialog(context, item);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white, foregroundColor: Colors.black),
               child: Text('แก้ไขแล้วส่งใหม่', style: GoogleFonts.kanit()),
             ),
           ],
@@ -399,7 +434,7 @@ class CustomSidebar extends StatelessWidget {
   void _showRepairOptions(BuildContext context, RepairRequest item) {
     onDialogVisibilityChanged?.call(true); // Notify open
     bool transitioningToEdit = false; // Track if going to edit dialog
-    
+
     showDialog(
       context: context,
       barrierDismissible: true, // Allow click outside to close
@@ -407,30 +442,34 @@ class CustomSidebar extends StatelessWidget {
         return AlertDialog(
           backgroundColor: const Color(0xFF151515),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Color(0xFFC5A059)),
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFC5A059)),
           ),
-          title: Text('จัดการรายการ: ${item.title}', style: GoogleFonts.kanit(color: const Color(0xFFC5A059))),
+          title: Text('จัดการรายการ: ${item.title}',
+              style: GoogleFonts.kanit(color: const Color(0xFFC5A059))),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-               ListTile(
-                 leading: const Icon(Icons.edit, color: Colors.blue),
-                 title: Text('แก้ไขรายละเอียด', style: GoogleFonts.kanit(color: Colors.white)),
-                 onTap: () {
-                   transitioningToEdit = true; // Mark as transitioning
-                   Navigator.pop(context); // Close options dialog
-                   _showEditDialog(context, item); // Open Edit Dialog (will call onDialogVisibilityChanged(true))
-                 },
-               ),
-               ListTile(
-                 leading: const Icon(Icons.delete, color: Colors.red),
-                 title: Text('ยกเลิกรายการนี้', style: GoogleFonts.kanit(color: Colors.white)),
-                 onTap: () {
-                   Navigator.pop(context);
-                   _showSidebarCancelConfirmation(context, item);
-                 },
-               ),
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.blue),
+                title: Text('แก้ไขรายละเอียด',
+                    style: GoogleFonts.kanit(color: Colors.white)),
+                onTap: () {
+                  transitioningToEdit = true; // Mark as transitioning
+                  Navigator.pop(context); // Close options dialog
+                  _showEditDialog(context,
+                      item); // Open Edit Dialog (will call onDialogVisibilityChanged(true))
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: Text('ยกเลิกรายการนี้',
+                    style: GoogleFonts.kanit(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSidebarCancelConfirmation(context, item);
+                },
+              ),
             ],
           ),
         );
@@ -445,9 +484,10 @@ class CustomSidebar extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, RepairRequest item) {
     onDialogVisibilityChanged?.call(true);
-    
+
     // Local controllers for editing
-    TextEditingController editDescController = TextEditingController(text: item.title);
+    TextEditingController editDescController =
+        TextEditingController(text: item.title);
     // Parse date string (d/m/year_thai) to DateTime
     List<String> parts = item.date.split('/');
     DateTime editDate = DateTime.now();
@@ -459,18 +499,18 @@ class CustomSidebar extends StatelessWidget {
     }
 
     showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
+        context: context,
+        barrierDismissible: true,
+        builder: (context) {
+          return StatefulBuilder(builder: (context, setStateDialog) {
             return AlertDialog(
               backgroundColor: const Color(0xFF151515),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: const BorderSide(color: Color(0xFFC5A059), width: 1),
               ),
-              title: Text('แก้ไขรายการ', style: GoogleFonts.kanit(color: const Color(0xFFC5A059))),
+              title: Text('แก้ไขรายการ',
+                  style: GoogleFonts.kanit(color: const Color(0xFFC5A059))),
               content: SizedBox(
                 width: 400,
                 child: Column(
@@ -486,8 +526,12 @@ class CustomSidebar extends StatelessWidget {
                         labelStyle: GoogleFonts.kanit(color: Colors.grey),
                         filled: true,
                         fillColor: Colors.black,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFC5A059))),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFC5A059))),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -507,7 +551,9 @@ class CustomSidebar extends StatelessWidget {
                                   onPrimary: Colors.black,
                                   surface: Color(0xFF151515),
                                   onSurface: Colors.white,
-                                ), dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF151515)),
+                                ),
+                                dialogTheme: const DialogThemeData(
+                                    backgroundColor: Color(0xFF151515)),
                               ),
                               child: child!,
                             );
@@ -520,7 +566,8 @@ class CustomSidebar extends StatelessWidget {
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.black,
                           borderRadius: BorderRadius.circular(10),
@@ -528,14 +575,17 @@ class CustomSidebar extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_month, color: Color(0xFFC5A059), size: 24),
+                            const Icon(Icons.calendar_month,
+                                color: Color(0xFFC5A059), size: 24),
                             const SizedBox(width: 12),
                             Text(
                               "${editDate.day}/${editDate.month}/${editDate.year + 543}",
-                              style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
+                              style: GoogleFonts.kanit(
+                                  color: Colors.white, fontSize: 14),
                             ),
                             const Spacer(),
-                            const Icon(Icons.edit, color: Colors.grey, size: 16),
+                            const Icon(Icons.edit,
+                                color: Colors.grey, size: 16),
                           ],
                         ),
                       ),
@@ -546,37 +596,45 @@ class CustomSidebar extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('ยกเลิก', style: GoogleFonts.kanit(color: Colors.grey)),
+                  child: Text('ยกเลิก',
+                      style: GoogleFonts.kanit(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     // Update Logic
                     final updated = RepairRequest(
-                        id: item.id,
-                        title: editDescController.text,
-                        description: item.description,
-                        date: "${editDate.day}/${editDate.month}/${editDate.year + 543}",
-                        status: item.status,
-                        statusColor: item.statusColor,
-                        imagePaths: item.imagePaths,
+                      id: item.id,
+                      title: editDescController.text,
+                      description: item.description,
+                      date:
+                          "${editDate.day}/${editDate.month}/${editDate.year + 543}",
+                      status: item.status,
+                      statusColor: item.statusColor,
+                      imagePaths: item.imagePaths,
                     );
                     RepairRepository.instance.updateRequest(updated);
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(content: Text('บันทึกการแก้ไขเรียบร้อย', style: GoogleFonts.kanit()), backgroundColor: const Color(0xFFC5A059)),
+                      SnackBar(
+                          content: Text('บันทึกการแก้ไขเรียบร้อย',
+                              style: GoogleFonts.kanit()),
+                          backgroundColor: const Color(0xFFC5A059)),
                     );
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A059), foregroundColor: Colors.black),
-                  child: Text('บันทึก', style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFC5A059),
+                      foregroundColor: Colors.black),
+                  child: Text('บันทึก',
+                      style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
-          }
-        );
-      }
-    ).then((_) => onDialogVisibilityChanged?.call(false));
+          });
+        }).then((_) => onDialogVisibilityChanged?.call(false));
   }
-  void _showSidebarCancelConfirmation(BuildContext context, RepairRequest item) {
+
+  void _showSidebarCancelConfirmation(
+      BuildContext context, RepairRequest item) {
     onDialogVisibilityChanged?.call(true);
     showDialog(
       context: context,
@@ -584,26 +642,36 @@ class CustomSidebar extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF151515),
         shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.redAccent),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.redAccent),
         ),
-        title: Text('Confirm Cancellation?', style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to retract this repair request?', style: GoogleFonts.kanit(color: Colors.white60)),
+        title: Text('Confirm Cancellation?',
+            style: GoogleFonts.kanit(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to retract this repair request?',
+            style: GoogleFonts.kanit(color: Colors.white60)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('GO BACK', style: GoogleFonts.kanit(color: Colors.white24)),
+            child: Text('GO BACK',
+                style: GoogleFonts.kanit(color: Colors.white24)),
           ),
           ElevatedButton(
             onPressed: () {
               RepairRepository.instance.deleteRequest(item.id);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Request cancelled successfully', style: GoogleFonts.kanit()), backgroundColor: Colors.redAccent),
+                SnackBar(
+                    content: Text('Request cancelled successfully',
+                        style: GoogleFonts.kanit()),
+                    backgroundColor: Colors.redAccent),
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent.withOpacity(0.8), foregroundColor: Colors.white),
-            child: Text('CONFIRM', style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.8),
+                foregroundColor: Colors.white),
+            child: Text('CONFIRM',
+                style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

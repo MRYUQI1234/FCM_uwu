@@ -18,11 +18,13 @@ import authRouter from "./routes/auth.routes";
 import devRouter from "./routes/dev.routes";
 import repairRouter from "./routes/repair.routes";
 import chatRouter from "./routes/chat.routes"; // Added Chat Router
+import uploadRouter from "./routes/upload.routes"; // Added Upload Router
 
 app.use("/api/auth", authRouter);
 app.use("/api/dev", devRouter);
 app.use("/api/repair", repairRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/upload", uploadRouter);
 
 
 // Simple health check
