@@ -425,7 +425,7 @@ class _LoginScreenState extends State<LoginScreen>
                 child: ModelViewer(
                   key: const ValueKey('fcm_house_vivorn'),
                   backgroundColor: Colors.transparent,
-                  src: 'assets/models/Vivorn7.8.glb',
+                  src: 'https://pub-5833e74343ce47749743badfb0438a50.r2.dev/Vivorn7.8.glb',
                   alt: 'Vivorn Smart House',
                   autoRotate: true,
                   autoPlay: true,

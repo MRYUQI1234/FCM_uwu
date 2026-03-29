@@ -225,7 +225,7 @@ class RepairRepository {
   static final RepairRepository instance = RepairRepository._internal();
   RepairRepository._internal();
 
-  final String _baseUrl = 'http://localhost:3000/api';
+  final String _baseUrl = 'https://abundantly-unsaturated-hayes.ngrok-free.dev/api';
 
   // ── Personnel Registration ──
   Future<bool> registerStaff(Map<String, dynamic> staffData) async {
@@ -238,6 +238,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode(staffData),
       );
@@ -261,6 +262,7 @@ class RepairRepository {
       );
 
       request.headers['Authorization'] = 'Bearer $token';
+      request.headers['ngrok-skip-browser-warning'] = '69420';
 
       final extension = fileName.split('.').last.toLowerCase();
 
@@ -299,6 +301,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode(staffData),
       );
@@ -321,6 +324,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
       );
 
@@ -346,6 +350,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
       );
 
@@ -530,6 +535,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode({
           "request": {"tasks": tasks}
@@ -617,6 +623,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode({
           'staff_names': staffNames,
@@ -650,6 +657,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode({
           'reason': reason,
@@ -689,6 +697,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: json.encode({
           'status': status == 'BEGAN' ? 'InProgress' : 'Completed',
@@ -720,6 +729,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: json.encode({
           'status': status,
@@ -773,6 +783,7 @@ class RepairRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode({
           'request_id': requestId,

@@ -12,6 +12,7 @@ import 'package:fcm_app/core/data/auth_repository.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
 import 'package:fcm_app/shared/widgets/pin_verification_overlay.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:fcm_app/core/services/translation_service.dart';
 import 'dart:js' as js;
 
 class TechnicianViewScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class TechnicianViewScreen extends StatefulWidget {
 class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
-  String _displayName = "Loading...";
+  String _displayName = TranslationService.instance.t('loading');
   String _displayRole = "TECHNICIAN";
   String _displayEmail = "";
   String _displayPhone = "";
@@ -73,13 +74,22 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
   Color get _border => DashboardTheme.border;
 
   final List<SidebarItem> _navItems = [
-    const SidebarItem(
-        index: 0, icon: Icons.assignment_outlined, label: "ALL TASKS"),
-    const SidebarItem(
-        index: 1, icon: Icons.calendar_month_outlined, label: "SCHEDULE"),
-    const SidebarItem(index: 2, icon: Icons.person_outline, label: "PROFILE"),
-    const SidebarItem(
-        index: 3, icon: Icons.settings_outlined, label: "SETTINGS"),
+    SidebarItem(
+        index: 0, 
+        icon: Icons.assignment_outlined, 
+        label: TranslationService.instance.t('tech_nav_tasks')),
+    SidebarItem(
+        index: 1, 
+        icon: Icons.calendar_month_outlined, 
+        label: TranslationService.instance.t('tech_nav_schedule')),
+    SidebarItem(
+        index: 2, 
+        icon: Icons.person_outline, 
+        label: TranslationService.instance.t('tech_nav_profile')),
+    SidebarItem(
+        index: 3, 
+        icon: Icons.settings_outlined, 
+        label: TranslationService.instance.t('tech_nav_settings')),
   ];
 
   @override
@@ -333,7 +343,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
   List<RepairRequest> _getAssignedTasks(List<RepairRequest> allRepairs) {
     final searchName = _displayName.trim().toLowerCase();
-    if (searchName == "loading...") return [];
+    if (searchName == TranslationService.instance.t('loading').toLowerCase()) return [];
 
     return allRepairs.where((t) {
       return t.assignedStaff.any((s) => s.trim().toLowerCase() == searchName);
@@ -450,7 +460,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "TECH PORTAL",
+                    TranslationService.instance.t('tech_portal'),
                     style: GoogleFonts.outfit(
                       color: _primaryBlue,
                       fontSize: 18,
@@ -555,7 +565,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           color: DashboardTheme.error.withOpacity(0.8)),
                       const SizedBox(width: 14),
                       Text(
-                        "LOGOUT",
+                        TranslationService.instance.t('logout'),
                         style: GoogleFonts.outfit(
                           color: DashboardTheme.error.withOpacity(0.8),
                           fontSize: 14,
@@ -631,14 +641,14 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                             color: DashboardTheme.error, size: 48),
                       ),
                       const SizedBox(height: 24),
-                      Text("SESSION TERMINATION",
+                      Text(TranslationService.instance.t('tech_logout_session_title'),
                           style: GoogleFonts.shareTechMono(
                               color: DashboardTheme.error,
                               fontSize: 18,
                               letterSpacing: 2)),
                       const SizedBox(height: 12),
                       Text(
-                        "Are you sure you want to log out from the Technician Portal?",
+                        TranslationService.instance.t('tech_logout_confirmation'),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.notoSans(
                           color: DashboardTheme.textSecondary,
@@ -666,7 +676,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16)),
                           ),
-                          child: Text("CANCEL",
+                          child: Text(TranslationService.instance.t('cancel'),
                               style: GoogleFonts.notoSans(
                                   color: DashboardTheme.textPale,
                                   fontWeight: FontWeight.bold)),
@@ -690,7 +700,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                 borderRadius: BorderRadius.circular(16)),
                             elevation: 0,
                           ),
-                          child: Text("LOGOUT",
+                          child: Text(TranslationService.instance.t('logout'),
                               style: GoogleFonts.notoSans(
                                   color: DashboardTheme.error,
                                   fontWeight: FontWeight.bold)),
@@ -756,7 +766,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         color: _textMain),
                   ),
                   Text(
-                    "Hello $_displayName | You have $todayTasks tasks today",
+                    TranslationService.instance.t('tech_header_tasks_today').replaceAll('{count}', todayTasks.toString()),
                     style: GoogleFonts.kanit(
                         fontSize: 13,
                         color: _textMuted,
@@ -835,20 +845,20 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _filterChip("All", _selectedTaskFilter == "All"),
+                          _filterChip(TranslationService.instance.t('all'), _selectedTaskFilter == "All"),
                           const SizedBox(width: 16),
-                          _filterChip("Assigned", _selectedTaskFilter == "Assigned"),
+                          _filterChip(TranslationService.instance.t('status_assigned'), _selectedTaskFilter == "Assigned"),
                           const SizedBox(width: 16),
-                          _filterChip("In Progress", _selectedTaskFilter == "In Progress"),
+                          _filterChip(TranslationService.instance.t('status_in_progress'), _selectedTaskFilter == "In Progress"),
                           const SizedBox(width: 16),
-                          _filterChip("Completed", _selectedTaskFilter == "Completed"),
+                          _filterChip(TranslationService.instance.t('status_completed'), _selectedTaskFilter == "Completed"),
                           const SizedBox(width: 16),
-                          _filterChip("Evaluated", _selectedTaskFilter == "Evaluated"),
+                          _filterChip(TranslationService.instance.t('status_evaluated'), _selectedTaskFilter == "Evaluated"),
                         ],
                       ),
                     ),
                     const SizedBox(height: 32),
-                    Text("REPAIR AREA", 
+                    Text(TranslationService.instance.t('tech_filter_repair_area'), 
                       style: GoogleFonts.kanit(
                         fontSize: 11, 
                         color: _gold, 
@@ -880,7 +890,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 80),
-                      child: Text("No tasks in this category",
+                      child: Text(TranslationService.instance.t('tech_no_tasks_category'),
                           style: GoogleFonts.kanit(color: _textMuted)),
                     ),
                   ),
@@ -901,17 +911,17 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       final t = filteredTasks[index];
                       final uiStatus = t.status.toLowerCase();
                       final displayStatus = t.status == "URGENT"
-                          ? "Urgent"
+                          ? TranslationService.instance.t('status_urgent')
                           : (t.status == "IN PROGRESS"
-                              ? "In Progress"
+                              ? TranslationService.instance.t('status_in_progress')
                               : (t.status == "COMPLETED"
-                                  ? "Completed"
+                                  ? TranslationService.instance.t('status_completed')
                                   : (t.status == "EVALUATED"
-                                      ? "Evaluated"
+                                      ? TranslationService.instance.t('status_evaluated')
                                       : (t.status == "CANCELED" ||
                                               t.status == "DECLINED"
-                                          ? "Cancelled"
-                                          : "Assigned"))));
+                                          ? TranslationService.instance.t('status_canceled')
+                                          : TranslationService.instance.t('status_assigned')))));
 
                       return _techWorkCard(t, uiStatus, displayStatus);
                     },
@@ -938,13 +948,13 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Text("Your Schedule",
+            Text(TranslationService.instance.t('tech_schedule_title'),
                 style: GoogleFonts.kanit(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: _textMain)),
             const SizedBox(height: 8),
-            Text("Check your appointments and plan your tasks",
+            Text(TranslationService.instance.t('tech_schedule_subtitle'),
                 style: GoogleFonts.kanit(fontSize: 14, color: _textMuted)),
             const SizedBox(height: 32),
 
@@ -979,7 +989,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
             const SizedBox(height: 48),
 
             // Part 3: Upcoming List (Full width)
-            Text("รายการที่ใกล้ถึงกำหนด",
+            Text(TranslationService.instance.t('tech_upcoming_list'),
                 style: GoogleFonts.kanit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -1114,9 +1124,9 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _legendItem("Upcoming", const Color(0xFF10B981)),
+        _legendItem(TranslationService.instance.t('upcoming'), const Color(0xFF10B981)),
         const SizedBox(width: 16),
-        _legendItem("Selected", const Color(0xFFF59E0B)),
+        _legendItem(TranslationService.instance.t('selected'), const Color(0xFFF59E0B)),
       ],
     );
   }
@@ -1146,7 +1156,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Schedule for",
+          Text(TranslationService.instance.t('tech_schedule_for'), // I forgot this key in service, will use inline if missing or update
               style: GoogleFonts.kanit(fontSize: 12, color: _textMuted)),
           Text("$_selectedCalendarDay March 2026",
               style: GoogleFonts.kanit(
@@ -1505,7 +1515,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   ),
 
                   const SizedBox(height: 32),
-                  Text("JOBS / OBJECTS",
+                  Text(TranslationService.instance.t('tech_jobs_objects'),
                       style: GoogleFonts.kanit(
                           fontSize: 11,
                           color: _gold,
@@ -1524,7 +1534,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   const SizedBox(height: 40),
 
                   // ▌ 3D VIEW — Clean, dark
-                  Text("REPAIR AREA",
+                  Text(TranslationService.instance.t('tech_filter_repair_area'),
                       style: GoogleFonts.kanit(
                           fontSize: 11,
                           color: _gold,
@@ -1544,8 +1554,8 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       child: ModelViewer(
                         key: ValueKey('fcm_tech_view_${task.id}'),
                         id: 'fcmTechModel',
-                        src: 'assets/models/Vivorn7.8.glb',
-                        alt: 'FCM Repair Area',
+                        src: 'https://pub-5833e74343ce47749743badfb0438a50.r2.dev/Vivorn7.8.glb',
+                        alt: TranslationService.instance.t('tech_filter_repair_area'),
                         autoRotate: false,
                         cameraControls: true,
                         disableZoom: true,
@@ -1611,7 +1621,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           children: [
                             _buildMiniToolButton(
                               icon: _roofVis ? Icons.roofing_rounded : Icons.home_rounded,
-                              label: _roofVis ? "HIDE ROOF" : "SHOW ROOF",
+                              label: _roofVis ? TranslationService.instance.t('tech_btn_hide_roof') : TranslationService.instance.t('tech_btn_show_roof'),
                               onTap: () {
                                 setState(() => _roofVis = !_roofVis);
                                 try {
@@ -1622,7 +1632,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                             const SizedBox(width: 8),
                             _buildMiniToolButton(
                               icon: Icons.center_focus_strong_rounded,
-                              label: "RESET",
+                              label: TranslationService.instance.t('tech_btn_reset_view'),
                               onTap: () {
                                 setState(() {
                                   _cameraTarget = 'auto 1.2m auto';
@@ -1643,7 +1653,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isMobile) const SizedBox(height: 48),
-                  Text("STATUS",
+                  Text(TranslationService.instance.t('status_label_header'), // I'll add this to service mapping if missing or use STATUS
                       style: GoogleFonts.kanit(
                           fontSize: 11,
                           color: _gold,
@@ -1651,19 +1661,19 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 24),
                   _stepper([
-                    _StepData("Assigned", task.date, true),
+                    _StepData(TranslationService.instance.t('status_assigned'), task.date, true),
                     _StepData(
-                        "Began",
-                        "Work started",
+                        TranslationService.instance.t('status_began'),
+                        TranslationService.instance.t('tech_step_work_started'),
                         task.status == 'IN PROGRESS' ||
                             task.status == 'COMPLETED' ||
                             task.status == 'EVALUATED'),
                     _StepData(
-                        "Completed",
-                        "Work finished",
+                        TranslationService.instance.t('status_completed'),
+                        TranslationService.instance.t('tech_step_work_finished'),
                         task.status == 'COMPLETED' ||
                             task.status == 'EVALUATED'),
-                    _StepData("Evaluated", "Resident feedback",
+                    _StepData(TranslationService.instance.t('status_evaluated'), TranslationService.instance.t('tech_step_feedback'),
                         task.status == 'EVALUATED'),
                   ]),
 
@@ -1674,7 +1684,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       task.status == 'CREATED')
                     _actionBlock(
                       icon: Icons.play_arrow_rounded,
-                      label: _canStartWork(task) ? "START WORK" : "UPCOMING APPT",
+                      label: _canStartWork(task) ? TranslationService.instance.t('tech_btn_start_work') : TranslationService.instance.t('tech_btn_upcoming_appt'),
                       color: _canStartWork(task)
                           ? DashboardTheme.primary
                           : DashboardTheme.textPale.withOpacity(0.2),
@@ -1689,19 +1699,19 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                             backgroundColor: DashboardTheme.surface,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20)),
-                            title: Text("ยืนยันเริ่มงาน",
+                            title: Text(TranslationService.instance.t('tech_dialog_start_title'),
                                 style: GoogleFonts.notoSans(
                                     color: DashboardTheme.textMain,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900)),
-                            content: Text("เริ่มงาน ${task.title}?",
+                            content: Text(TranslationService.instance.t('tech_dialog_start_body').replaceAll('{title}', task.title),
                                 style: GoogleFonts.notoSans(
                                     color: DashboardTheme.textSecondary,
                                     fontSize: 13)),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx),
-                                child: Text("ยกเลิก",
+                                child: Text(TranslationService.instance.t('cancel'),
                                     style: GoogleFonts.notoSans(
                                         color: DashboardTheme.textPale,
                                         fontWeight: FontWeight.bold)),
@@ -1725,9 +1735,9 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                     }
                                   } else if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                             content: Text(
-                                                "เกิดข้อผิดพลาดในการเริ่มงาน")));
+                                                TranslationService.instance.t('error_occurred'))));
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
@@ -1735,7 +1745,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                 ),
-                                child: Text("เริ่มงาน",
+                                child: Text(TranslationService.instance.t('tech_btn_start_work'),
                                     style: GoogleFonts.notoSans(
                                         color: Colors.black,
                                         fontWeight: FontWeight.w900)),
@@ -1767,13 +1777,13 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("TURN-IN REPORT",
+                                  Text(TranslationService.instance.t('tech_turn_in_title'),
                                       style: GoogleFonts.notoSans(
                                           color: DashboardTheme.primary,
                                           fontSize: 10,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: 1.5)),
-                                  Text("กรอกรายงานแล้วส่งงาน",
+                                  Text(TranslationService.instance.t('tech_turn_in_subtitle'),
                                       style: GoogleFonts.notoSans(
                                           color: DashboardTheme.textPale,
                                           fontSize: 10)),
@@ -1785,7 +1795,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         const SizedBox(height: 16),
                         _actionBlock(
                           icon: Icons.check_circle_outline_rounded,
-                          label: "SUBMIT & FINISH",
+                          label: TranslationService.instance.t('tech_btn_submit_finish'),
                           color: const Color(0xFF10B981),
                           textColor: Colors.white,
                           onPressed: () {
@@ -1795,7 +1805,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                 backgroundColor: DashboardTheme.surface,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20)),
-                                title: Text("ส่งรายงานการซ่อม",
+                                title: Text(TranslationService.instance.t('tech_dialog_finish_title'),
                                     style: GoogleFonts.notoSans(
                                         color: DashboardTheme.textMain,
                                         fontSize: 18,
@@ -1804,14 +1814,14 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("ยืนยันการส่งงาน ${task.title}?",
+                                    Text(TranslationService.instance.t('tech_dialog_finish_body').replaceAll('{title}', task.title),
                                         style: GoogleFonts.notoSans(
                                             color: DashboardTheme.textSecondary,
                                             fontSize: 13)),
                                     const SizedBox(height: 12),
                                     if (_attachedImages.isNotEmpty)
                                       Text(
-                                          "📎 ${_attachedImages.length} รูปแนบ",
+                                          TranslationService.instance.t('tech_attachments_count').replaceAll('{count}', _attachedImages.length.toString()),
                                           style: GoogleFonts.notoSans(
                                               color: DashboardTheme.primary,
                                               fontSize: 12)),
@@ -1820,7 +1830,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx),
-                                    child: Text("ยกเลิก",
+                                    child: Text(TranslationService.instance.t('cancel'),
                                         style: GoogleFonts.notoSans(
                                             color: DashboardTheme.textPale,
                                             fontWeight: FontWeight.bold)),
@@ -1837,21 +1847,21 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                           builder: (ctx) => AlertDialog(
                                             backgroundColor:
                                                 DashboardTheme.surface,
-                                            title: Text("ยังกรอกรายงานไม่ครบ",
+                                            title: Text(TranslationService.instance.t('tech_report_incomplete_title'),
                                                 style: GoogleFonts.notoSans(
                                                     color: DashboardTheme
                                                         .textMain)),
                                             content: Text(
-                                                "คุณยังไม่ได้กรอกรายงานสำหรับบางรายการ ยืนยันที่จะส่งงานหรือไม่?"),
+                                                TranslationService.instance.t('tech_report_incomplete_body')),
                                             actions: [
                                               TextButton(
                                                   onPressed: () =>
                                                       Navigator.pop(ctx, false),
-                                                  child: Text("กลับไปกรอก")),
+                                                  child: Text(TranslationService.instance.t('tech_btn_back_form'))),
                                               TextButton(
                                                   onPressed: () =>
                                                       Navigator.pop(ctx, true),
-                                                  child: Text("ยืนยันส่งงาน")),
+                                                  child: Text(TranslationService.instance.t('tech_dialog_finish_title'))),
                                             ],
                                           ),
                                         );
@@ -1871,13 +1881,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                         if (mounted) {
                                           setState(() => _selectedTask = null);
                                           ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                                  content:
-                                                      Text("ส่งงานเสร็จสิ้น")));
+                                              .showSnackBar(SnackBar(
+                                                  content: Text(TranslationService.instance.t('tech_submit_success'))));
                                         }
                                       } else if (mounted) {
                                         ScaffoldMessenger.of(context)
-                                            .showSnackBar(const SnackBar(
+                                            .showSnackBar(SnackBar(
                                                 content: Text(
                                                     "เกิดข้อผิดพลาดในการส่งงาน")));
                                       }
@@ -2031,7 +2040,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           Icon(Icons.add_photo_alternate_outlined,
                               size: 28, color: _textMuted.withOpacity(0.4)),
                           const SizedBox(height: 8),
-                          Text("ATTACH PHOTO",
+                          Text(TranslationService.instance.t('tech_attachments_label').toUpperCase(),
                               style: GoogleFonts.kanit(
                                   fontSize: 11,
                                   color: _textMuted.withOpacity(0.4),

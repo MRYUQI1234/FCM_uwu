@@ -920,7 +920,7 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
             child: ModelViewer(
               key: const ValueKey('fcm_v16_full'),
               id: 'fcmHouseModel',
-              src: 'assets/models/Vivorn7.8.glb',
+              src: 'https://pub-5833e74343ce47749743badfb0438a50.r2.dev/Vivorn7.8.glb',
               alt: 'FCM House Model',
               autoRotate: false,
               cameraControls: true,

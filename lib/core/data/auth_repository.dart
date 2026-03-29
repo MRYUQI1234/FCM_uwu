@@ -8,7 +8,7 @@ class AuthRepository {
   AuthRepository._internal();
 
   // Local Backend URL
-  final String baseUrl = 'http://localhost:3000/api';
+  final String baseUrl = 'https://abundantly-unsaturated-hayes.ngrok-free.dev/api';
 
   // --- Auth Methods ---
 
@@ -18,7 +18,10 @@ class AuthRepository {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '69420',
+        },
         body: jsonEncode({
           'email': email,
           'password': password,
@@ -74,7 +77,10 @@ class AuthRepository {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/register'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '69420',
+        },
         body: jsonEncode({
           'national_id': nationalId,
           'email': email,
@@ -116,6 +122,7 @@ class AuthRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode({
           'pin': pin,
@@ -145,6 +152,7 @@ class AuthRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode({'pin': pin}),
       );
@@ -188,6 +196,7 @@ class AuthRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
       );
 
@@ -215,6 +224,7 @@ class AuthRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
       );
 
@@ -246,6 +256,7 @@ class AuthRepository {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'ngrok-skip-browser-warning': '69420',
         },
         body: jsonEncode(data),
       );
@@ -269,7 +280,10 @@ class AuthRepository {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '69420',
+        },
         body: jsonEncode({'email': email}),
       );
 

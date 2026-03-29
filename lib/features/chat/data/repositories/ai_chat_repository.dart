@@ -12,7 +12,7 @@ class AIChatRepository {
   static final AIChatRepository instance = AIChatRepository._internal();
   AIChatRepository._internal();
 
-  final String baseUrl = 'http://localhost:3000/api/chat';
+  final String baseUrl = 'https://abundantly-unsaturated-hayes.ngrok-free.dev/api/chat';
 
   // Persistent pending tasks for the confirmation overlay
   final ValueNotifier<Map<String, dynamic>?> pendingRequestDataNotifier =
@@ -71,6 +71,7 @@ class AIChatRepository {
     final token = await _getToken();
     return {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': '69420',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -215,7 +216,7 @@ class AIChatRepository {
       };
 
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/repair/confirm'),
+        Uri.parse('https://abundantly-unsaturated-hayes.ngrok-free.dev/api/repair/confirm'),
         headers: headers,
         body: jsonEncode(body),
       );

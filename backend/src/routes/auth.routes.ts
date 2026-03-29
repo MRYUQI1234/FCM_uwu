@@ -7,6 +7,7 @@ const authRouter = Router();
 authRouter.post("/register", AuthController.register);
 authRouter.post("/login", AuthController.login);
 authRouter.post("/forgot-password", AuthController.forgotPassword);
+authRouter.get("/reset-password", AuthController.redirectReset); // URL REDIRECT FROM EMAIL
 authRouter.post("/reset-password", AuthController.resetPassword);
 
 // Setup PIN requires user to be logged in and possessing a valid JWT token
