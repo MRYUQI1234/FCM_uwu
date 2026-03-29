@@ -50,7 +50,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
-      Navigator.pushReplacementNamed(context, widget.targetRoute);
+      if (widget.targetRoute.isEmpty) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pushReplacementNamed(context, widget.targetRoute);
+      }
     } else {
       setState(() {
         _loading = false;

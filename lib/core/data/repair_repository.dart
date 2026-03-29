@@ -15,6 +15,7 @@ class RepairTask {
   final String? afterRepairImageUrl;
   final DateTime? preferDate;
   final String? objectName;
+  final String? objectId; // Added this
   final String? category;
   final double laborFee;
   final double partFee;
@@ -29,6 +30,7 @@ class RepairTask {
     this.afterRepairImageUrl,
     this.preferDate,
     this.objectName,
+    this.objectId, // Added this
     this.category,
     this.laborFee = 0.0,
     this.partFee = 0.0,
@@ -49,6 +51,7 @@ class RepairTask {
           ? DateTime.tryParse(json['prefer_date'].toString())
           : null,
       objectName: json['object_name']?.toString(),
+      objectId: json['object_id']?.toString(), // Added this
       category: json['category']?.toString(),
       laborFee: (json['labor_fee'] ?? 0.0).toDouble(),
       partFee: (json['part_fee'] ?? 0.0).toDouble(),
@@ -452,6 +455,8 @@ class RepairRepository {
               assignedStaff: List<String>.from(r['assignedStaff'] ?? []),
               techReport: allReports.isNotEmpty ? allReports : null,
               techReportPhotos: allPhotos,
+              rejectionReason: r['rejection_reason']?.toString(),
+              rejectionTemplate: r['rejection_template']?.toString(),
             );
           }).toList();
 

@@ -1,16 +1,14 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 export class EmailService {
-    private static transporter = nodemailer.createTransport({
-        // Default to a common setup, but allow overrides via env
-        host: process.env.EMAIL_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.EMAIL_PORT || "587"),
-        secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
-        auth: {
-            user: process.env.EMAIL_USER, // Your email
-            pass: process.env.EMAIL_PASS, // Your password or app-specific password
-        },
-    });
+    // Lazy initialization — avoids crash at startup if RESEND_API_KEY is not yet loaded
+    private static _resend: Resend | null = null;
+    private static get resend(): Resend {
+        if (!this._resend) {
+            this._resend = new Resend(process.env.RESEND_API_KEY);
+        }
+        return this._resend;
+    }
 
     /**
      * Sends a password reset email to the user.
@@ -20,19 +18,18 @@ export class EmailService {
     static async sendResetPasswordEmail(email: string, resetLink: string): Promise<boolean> {
         console.log(`[FCM EmailService] Preparing to send reset email to: ${email}`);
 
-        // Check if credentials are set
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-            console.warn("[FCM EmailService] EMAIL_USER or EMAIL_PASS not set in .env. Falling back to console log.");
-            console.log(`[REAL EMAIL MOCK] To: ${email}\nSubject: Reset Your Password\nLink: ${resetLink}`);
+        // Development fallback: if no API key, log mock data
+        if (!process.env.RESEND_API_KEY) {
+            console.warn("[FCM EmailService] RESEND_API_KEY not set in .env. Falling back to console log.");
+            console.log(`[REAL EMAIL MOCK] To: ${email}\nSubject: FCM System - Reset Your Password\nLink: ${resetLink}`);
             return true; // Simulate success for development
         }
 
         try {
-            const info = await this.transporter.sendMail({
-                from: `"FCM Support" <${process.env.EMAIL_USER}>`,
+            const { data, error } = await this.resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL || "FCM Support <onboarding@resend.dev>",
                 to: email,
                 subject: "FCM System - Reset Your Password",
-                text: `You requested a password reset. Please use the following link to reset your password: ${resetLink}\n\nIf you did not request this, please ignore this email.`,
                 html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 12px;">
             <h2 style="color: #C5A059;">FCM System</h2>
@@ -49,7 +46,12 @@ export class EmailService {
         `,
             });
 
-            console.log(`[FCM EmailService] Email sent successfully: ${info.messageId}`);
+            if (error) {
+                console.error("[FCM EmailService] Resend API error:", error);
+                return false;
+            }
+
+            console.log(`[FCM EmailService] Email sent successfully. ID: ${data?.id}`);
             return true;
         } catch (error) {
             console.error("[FCM EmailService] Failed to send email:", error);

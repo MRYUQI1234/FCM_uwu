@@ -566,10 +566,6 @@ class _TasksViewState extends State<TasksView> {
       mappedStatus = "EVALUATED";
     else if (task.status == "COMPLETED")
       mappedStatus = "DONE";
-    else if (task.status == "URGENT" ||
-        task.isEmergency ||
-        task.tasks.any((t) => t.urgency.toUpperCase() == "URGENT"))
-      mappedStatus = "URGENT";
     else if (task.status == "IN PROGRESS")
       mappedStatus = "WORKING";
     else if (task.status == "CREATED")
@@ -619,10 +615,11 @@ class _TasksViewState extends State<TasksView> {
 
     final bool isInteractive = status == "CREATED" ||
         status == "PENDING" ||
-        status == "URGENT" ||
         status == "ASSIGNED" ||
         status == "DONE" ||
-        status == "EVALUATED";
+        status == "EVALUATED" ||
+        status == "DECLINED" ||
+        status == "DENIED";
 
     return Material(
       color: Colors.transparent,
@@ -799,198 +796,6 @@ class _TasksViewState extends State<TasksView> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // ── Team Preset Dialogs ──
-
-  void _showPresetMembersDialog(TeamPreset preset) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DashboardTheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(preset.icon, color: DashboardTheme.primary, size: 22),
-            const SizedBox(width: 10),
-            Text(preset.name,
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textMain,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900)),
-            const Spacer(),
-            IconButton(
-              icon: Icon(Icons.delete_outline_rounded,
-                  color: DashboardTheme.error.withOpacity(0.6), size: 20),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showDeletePresetDialog(preset);
-              },
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 300,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("สมาชิก ${preset.memberNames.length} คน",
-                  style: GoogleFonts.notoSans(
-                      color: DashboardTheme.textPale, fontSize: 12)),
-              const SizedBox(height: 12),
-              ...preset.memberNames.map((name) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.person_rounded,
-                            color: DashboardTheme.primary, size: 18),
-                        const SizedBox(width: 10),
-                        Text(name,
-                            style: GoogleFonts.notoSans(
-                                color: DashboardTheme.textMain,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  )),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("ปิด",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textPale,
-                    fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSavePresetDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DashboardTheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.folder_special_rounded,
-                color: DashboardTheme.primary, size: 24),
-            const SizedBox(width: 12),
-            Text("SAVE TEAM PRESET",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textMain,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Members: ${_draftStaffNames.join(', ')}",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textSecondary, fontSize: 12)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              style: GoogleFonts.notoSans(
-                  color: DashboardTheme.textMain, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: "Team name...",
-                hintStyle: GoogleFonts.notoSans(color: DashboardTheme.textPale),
-                filled: true,
-                fillColor: DashboardTheme.surfaceSecondary,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: DashboardTheme.border)),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: DashboardTheme.border)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: DashboardTheme.primary)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("CANCEL",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textPale,
-                    fontWeight: FontWeight.bold)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                RepairRepository.instance.addTeamPreset(
-                  name: controller.text.trim(),
-                  memberNames: List.from(_draftStaffNames),
-                );
-                Navigator.pop(ctx);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DashboardTheme.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text("SAVE",
-                style: GoogleFonts.notoSans(
-                    color: Colors.white, fontWeight: FontWeight.w900)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeletePresetDialog(TeamPreset preset) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DashboardTheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("DELETE PRESET?",
-            style: GoogleFonts.notoSans(
-                color: DashboardTheme.error,
-                fontSize: 16,
-                fontWeight: FontWeight.w900)),
-        content: Text("Remove team preset \"${preset.name}\"?",
-            style: GoogleFonts.notoSans(
-                color: DashboardTheme.textSecondary, fontSize: 13)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("CANCEL",
-                style: GoogleFonts.notoSans(
-                    color: DashboardTheme.textPale,
-                    fontWeight: FontWeight.bold)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              RepairRepository.instance.deleteTeamPreset(preset.id);
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DashboardTheme.error,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text("DELETE",
-                style: GoogleFonts.notoSans(
-                    color: Colors.white, fontWeight: FontWeight.w900)),
-          ),
-        ],
       ),
     );
   }

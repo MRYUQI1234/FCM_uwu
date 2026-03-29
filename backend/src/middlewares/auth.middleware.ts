@@ -14,7 +14,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     
     // Backwards compatibility for early testing
     if (token === "mock-token") {
-       (req as any).user = { id: "res_001", role: "Resident" };
+       (req as any).user = { id: "res_001", role: "RESIDENT" };
        return next();
     }
 

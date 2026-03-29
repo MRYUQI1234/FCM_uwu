@@ -62,15 +62,21 @@ class _AIChatPanelState extends State<AIChatPanel> {
   @override
   void initState() {
     super.initState();
-    _loadConversations();
+    _loadConversations(isInit: true);
     _searchCtrl.addListener(() {
       setState(() => _searchQuery = _searchCtrl.text.trim().toLowerCase());
     });
   }
 
-  Future<void> _loadConversations() async {
+  Future<void> _loadConversations({bool isInit = false}) async {
     if (!mounted) return;
-    setState(() => _isLoadingThreads = true);
+    setState(() {
+      _isLoadingThreads = true;
+      // If we're initializing or switching from a newly deleted thread, clear messages
+      if (isInit || (_activeConversationId == null && !_isNewChat)) {
+        _currentMessages = [];
+      }
+    });
     final threads = await _repo.getConversations();
     if (!mounted) return;
     setState(() {
@@ -78,12 +84,12 @@ class _AIChatPanelState extends State<AIChatPanel> {
       _isLoadingThreads = false;
 
       // Auto-threading Logic:
-      // If there are no conversations, or if the latest conversation is complete (archived),
-      // we start fresh.
       if (threads.isEmpty) {
         _activeConversationId = null;
         _isNewChat = true;
-      } else {
+        _currentMessages = [];
+      } else if (isInit) {
+        // Only auto-select the latest on initial load
         final latest = threads.first;
         if (latest.isArchived) {
           _activeConversationId = null;
@@ -91,6 +97,14 @@ class _AIChatPanelState extends State<AIChatPanel> {
         } else {
           _setActiveConversation(latest.id);
           _isNewChat = false;
+        }
+      } else if (_activeConversationId != null) {
+        // If we were already in a chat, ensure it still exists
+        final stillExists = threads.any((c) => c.id == _activeConversationId);
+        if (!stillExists) {
+          _activeConversationId = null;
+          _currentMessages = [];
+          _isNewChat = true;
         }
       }
     });
@@ -100,6 +114,7 @@ class _AIChatPanelState extends State<AIChatPanel> {
     setState(() {
       _activeConversationId = id;
       _isLoadingMessages = true;
+      _currentMessages = []; // Clear old messages immediately while loading
     });
 
     final msgs = await _repo.getMessages(id);
@@ -306,11 +321,24 @@ class _AIChatPanelState extends State<AIChatPanel> {
 
     final success = await _repo.deleteConversation(id);
     if (success && mounted) {
-      if (_activeConversationId == id) {
-        _activeConversationId = null;
-        _currentMessages = [];
-      }
-      await _loadConversations();
+      setState(() {
+        if (_activeConversationId == id) {
+          _activeConversationId = null;
+          _currentMessages = [];
+          _isNewChat = true;
+        }
+        // Optimistically remove from list to show immediate feedback
+        _conversations.removeWhere((c) => c.id == id);
+        
+        // If it was the last conversation, ensure everything is cleared
+        if (_conversations.isEmpty) {
+          _activeConversationId = null;
+          _currentMessages = [];
+          _isNewChat = true;
+        }
+      });
+      // Refresh list but DON'T auto-jump back into a thread unless it was the active one
+      await _loadConversations(isInit: false);
     }
   }
 

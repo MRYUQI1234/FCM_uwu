@@ -618,12 +618,24 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       'bathroom_tub': 'obj_bathroom_tub',
       'bathroom_toilet': 'obj_bathroom_toilet',
       'bathroom_window': 'obj_bathroom_window',
+      'bathroom_floor': 'obj_bathroom_floor',
+      'bathroom_wall': 'obj_bathroom_wall',
       // Exterior
       'exterior_back_raintrack': 'obj_exterior_back_raintrack',
       'exterior_left_condenser': 'obj_exterior_left_condenser',
       'exterior_right_condenser': 'obj_exterior_right_condenser',
       'exterior_roof': 'obj_exterior_roof',
       'exterior_front_roof': 'obj_exterior_front_roof',
+      'exterior_back_wall': 'obj_exterior_back_wall',
+      'exterior_front_entrance_decoration':
+          'obj_exterior_front_entrance_decoration',
+      'exterior_front_rampart': 'obj_exterior_front_rampart',
+      'exterior_front_stone_decoration': 'obj_exterior_front_stone_decoration',
+      'exterior_front_wall': 'obj_exterior_front_wall',
+      'exterior_front_wood_decoration': 'obj_exterior_front_wood_decoration',
+      'exterior_left_wall': 'obj_exterior_left_wall',
+      'exterior_left_wood_decoration': 'obj_exterior_left_wood_decoration',
+      'exterior_right_wall': 'obj_exterior_right_wall',
       // Kitchen
       'kitchen_light': 'obj_kitchen_light',
       'kitchen_light_switch': 'obj_kitchen_light_switch',
@@ -633,6 +645,8 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       'kitchen_hanged_cabinet': 'obj_kitchen_hanged_cabinet',
       'kitchen_small_floor_cabinet': 'obj_kitchen_small_floor_cabinet',
       'kitchen_window': 'obj_kitchen_window',
+      'kitchen_floor': 'obj_kitchen_floor',
+      'kitchen_wall': 'obj_kitchen_wall',
       // Living Room
       'livingroom_light': 'obj_livingroom_light',
       'livingroom_light_switch': 'obj_livingroom_light_switch',
@@ -642,6 +656,12 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       'livingroom_tv': 'obj_livingroom_tv',
       'livingroom_tv_closet': 'obj_livingroom_tv_closet',
       'livingroom_window': 'obj_livingroom_window',
+      'livingroom_carpet': 'obj_livingroom_carpet',
+      'livingroom_coffe_table': 'obj_livingroom_coffe_table',
+      'livingroom_floor': 'obj_livingroom_floor',
+      'livingroom_sofa': 'obj_livingroom_sofa',
+      'livingroom_tapis': 'obj_livingroom_tapis',
+      'livingroom_wall': 'obj_livingroom_wall',
       // Main Bedroom
       'main_bedroom_aircon': 'obj_main_bedroom_aircon',
       'main_bedroom_aircon_remote': 'obj_main_bedroom_aircon_remote',
@@ -658,6 +678,13 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       'main_bedroom_light': 'obj_main_bedroom_light',
       'main_bedroom_light_switch': 'obj_main_bedroom_light_switch',
       'main_bedroom_window': 'obj_main_bedroom_window',
+      'main_bedroom_bed': 'obj_main_bedroom_bed',
+      'main_bedroom_tapis': 'obj_main_bedroom_tapis',
+      'main_bedroom_floor': 'obj_main_bedroom_floor',
+      'main_bedroom_wall': 'obj_main_bedroom_wall',
+      'main_bedroom_bathroom_floor': 'obj_main_bedroom_bathroom_floor',
+      'main_bedroom_bathroom_wall': 'obj_main_bedroom_bathroom_wall',
+
       // Secondary Bedroom
       'secondary_bedroom_aircon': 'obj_secondary_bedroom_aircon',
       'secondary_bedroom_aircon_remote': 'obj_secondary_bedroom_aircon_remote',
@@ -666,6 +693,9 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       'secondary_bedroom_light': 'obj_secondary_bedroom_light',
       'secondary_bedroom_light_switch': 'obj_secondary_bedroom_light_switch',
       'secondary_bedroom_window': 'obj_secondary_bedroom_window',
+      'secondary_bedroom_floor': 'obj_secondary_bedroom_floor',
+      'secondary_bedroom_red': 'obj_secondary_bedroom_red',
+      'secondary_bedroom_wall': 'obj_secondary_bedroom_wall',
       // Washroom
       'washingmachine': 'obj_washingmachine',
       'washroom_door': 'obj_washroom_door',
@@ -673,15 +703,27 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
       'washroom_light': 'obj_washroom_light',
       'washroom_switch': 'obj_washroom_switch',
       'washroom_window': 'obj_washroom_window',
+      'washroom_floor': 'obj_washroom_floor',
+      'washroom_wall': 'obj_washroom_wall',
     };
 
     // Exact match
     if (keyMap.containsKey(meshName)) return keyMap[meshName]!;
 
-    // Partial match (for mesh names with no exact key, e.g. walls/floors)
+    // Longest-match strategy (to prefer more specific keys like 'main_bedroom_bathroom_wall' over 'main_bedroom_wall')
+    String? bestKey;
+    int maxLen = -1;
+
     for (final entry in keyMap.entries) {
-      if (meshName.contains(entry.key)) return entry.value;
+      if (meshName.contains(entry.key)) {
+        if (entry.key.length > maxLen) {
+          maxLen = entry.key.length;
+          bestKey = entry.value;
+        }
+      }
     }
+
+    if (bestKey != null) return bestKey;
 
     // Fallback: return the raw mesh name itself so t() can display it cleanly
     return meshName;
@@ -1087,9 +1129,22 @@ class _ResidentHomeViewState extends State<ResidentHomeView>
                           try {
                             final dt = DateTime.parse(firstTask.preferDate!);
                             _selectedDate = dt;
-                            _selectedTime =
-                                TimeOfDay(hour: dt.hour, minute: dt.minute);
-                          } catch (e) {}
+                            
+                            if (firstTask.preferTime != null) {
+                              final parts = firstTask.preferTime!.split(':');
+                              if (parts.length >= 2) {
+                                _selectedTime = TimeOfDay(
+                                  hour: int.tryParse(parts[0]) ?? 9,
+                                  minute: int.tryParse(parts[1]) ?? 30,
+                                );
+                              }
+                            } else {
+                              // If no time is explicitly set, left it empty or default
+                              _selectedTime = null;
+                            }
+                          } catch (e) {
+                            debugPrint('Error parsing AI date/time: $e');
+                          }
                         }
                       });
                       _popupAnim.forward(from: 0);

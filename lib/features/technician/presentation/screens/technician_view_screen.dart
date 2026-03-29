@@ -11,6 +11,8 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/core/data/auth_repository.dart';
 import 'package:fcm_app/core/data/repair_repository.dart';
 import 'package:fcm_app/shared/widgets/pin_verification_overlay.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'dart:js' as js;
 
 class TechnicianViewScreen extends StatefulWidget {
   const TechnicianViewScreen({super.key});
@@ -31,15 +33,22 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
   // New state for task management
   String? _selectedTaskFilter = "All";
-  bool _isSubmitting = false;
+
   RepairRequest? _selectedTask;
   int _selectedCalendarDay = DateTime.now().day;
   final TextEditingController _notesController = TextEditingController();
   final List<XFile> _attachedImages = [];
   final ImagePicker _picker = ImagePicker();
 
+  // 3D Model State
+  String _cameraTarget = 'auto 1.2m auto';
+  String _cameraOrbit = '45deg 60deg 90%';
+  double _zoomValue = 50.0; // 0.0 (wide) to 100.0 (zoom)
+  bool _roofVis = true;
+
   // ── Sidebar animation ──
   late AnimationController _sidebarAnim;
+  Timer? _pollTimer;
 
   Future<void> _pickImage() async {
     try {
@@ -80,10 +89,227 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     RepairRepository.instance.fetchHistory();
     _sidebarAnim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 150), value: 0.0);
+    _setupJsInterop();
+  }
+
+  void _setupJsInterop() {
+    try {
+      js.context['fcmDebugLogTech'] = (dynamic msg) {
+        print("★★★ FCM_DEBUG_TECH: $msg ★★★");
+      };
+
+      js.context.callMethod('eval', [
+        r"""
+        (function() {
+          const getScene = (mv) => {
+             const syms = Object.getOwnPropertySymbols(mv);
+             for (const s of syms) {
+                const v = mv[s];
+                if (v && (v.type === 'Scene' || v.scene?.type === 'Scene')) return v.scene || v;
+             }
+             return null;
+          };
+
+          function fcmCleanup() {
+              if (window._fcmOverlays && window._fcmOverlays.length) {
+                  window._fcmOverlays.forEach(ov => {
+                      try {
+                          if (ov && ov.parent) ov.parent.remove(ov);
+                          if (ov && ov.material) ov.material.dispose();
+                      } catch(_) {}
+                  });
+              }
+              window._fcmOverlays = [];
+          }
+
+          function fcmMakeHighlight(refMat) {
+              try {
+                  const mat = new refMat.constructor();
+                  // Apply only supported properties to avoid THREE console warnings
+                  if (mat.color && typeof mat.color.setHex === 'function') {
+                      mat.color.setHex(0xff0000);
+                  }
+                  mat.transparent = true;
+                  mat.opacity = 0.8;
+                  mat.depthTest = true;
+                  mat.depthWrite = false;
+                  mat.side = 2;
+                  
+                  if (mat.emissive && typeof mat.emissive.setHex === 'function') {
+                      mat.emissive.setHex(0x880000);
+                      mat.emissiveIntensity = 3.0;
+                  }
+                  return mat;
+              } catch(e) { return null; }
+          }
+
+          function fcmOverlay(node) {
+              if (!node || !node.isMesh || !node.geometry) return null;
+              try {
+                  const ref = Array.isArray(node.material) ? node.material[0] : node.material;
+                  const mat = fcmMakeHighlight(ref || {});
+                  if (!mat) return null;
+                  const ov = new node.constructor(node.geometry, mat);
+                  ov.position.copy(node.position);
+                  ov.quaternion.copy(node.quaternion);
+                  ov.scale.copy(node.scale);
+                  ov.renderOrder = 999;
+                  ov.matrixAutoUpdate = true;
+                  if (node.parent) { node.parent.add(ov); return ov; }
+              } catch(e) { console.error('[FCM-TECH] Overlay Error:', e); }
+              return null;
+          }
+
+          window.fcmHighlightByName = function(nameKey) {
+              const mv = document.getElementById('fcmTechModel');
+              if (!mv) return;
+              const scene = getScene(mv);
+              if (!scene) {
+                  console.warn('[FCM-TECH] Could not find 3D Scene');
+                  return;
+              }
+
+              fcmCleanup();
+              if (!nameKey || nameKey.toString().trim() === '') return;
+
+              // Normalized target from DB: remove 'obj_', spaces, underscores
+              const target = nameKey.toString().toLowerCase()
+                                 .replace('obj_', '')
+                                 .replace(/[\s\-_]/g, '')
+                                 .trim();
+              
+              console.log("[FCM-TECH] DEBUG: Searching literal target '" + target + "'");
+
+              let matchCount = 0;
+              let allNames = [];
+              
+              scene.traverse(node => {
+                  if (node.name) allNames.push(node.name);
+                  
+                  // Normalize node name in model
+                  const n = (node.name||'').toLowerCase()
+                                .replace(/\.\d+$/g, '')
+                                .replace(/[\s\-_]/g, '')
+                                .trim();
+                  
+                  // CHECK: Literal Match instead of includes
+                  if (n === target) {
+                      console.log('[FCM-TECH] EXACT MATCH:', node.name, '(' + node.type + ')');
+                      
+                      // Highlight recursively if it's a group, or just the mesh itself
+                      node.traverse(child => {
+                          if (child.isMesh) {
+                              const ov = fcmOverlay(child);
+                              if (ov) {
+                                  window._fcmOverlays.push(ov);
+                                  matchCount++;
+                              }
+                          }
+                      });
+                  }
+              });
+
+              if (matchCount === 0) {
+                  console.warn('[FCM-TECH] No matches found for:', target);
+                  console.log('[FCM-TECH] Sample available nodes:', allNames.slice(0, 10).join(', '));
+              } else {
+                  console.log('[FCM-TECH] Successfully highlighted ' + matchCount + ' literal matches.');
+              }
+          };
+
+          window.fcmTechFocus = function(target) {
+              const mv = document.getElementById('fcmTechModel');
+              if (mv && target) mv.cameraTarget = target;
+          };
+
+          window.fcmSetZoom = function(v) {
+              const mv = document.getElementById('fcmTechModel');
+              if (mv) {
+                  const fov = 90 - (v * 0.85);
+                  mv.fieldOfView = fov + 'deg';
+              }
+          };
+
+          window.fcmGetZoom = function() {
+              const mv = document.getElementById('fcmTechModel');
+              if (mv && mv.fieldOfView) {
+                  const fov = parseFloat(mv.fieldOfView);
+                  // Inverse logic: fov = 90 - (v * 0.85) => v = (90 - fov) / 0.85
+                  const v = (90 - fov) / 0.85;
+                  return Math.min(100, Math.max(0, v));
+              }
+              return null;
+          };
+
+          window.fcmToggleRoof = function(state) {
+              const mv = document.getElementById('fcmTechModel');
+              if (!mv) return;
+              const scene = getScene(mv);
+              if (!scene) return;
+              scene.traverse(node => {
+                  const l = (node.name||'').toLowerCase().trim();
+                  if (l.includes('cube032') || l.includes('roof')) {
+                      node.visible = state;
+                  }
+              });
+          };
+        })();
+        """
+      ]);
+
+      // Add a poller to highlight once model is ready
+      js.context.callMethod('eval', [
+        r"""
+        window.startTechHighlightPoll = function(nameKey) {
+            console.log('[FCM-TECH] Starting poll for:', nameKey);
+            let attempts = 0;
+            const interval = setInterval(() => {
+                const mv = document.getElementById('fcmTechModel');
+                if (mv) {
+                    // Try to get scene
+                    const syms = Object.getOwnPropertySymbols(mv);
+                    let hasScene = false;
+                    for (const s of syms) {
+                        if (mv[s] && (mv[s].type === 'Scene' || mv[s].scene?.type === 'Scene')) {
+                            hasScene = true; break;
+                        }
+                    }
+                    if (hasScene) {
+                        console.log('[FCM-TECH] Model ready, highlighting...');
+                        window.fcmHighlightByName(nameKey);
+                        clearInterval(interval);
+                    }
+                }
+                if (++attempts > 20) clearInterval(interval);
+            }, 500);
+        };
+        """
+      ]);
+    } catch (e) {
+      print("TECH JS Init Error: $e");
+    }
+    // ── 3D Zoom & State Polling ──
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      try {
+        final currentZoom = js.context.callMethod('fcmGetZoom');
+        if (currentZoom != null) {
+          final double newZoom = (currentZoom as num).toDouble();
+          // Update only if change is significant to avoid slider jitter
+          if ((newZoom - _zoomValue).abs() > 0.5) {
+            setState(() => _zoomValue = newZoom);
+          }
+        }
+      } catch (e) {}
+    });
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _sidebarAnim.dispose();
     _notesController.dispose();
     super.dispose();
@@ -112,6 +338,15 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     return allRepairs.where((t) {
       return t.assignedStaff.any((s) => s.trim().toLowerCase() == searchName);
     }).toList();
+  }
+
+  bool _canStartWork(RepairRequest task) {
+    if (task.appointmentDate == null) return true;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final apptDay = DateTime(task.appointmentDate!.year,
+        task.appointmentDate!.month, task.appointmentDate!.day);
+    return !today.isBefore(apptDay);
   }
 
   Future<void> _fetchUserProfile() async {
@@ -153,10 +388,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         children: [
                           _buildHeader(assignedTasks),
                           Expanded(
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(32),
-                              child: _buildPageContent(_currentIndex, repairs),
-                            ),
+                            child: _buildPageContent(_currentIndex, repairs),
                           ),
                         ],
                       );
@@ -583,180 +815,241 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
   // Removed redundant builders as they are now imported from shared views
 
   Widget _buildTasksPage(List<RepairRequest> allRepairs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Chip Filters (Matched Mockup)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _filterChip("All", _selectedTaskFilter == "All"),
-              const SizedBox(width: 16),
-              _filterChip("Assigned", _selectedTaskFilter == "Assigned"),
-              const SizedBox(width: 16),
-              _filterChip("In Progress", _selectedTaskFilter == "In Progress"),
-              const SizedBox(width: 16),
-              _filterChip("Completed", _selectedTaskFilter == "Completed"),
-              const SizedBox(width: 16),
-              _filterChip("Evaluated", _selectedTaskFilter == "Evaluated"),
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        // Task Grid
-        (() {
-          final rawTasks = _getAssignedTasks(allRepairs);
-          final filteredTasks = rawTasks.where((t) {
-            if (_selectedTaskFilter == "All") return true;
-            if (_selectedTaskFilter == "Assigned")
-              return t.status == "ASSIGNED" || t.status == "URGENT";
-            if (_selectedTaskFilter == "In Progress")
-              return t.status == "IN PROGRESS";
-            if (_selectedTaskFilter == "Completed")
-              return t.status == "COMPLETED";
-            if (_selectedTaskFilter == "Evaluated")
-              return t.status == "EVALUATED";
-            return true;
-          }).toList();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 800;
+        final crossAxisCount = isMobile ? 1 : 3;
+        final childAspectRatio = isMobile ? 1.6 : 1.2;
 
-          if (filteredTasks.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 80),
-                child: Text("No tasks in this category",
-                    style: GoogleFonts.kanit(color: _textMuted)),
-              ),
-            );
-          }
-
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 24,
-              mainAxisSpacing: 24,
-              childAspectRatio: 1.4,
-            ),
-            itemCount: filteredTasks.length,
-            itemBuilder: (context, index) {
-              final t = filteredTasks[index];
-              // Map DashboardData status to UI status
-              final uiStatus = t.status.toLowerCase();
-              final displayStatus = t.status == "URGENT"
-                  ? "Urgent"
-                  : (t.status == "IN PROGRESS"
-                      ? "In Progress"
-                      : (t.status == "COMPLETED"
-                          ? "Completed"
-                          : (t.status == "EVALUATED"
-                              ? "Evaluated"
-                              : (t.status == "CANCELED" ||
-                                      t.status == "DECLINED"
-                                  ? "Cancelled"
-                                  : "Assigned"))));
-
-              return _techWorkCard(t, uiStatus, displayStatus);
-            },
-          );
-        })(),
-      ],
-    );
-  }
-
-  Widget _buildCalendarPage(List<RepairRequest> allRepairs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Text("Your Schedule",
-            style: GoogleFonts.kanit(
-                fontSize: 28, fontWeight: FontWeight.bold, color: _textMain)),
-        const SizedBox(height: 8),
-        Text("Check your appointments and plan your tasks",
-            style: GoogleFonts.kanit(fontSize: 14, color: _textMuted)),
-        const SizedBox(height: 32),
-
-        // Main Calendar Row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Calendar Grid (Left)
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: _bgSidebar,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _border),
-                ),
+        return CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
+              sliver: SliverToBoxAdapter(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("March 2026",
-                        style: GoogleFonts.kanit(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 24),
-                    _buildCalendarGrid(allRepairs),
-                    const SizedBox(height: 24),
-                    _buildCalendarLegend(),
+                    // Chip Filters
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _filterChip("All", _selectedTaskFilter == "All"),
+                          const SizedBox(width: 16),
+                          _filterChip("Assigned", _selectedTaskFilter == "Assigned"),
+                          const SizedBox(width: 16),
+                          _filterChip("In Progress", _selectedTaskFilter == "In Progress"),
+                          const SizedBox(width: 16),
+                          _filterChip("Completed", _selectedTaskFilter == "Completed"),
+                          const SizedBox(width: 16),
+                          _filterChip("Evaluated", _selectedTaskFilter == "Evaluated"),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    Text("REPAIR AREA", 
+                      style: GoogleFonts.kanit(
+                        fontSize: 11, 
+                        color: _gold, 
+                        letterSpacing: 4, 
+                        fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
-            const SizedBox(width: 24),
-            // Day Details (Right)
-            SizedBox(
-              width: 350,
-              child: _buildDayDetailCard(allRepairs),
-            ),
+            
+            (() {
+              final rawTasks = _getAssignedTasks(allRepairs);
+              final filteredTasks = rawTasks.where((t) {
+                if (_selectedTaskFilter == "All") return true;
+                if (_selectedTaskFilter == "Assigned")
+                  return t.status == "ASSIGNED" || t.status == "URGENT";
+                if (_selectedTaskFilter == "In Progress")
+                  return t.status == "IN PROGRESS";
+                if (_selectedTaskFilter == "Completed")
+                  return t.status == "COMPLETED";
+                if (_selectedTaskFilter == "Evaluated")
+                  return t.status == "EVALUATED";
+                return true;
+              }).toList();
+
+              if (filteredTasks.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 80),
+                      child: Text("No tasks in this category",
+                          style: GoogleFonts.kanit(color: _textMuted)),
+                    ),
+                  ),
+                );
+              }
+
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 24,
+                    mainAxisSpacing: 24,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final t = filteredTasks[index];
+                      final uiStatus = t.status.toLowerCase();
+                      final displayStatus = t.status == "URGENT"
+                          ? "Urgent"
+                          : (t.status == "IN PROGRESS"
+                              ? "In Progress"
+                              : (t.status == "COMPLETED"
+                                  ? "Completed"
+                                  : (t.status == "EVALUATED"
+                                      ? "Evaluated"
+                                      : (t.status == "CANCELED" ||
+                                              t.status == "DECLINED"
+                                          ? "Cancelled"
+                                          : "Assigned"))));
+
+                      return _techWorkCard(t, uiStatus, displayStatus);
+                    },
+                    childCount: filteredTasks.length,
+                  ),
+                ),
+              );
+            })(),
+            
+            const SliverToBoxAdapter(child: SizedBox(height: 60)),
+          ],
+        );
+      }
+    );
+  }
+
+  Widget _buildCalendarPage(List<RepairRequest> allRepairs) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 1100;
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40), // Standardized Margin
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Text("Your Schedule",
+                style: GoogleFonts.kanit(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: _textMain)),
+            const SizedBox(height: 8),
+            Text("Check your appointments and plan your tasks",
+                style: GoogleFonts.kanit(fontSize: 14, color: _textMuted)),
+            const SizedBox(height: 32),
+
+            if (!isMobile)
+              // ── DESKTOP LAYOUT (Side-by-side) ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Part 1: Calendar Grid (Flex 3)
+                  Expanded(
+                    flex: 3,
+                    child: _calendarStack(allRepairs),
+                  ),
+                  const SizedBox(width: 32), // More margin
+                  // Part 2: Selected Day Details (Flex 2)
+                  Expanded(
+                    flex: 2,
+                    child: _buildDayDetailCard(allRepairs),
+                  ),
+                ],
+              )
+            else
+              // ── MOBILE LAYOUT (Stacked) ──
+              Column(
+                children: [
+                  _calendarStack(allRepairs),
+                  const SizedBox(height: 32), // More margin
+                  _buildDayDetailCard(allRepairs),
+                ],
+              ),
+
+            const SizedBox(height: 48),
+
+            // Part 3: Upcoming List (Full width)
+            Text("รายการที่ใกล้ถึงกำหนด",
+                style: GoogleFonts.kanit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _textMain)),
+            const SizedBox(height: 16),
+            _buildUpcomingList(allRepairs),
+            const SizedBox(height: 60), // Add padding for bottom navigation
           ],
         ),
-        const SizedBox(height: 40),
-        // Upcoming Section
-        Text("รายการที่ใกล้ถึงกำหนด",
-            style: GoogleFonts.kanit(
-                fontSize: 20, fontWeight: FontWeight.bold, color: _textMain)),
-        const SizedBox(height: 16),
-        _buildUpcomingList(allRepairs),
-      ],
+      );
+    });
+  }
+
+  Widget _calendarStack(List<RepairRequest> allRepairs) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _bgSidebar,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        children: [
+          Text("March 2026",
+              style: GoogleFonts.kanit(
+                  fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          _buildCalendarGrid(allRepairs),
+          const SizedBox(height: 32),
+          _buildCalendarLegend(),
+        ],
+      ),
     );
   }
 
   Widget _buildCalendarGrid(List<RepairRequest> allRepairs) {
     final days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    
     return Column(
       children: [
+        // Days labels
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: days
-              .map((d) => Container(
-                  width: 60,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Center(
+              .map((d) => Expanded(
+                    child: Center(
                       child: Text(d,
                           style: GoogleFonts.kanit(
-                              fontSize: 12, color: _textMuted)))))
+                              fontSize: 12, color: _textMuted)),
+                    ),
+                  ))
               .toList(),
         ),
-        const SizedBox(height: 12),
-        // Calendar Rows (March 2026 starts on Sunday)
-        for (var i = 0; i < 5; i++) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var j = 1; j <= 7; j++) ...[
-                if (i * 7 + j <= 31)
-                  _calendarDay(i * 7 + j, allRepairs)
-                else
-                  const SizedBox(width: 60, height: 48),
-                if (j < 7) const SizedBox(width: 8),
-              ],
-            ],
+        const SizedBox(height: 16),
+        
+        // Calendar Days Grid
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.2,
           ),
-          const SizedBox(height: 8),
-        ],
+          itemCount: 31,
+          itemBuilder: (context, index) {
+            return _calendarDay(index + 1, allRepairs);
+          },
+        ),
       ],
     );
   }
@@ -790,8 +1083,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     return InkWell(
       onTap: () => setState(() => _selectedCalendarDay = day),
       child: Container(
-        width: 60,
-        height: 48,
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
@@ -805,6 +1096,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                     fontWeight: FontWeight.w600, color: textColor)),
             if (isUpcoming || isSelected)
               Container(
+                margin: const EdgeInsets.only(top: 2),
                 width: 4,
                 height: 4,
                 decoration: BoxDecoration(
@@ -896,8 +1188,12 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                 : "Pending")));
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _compactTaskTile(
-                      t.title, displayStatus, t.requesterHouse ?? 'N/A', t.id),
+                  child: InkWell(
+                    onTap: () => _showTaskDetails(t),
+                    borderRadius: BorderRadius.circular(12),
+                    child: _compactTaskTile(
+                        t.title, displayStatus, t.requesterHouse ?? 'N/A', t.id),
+                  ),
                 );
               }).toList(),
             );
@@ -989,38 +1285,43 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
     return Column(
       children: upcomingItems.map((t) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          decoration: BoxDecoration(
-            color: _bgSidebar,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _border),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t.title,
-                        style: GoogleFonts.kanit(
-                            fontWeight: FontWeight.bold, color: _textMain)),
-                    if (t.appointmentDate != null)
-                      Text(
-                        "Appointment: ${t.appointmentDate!.day}/${t.appointmentDate!.month}/${t.appointmentDate!.year}",
-                        style: GoogleFonts.kanit(
-                            fontSize: 12, color: _primaryBlue.withOpacity(0.8)),
-                      )
-                    else
-                      Text(t.date,
+        return InkWell(
+          onTap: () => _showTaskDetails(t),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              color: _bgSidebar,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(t.title,
                           style: GoogleFonts.kanit(
-                              fontSize: 12, color: _textMuted)),
-                  ],
+                              fontWeight: FontWeight.bold, color: _textMain)),
+                      if (t.appointmentDate != null)
+                        Text(
+                          "Appointment: ${t.appointmentDate!.day}/${t.appointmentDate!.month}/${t.appointmentDate!.year}",
+                          style: GoogleFonts.kanit(
+                              fontSize: 12,
+                              color: _primaryBlue.withOpacity(0.8)),
+                        )
+                      else
+                        Text(t.date,
+                            style: GoogleFonts.kanit(
+                                fontSize: 12, color: _textMuted)),
+                    ],
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right, color: _textMuted),
-            ],
+                Icon(Icons.chevron_right_rounded, color: _textMuted),
+              ],
+            ),
           ),
         );
       }).toList(),
@@ -1028,7 +1329,28 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
   }
 
   void _showTaskDetails(RepairRequest task) {
-    setState(() => _selectedTask = task);
+    setState(() {
+      _selectedTask = task;
+      _currentIndex = 0; // Switch to Main/Tasks page to reveal detail view
+    });
+    // Trigger highlighting for ALL objects in this request
+    if (task.tasks.isNotEmpty) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        try {
+          for (final t in task.tasks) {
+            String? highlightKey = t.objectId;
+            if (highlightKey == null || highlightKey.trim().isEmpty) {
+              highlightKey = t.objectName;
+            }
+            
+            if (highlightKey != null && highlightKey.trim().isNotEmpty) {
+              debugPrint("FCM: Triggering highlight for key: '$highlightKey'");
+              js.context.callMethod('startTechHighlightPoll', [highlightKey.trim()]);
+            }
+          }
+        } catch (e) {}
+      });
+    }
   }
 
   Widget _buildTaskDetailView(RepairRequest task) {
@@ -1041,95 +1363,97 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 : const Color(0xFFF59E0B);
     final statusLabel = task.status;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── BACK NAV ──
-        InkWell(
-          onTap: () => setState(() => _selectedTask = null),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 64),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── BACK NAV ──
+          InkWell(
+            onTap: () => setState(() => _selectedTask = null),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.west_rounded, size: 18, color: _textMuted),
+                const SizedBox(width: 10),
+                Text("BACK",
+                    style: GoogleFonts.kanit(
+                        color: _textMuted,
+                        fontSize: 12,
+                        letterSpacing: 3,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 40),
+
+          // ── HERO TITLE — Oversized, editorial ──
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.west_rounded, size: 18, color: _textMuted),
-              const SizedBox(width: 10),
-              Text("BACK",
-                  style: GoogleFonts.kanit(
-                      color: _textMuted,
-                      fontSize: 12,
-                      letterSpacing: 3,
-                      fontWeight: FontWeight.w600)),
+              // Thick status accent bar
+              Container(
+                width: 6,
+                height: 72,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tiny label
+                    Text(
+                        "${task.id}  ·  ${task.tasks.isNotEmpty ? task.tasks.first.urgency : ''}"
+                            .toUpperCase(),
+                        style: GoogleFonts.kanit(
+                            fontSize: 11,
+                            color: _textMuted,
+                            letterSpacing: 3,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    // MASSIVE title
+                    Text(task.title,
+                        style: GoogleFonts.kanit(
+                            fontSize: 42,
+                            fontWeight: FontWeight.w900,
+                            color: _textMain,
+                            height: 1.1,
+                            letterSpacing: -0.5)),
+                  ],
+                ),
+              ),
+              // Status badge — clean
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(statusLabel.toUpperCase(),
+                    style: GoogleFonts.kanit(
+                        color:
+                            statusColor == _gold ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 2)),
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 40),
 
-        // ── HERO TITLE — Oversized, editorial ──
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thick status accent bar
-            Container(
-              width: 6,
-              height: 72,
-              margin: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tiny label
-                  Text(
-                      "${task.id}  ·  ${task.tasks.isNotEmpty ? task.tasks.first.urgency : ''}"
-                          .toUpperCase(),
-                      style: GoogleFonts.kanit(
-                          fontSize: 11,
-                          color: _textMuted,
-                          letterSpacing: 3,
-                          fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 8),
-                  // MASSIVE title
-                  Text(task.title,
-                      style: GoogleFonts.kanit(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w900,
-                          color: _textMain,
-                          height: 1.1,
-                          letterSpacing: -0.5)),
-                ],
-              ),
-            ),
-            // Status badge — clean
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(statusLabel.toUpperCase(),
-                  style: GoogleFonts.kanit(
-                      color: statusColor == _gold ? Colors.black : Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                      letterSpacing: 2)),
-            ),
-          ],
-        ),
+          const SizedBox(height: 48),
 
-        const SizedBox(height: 48),
+          // ── MAIN CONTENT ──
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 900;
 
-        // ── MAIN CONTENT ──
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ════ LEFT COLUMN ════
-            Expanded(
-              flex: 5,
-              child: Column(
+              final leftColumn = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ▌ REQUESTER — Bold name, clean info
@@ -1180,7 +1504,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                     ],
                   ),
 
-                  // ▌ TASKS / OBJECTS — FE-03 Workflow
+                  const SizedBox(height: 32),
                   Text("JOBS / OBJECTS",
                       style: GoogleFonts.kanit(
                           fontSize: 11,
@@ -1195,8 +1519,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                     ...task.tasks.map((t) => _buildTaskItem(t, task.status)),
 
                   const SizedBox(height: 32),
-                  Container(
-                      height: 1, width: 80, color: _gold.withOpacity(0.4)),
+                  Container(height: 1, width: 80, color: _gold.withOpacity(0.4)),
 
                   const SizedBox(height: 40),
 
@@ -1209,61 +1532,117 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   Container(
-                    height: 300,
+                    height: isMobile ? 350 : 500,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: _bgSidebar,
+                      color: Colors.black,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: _border.withOpacity(0.5)),
                     ),
-                    child: Stack(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: ModelViewer(
+                        key: ValueKey('fcm_tech_view_${task.id}'),
+                        id: 'fcmTechModel',
+                        src: 'assets/models/Vivorn7.8.glb',
+                        alt: 'FCM Repair Area',
+                        autoRotate: false,
+                        cameraControls: true,
+                        disableZoom: true,
+                        backgroundColor: Colors.transparent,
+                        exposure: 1.2,
+                        shadowIntensity: 1.0,
+                        loading: Loading.eager,
+                        cameraTarget: _cameraTarget,
+                        cameraOrbit: _cameraOrbit,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ── 3D CONTROL BAR ──
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _bgSidebar.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _border.withOpacity(0.3)),
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 16,
+                      runSpacing: 12,
                       children: [
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.view_in_ar_rounded,
-                                  size: 56, color: _gold.withOpacity(0.2)),
-                              const SizedBox(height: 12),
-                              Text("3D MODEL",
-                                  style: GoogleFonts.kanit(
-                                      color: _textMuted.withOpacity(0.5),
-                                      fontSize: 12,
-                                      letterSpacing: 3)),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _bgSidebar,
-                              borderRadius: BorderRadius.circular(6),
+                        // Zoom Section
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.zoom_out, size: 18, color: _textMuted),
+                            SizedBox(
+                              width: isMobile ? 120 : 180,
+                              child: SliderTheme(
+                                data: SliderThemeData(
+                                  activeTrackColor: _gold,
+                                  inactiveTrackColor: _gold.withOpacity(0.2),
+                                  thumbColor: _gold,
+                                  trackHeight: 2,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                                ),
+                                child: Slider(
+                                  value: _zoomValue,
+                                  min: 0,
+                                  max: 100,
+                                  onChanged: (v) {
+                                    setState(() => _zoomValue = v);
+                                    try {
+                                      js.context.callMethod('fcmSetZoom', [v]);
+                                    } catch (e) {}
+                                  },
+                                ),
+                              ),
                             ),
-                            child: Text("📍 ${task.requesterHouse ?? 'N/A'}",
-                                style: GoogleFonts.kanit(
-                                    fontSize: 12, color: _textMuted)),
-                          ),
+                            Icon(Icons.zoom_in, size: 18, color: _textMuted),
+                          ],
+                        ),
+                        // Action Buttons
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildMiniToolButton(
+                              icon: _roofVis ? Icons.roofing_rounded : Icons.home_rounded,
+                              label: _roofVis ? "HIDE ROOF" : "SHOW ROOF",
+                              onTap: () {
+                                setState(() => _roofVis = !_roofVis);
+                                try {
+                                  js.context.callMethod('fcmToggleRoof', [_roofVis]);
+                                } catch (e) {}
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _buildMiniToolButton(
+                              icon: Icons.center_focus_strong_rounded,
+                              label: "RESET",
+                              onTap: () {
+                                setState(() {
+                                  _cameraTarget = 'auto 1.2m auto';
+                                  _cameraOrbit = '45deg 60deg 90%';
+                                  _zoomValue = 50.0;
+                                });
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-            ),
+              );
 
-            const SizedBox(width: 48),
-
-            // ════ RIGHT COLUMN ════
-            SizedBox(
-              width: 320,
-              child: Column(
+              final rightColumn = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ▌ JOB STATUS — Ultra-minimal stepper
+                  if (isMobile) const SizedBox(height: 48),
                   Text("STATUS",
                       style: GoogleFonts.kanit(
                           fontSize: 11,
@@ -1290,17 +1669,20 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
                   const SizedBox(height: 40),
 
-                  // ▌ ACTION BUTTON — Bold, full-width block
-                  // ▌ ACTION BUTTON — SRS FE-03 Workflow
                   if (task.status == 'ASSIGNED' ||
                       task.status == 'URGENT' ||
                       task.status == 'CREATED')
                     _actionBlock(
                       icon: Icons.play_arrow_rounded,
-                      label: "START WORK",
-                      color: const Color(0xFFF59E0B),
-                      textColor: Colors.black,
-                      onPressed: () {
+                      label: _canStartWork(task) ? "START WORK" : "UPCOMING APPT",
+                      color: _canStartWork(task)
+                          ? DashboardTheme.primary
+                          : DashboardTheme.textPale.withOpacity(0.2),
+                      textColor: _canStartWork(task)
+                          ? Colors.white
+                          : DashboardTheme.textSecondary,
+                      onPressed: _canStartWork(task)
+                          ? () {
                         showDialog(
                           context: context,
                           builder: (ctx) => AlertDialog(
@@ -1327,14 +1709,13 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                               ElevatedButton(
                                 onPressed: () async {
                                   Navigator.pop(ctx);
-                                  // PIN verification before starting work
-                                  final pinOk = await showPinVerificationOverlay(context);
+                                  final pinOk =
+                                      await showPinVerificationOverlay(context);
                                   if (pinOk != true) return;
 
                                   bool success = await RepairRepository.instance
                                       .updateStatus(task.id, 'BEGAN');
                                   if (success) {
-                                    // Find the updated task from the repository to refresh the detail view
                                     if (mounted) {
                                       final updated = RepairRepository
                                           .instance.repairsNotifier.value
@@ -1350,7 +1731,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF59E0B),
+                                  backgroundColor: DashboardTheme.primary,
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -1362,13 +1743,13 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                             ],
                           ),
                         );
-                      },
+                      }
+                      : null,
                     )
                   else if (task.status == 'IN PROGRESS')
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Turn-in report header
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
@@ -1402,7 +1783,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Submit report button
                         _actionBlock(
                           icon: Icons.check_circle_outline_rounded,
                           label: "SUBMIT & FINISH",
@@ -1447,7 +1827,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                   ),
                                   ElevatedButton(
                                     onPressed: () async {
-                                      // Optional: Check if all tasks have reports
                                       bool allReported = task.tasks.every((t) =>
                                           t.taskReport != null &&
                                           t.taskReport!.isNotEmpty);
@@ -1480,8 +1859,9 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                                       }
 
                                       Navigator.pop(ctx);
-                                      // PIN verification before completing work
-                                      final pinOk = await showPinVerificationOverlay(context);
+                                      final pinOk =
+                                          await showPinVerificationOverlay(
+                                              context);
                                       if (pinOk != true) return;
 
                                       bool success = await RepairRepository
@@ -1542,7 +1922,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
 
                   const SizedBox(height: 48),
 
-                  // ▌ NOTES — Clean input
                   Text("NOTES",
                       style: GoogleFonts.kanit(
                           fontSize: 11,
@@ -1578,7 +1957,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   ),
                   const SizedBox(height: 20),
 
-                  // ▌ ATTACHMENTS — Image upload area
                   Text("ATTACHMENTS",
                       style: GoogleFonts.kanit(
                           fontSize: 11,
@@ -1586,7 +1964,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                           letterSpacing: 4,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  // Attached image preview grid
                   if (_attachedImages.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -1636,8 +2013,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         }).toList(),
                       ),
                     ),
-                  // Upload button
-                  InkWell(
+                   InkWell(
                     onTap: _pickImage,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
@@ -1665,32 +2041,62 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => _saveGeneralNote(task),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: _isSubmitting
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Color(0xFFEAB308)))
-                          : Text("SAVE NOTE",
-                              style: GoogleFonts.kanit(
-                                  color: _gold,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  letterSpacing: 2)),
-                    ),
-                  ),
                 ],
+              );
+
+              if (isMobile) {
+                return Column(
+                  children: [leftColumn, rightColumn],
+                );
+              } else {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 5, child: leftColumn),
+                    const SizedBox(width: 48),
+                    SizedBox(width: 320, child: rightColumn),
+                  ],
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniToolButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _gold.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _gold.withOpacity(0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: _gold, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.kanit(
+                color: _gold,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1700,7 +2106,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
     required String label,
     required Color color,
     required Color textColor,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return SizedBox(
       width: double.infinity,
@@ -1821,10 +2227,10 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.kanit(
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.5,
-                            height: 1.2,
+                            height: 1.1,
                             color: _textMain)),
                     const Spacer(),
 
@@ -1847,7 +2253,10 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                         Icon(Icons.calendar_month_rounded,
                             size: 14, color: _textMuted),
                         const SizedBox(width: 8),
-                        Text("${t.date}",
+                        Text(
+                            t.appointmentDate != null
+                                ? "${t.appointmentDate!.day}/${t.appointmentDate!.month}/${t.appointmentDate!.year}"
+                                : t.date,
                             style: GoogleFonts.kanit(
                                 fontSize: 12,
                                 color: _textMuted.withOpacity(0.6))),
@@ -1871,18 +2280,24 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                        t.status == 'ASSIGNED' || t.status == 'URGENT'
-                            ? "START WORK"
+                        (t.status == 'ASSIGNED' || t.status == 'URGENT')
+                            ? (_canStartWork(t) ? "START WORK" : "UPCOMING")
                             : (t.status == 'IN PROGRESS'
                                 ? "CONTINUE WORK"
                                 : "VIEW DETAILS"),
                         style: GoogleFonts.kanit(
-                            color: _gold,
+                            color: (t.status == 'ASSIGNED' || t.status == 'URGENT')
+                                ? (_canStartWork(t) ? _primaryBlue : _textMuted)
+                                : _gold,
                             fontSize: 12,
                             letterSpacing: 2,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 14, color: _gold),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: (t.status == 'ASSIGNED' || t.status == 'URGENT')
+                            ? (_canStartWork(t) ? _primaryBlue : _textMuted)
+                            : _gold),
                   ],
                 ),
               ),
@@ -1894,7 +2309,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
   }
 
   Widget _buildTaskItem(RepairTask t, String requestStatus) {
-    final bool canReport = requestStatus == 'IN PROGRESS';
     final bool hasReport = t.taskReport != null && t.taskReport!.isNotEmpty;
 
     return Container(
@@ -1929,12 +2343,7 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                   ),
                 ),
               ),
-              if (canReport)
-                IconButton(
-                  icon: Icon(Icons.edit_note_rounded, color: _gold),
-                  onPressed: () => _showReportDialog(t),
-                  tooltip: "Add Report",
-                ),
+              const SizedBox(width: 8),
             ],
           ),
           if (hasReport)
@@ -1949,73 +2358,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  void _showReportDialog(RepairTask task) {
-    final TextEditingController reportController =
-        TextEditingController(text: task.taskReport);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _bgMain,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("รายงานการซ่อม: ${task.objectName ?? 'สิ่งของ'}",
-            style: GoogleFonts.kanit(color: _textMain, fontSize: 18)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: reportController,
-              maxLines: 4,
-              cursorColor: _gold,
-              style: GoogleFonts.kanit(color: _textMain),
-              decoration: InputDecoration(
-                hintText: "สรุปผลการซ่อม/อาการที่พบ...",
-                hintStyle: GoogleFonts.kanit(color: _textMuted),
-                filled: true,
-                fillColor: _bgSidebar,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("ยกเลิก", style: GoogleFonts.kanit(color: _textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              String report = reportController.text.trim();
-              if (report.isNotEmpty) {
-                Navigator.pop(ctx);
-                bool success = await RepairRepository.instance.updateTaskReport(
-                  taskId: task.id,
-                  status: 'InProgress',
-                  report: report,
-                );
-                if (!mounted) return;
-                if (!success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("บันทึกไม่สำเร็จ")));
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _gold,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text("บันทึก",
-                style: GoogleFonts.kanit(
-                    color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
         ],
       ),
     );
@@ -2110,76 +2452,6 @@ class _TechnicianViewScreenState extends State<TechnicianViewScreen>
         );
       }).toList(),
     );
-  }
-
-  Future<void> _saveGeneralNote(RepairRequest request) async {
-    final note = _notesController.text.trim();
-    if (note.isEmpty && _attachedImages.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("กรุณากรอกหมายเหตุหรือแนบรูปภาพ")),
-        );
-      }
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    try {
-      // 1. Upload images
-      List<String> imageUrls = [];
-      for (var file in _attachedImages) {
-        String? url = await RepairRepository.instance.uploadImage(file);
-        if (url != null) imageUrls.add(url);
-      }
-
-      // 2. Pick the first task to attach the report to
-      if (request.tasks.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("ไม่พบรายการงานในคำขอนี้")),
-          );
-        }
-        return;
-      }
-
-      final firstTask = request.tasks.first;
-
-      // 3. Update task report and complete
-      bool success = await RepairRepository.instance.updateTaskReport(
-        taskId: firstTask.id,
-        status: 'Completed',
-        report: note,
-        imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
-      );
-
-      if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("บันทึกหมายเหตุและส่งงานเสร็จสิ้น")),
-          );
-          setState(() =>
-              _selectedTask = null); // Close detail view and return to list
-          RepairRepository.instance.fetchHistory(); // Refresh
-          _notesController.clear();
-          setState(() {
-            _attachedImages.clear();
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("เกิดข้อผิดพลาดในการบันทึก")),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}")),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
   }
 }
 

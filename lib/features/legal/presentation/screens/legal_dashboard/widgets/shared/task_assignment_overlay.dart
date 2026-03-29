@@ -898,6 +898,49 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                                     ),
                                   ),
                                 ],
+
+                                // REJECTION REASON SECTION
+                                if (widget.task.status == 'DECLINED' || widget.task.status == 'DENIED' || widget.task.status == 'REJECTED') ...[
+                                  if (widget.task.rejectionReason != null && widget.task.rejectionReason!.isNotEmpty) ...[
+                                    const SizedBox(height: 80),
+                                    terminalText(
+                                        "REJECTION_REPORT // DENIAL_REASONS",
+                                        fontSize: 10,
+                                        color: DashboardTheme.error,
+                                        letterSpacing: 2),
+                                    const SizedBox(height: 24),
+                                    Container(
+                                      padding: const EdgeInsets.all(24),
+                                      decoration: BoxDecoration(
+                                        color: DashboardTheme.error.withOpacity(0.05),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: DashboardTheme.error.withOpacity(0.2)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            widget.task.rejectionReason!,
+                                            style: GoogleFonts.notoSans(
+                                              color: DashboardTheme.error.withOpacity(0.9),
+                                              fontSize: 15,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                          if (widget.task.rejectionTemplate != null && widget.task.rejectionTemplate!.isNotEmpty) ...[
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              "Template: ${widget.task.rejectionTemplate!}",
+                                              style: GoogleFonts.shareTechMono(
+                                                  color: DashboardTheme.textPale,
+                                                  fontSize: 12),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ],
                             ),
                           ),
@@ -911,7 +954,12 @@ class _TaskAssignmentOverlayState extends State<TaskAssignmentOverlay> {
                             border: Border(
                                 top: BorderSide(color: DashboardTheme.border)),
                           ),
-                          child: widget.task.status == "DONE"
+                          child: (widget.task.status == "DONE" || 
+                                  widget.task.status == "COMPLETED" || 
+                                  widget.task.status == "EVALUATED" || 
+                                  widget.task.status == "DECLINED" || 
+                                  widget.task.status == "DENIED" || 
+                                  widget.task.status == "REJECTED")
                               ? SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton(

@@ -7,6 +7,10 @@ import 'package:fcm_app/features/legal/presentation/screens/legal_dashboard/widg
 import 'package:fcm_app/core/services/translation_service.dart';
 import 'package:fcm_app/core/data/auth_repository.dart';
 import 'package:fcm_app/core/controllers/upload_controller.dart';
+import 'package:fcm_app/features/auth/presentation/screens/pin_setup_screen.dart' show PinSetupScreen;
+
+// Wrap to prevent name collision or export issues just in case
+typedef DefaultPinSetupScreen = PinSetupScreen;
 
 // Shared Profile View — Used by Admin, Technician & Resident
 
@@ -404,25 +408,27 @@ class _ProfileViewState extends State<ProfileView> {
                     const SizedBox(height: 32),
                   ],
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _HoverActionCard(
-                        title: _ts.t('change_password'),
-                        icon: Icons.lock_outline_rounded,
-                        onTap: () => _showChangePasswordDialog(),
+                if (_isEditing) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _HoverActionCard(
+                          title: _ts.t('change_password'),
+                          icon: Icons.lock_outline_rounded,
+                          onTap: () => _showChangePasswordDialog(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _HoverActionCard(
-                        title: _ts.t('change_pin'),
-                        icon: Icons.pin_outlined,
-                        onTap: () => _showChangePinDialog(),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: _HoverActionCard(
+                          title: _ts.t('change_pin'),
+                          icon: Icons.pin_outlined,
+                          onTap: () => _showChangePinDialog(),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -432,150 +438,19 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   void _showChangePinDialog() {
-    final newPinCtrl = TextEditingController();
-    final confirmPinCtrl = TextEditingController();
-    String? errorMessage;
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return Dialog(
-              backgroundColor: DashboardTheme.surface,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: DashboardTheme.border)),
-              child: Container(
-                width: 400,
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_ts.t('change_pin'),
-                        style: GoogleFonts.notoSans(
-                            color: DashboardTheme.textMain,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 24),
-                    if (errorMessage != null)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: Colors.redAccent.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline,
-                                color: Colors.redAccent, size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                                child: Text(errorMessage!,
-                                    style: GoogleFonts.kanit(
-                                        color: Colors.redAccent,
-                                        fontSize: 14))),
-                          ],
-                        ),
-                      ),
-                    Text(_ts.t('new_pin'),
-                        style: GoogleFonts.notoSans(
-                            color: DashboardTheme.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    TextField(
-                        controller: newPinCtrl,
-                        autofocus: true,
-                        obscureText: true,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        style: TextStyle(
-                            color: DashboardTheme.textMain, fontSize: 14),
-                        decoration: _inputDecoration(_ts.t('new_pin')).copyWith(
-                          counterText: "",
-                        )),
-                    const SizedBox(height: 20),
-                    Text(_ts.t('confirm_new_pin'),
-                        style: GoogleFonts.notoSans(
-                            color: DashboardTheme.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    TextField(
-                        controller: confirmPinCtrl,
-                        obscureText: true,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        style: TextStyle(
-                            color: DashboardTheme.textMain, fontSize: 14),
-                        decoration:
-                            _inputDecoration(_ts.t('confirm_new_pin')).copyWith(
-                              counterText: "",
-                            )),
-                    const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: Text(_ts.t('cancel_action'),
-                                    style: GoogleFonts.notoSans(
-                                        color: DashboardTheme.textPale)))),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              final newPin = newPinCtrl.text.trim();
-                              final confirmPin = confirmPinCtrl.text.trim();
-                              if (newPin.length != 6 || int.tryParse(newPin) == null) {
-                                setDialogState(() =>
-                                    errorMessage = _ts.t('pin_invalid'));
-                                return;
-                              }
-                              if (newPin != confirmPin) {
-                                setDialogState(() =>
-                                    errorMessage = _ts.t('pin_mismatch'));
-                                return;
-                              }
-                              final result = await AuthRepository.instance
-                                  .updateProfile({'pin': newPin});
-                              if (result['success'] == true) {
-                                Navigator.pop(ctx);
-                                _showSavedSnackbar(_ts.t('change_pin'));
-                                widget.onProfileUpdated?.call();
-                              } else {
-                                setDialogState(() => errorMessage =
-                                    result['error'] ?? 'Update failed');
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: DashboardTheme.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16)),
-                            child: Text(_ts.t('save_changes'),
-                                style: GoogleFonts.notoSans(
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+    // Navigating to the existing PinSetupScreen instead of showing a dialog
+    // We pass an empty targetRoute to signal that it should pop instead of replace.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => const DefaultPinSetupScreen(targetRoute: ''),
+      ),
+    ).then((changed) {
+      if (changed == true) {
+        _showSavedSnackbar(_ts.t('change_pin'));
+        widget.onProfileUpdated?.call();
+      }
+    });
   }
 
   void _showChangePasswordDialog() {
@@ -635,6 +510,11 @@ class _ProfileViewState extends State<ProfileView> {
                             color: DashboardTheme.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text("ความยาวอย่างน้อย 8 ตัวอักษร มีตัวพิมพ์เล็กและตัวพิมพ์ใหญ่",
+                        style: GoogleFonts.notoSans(
+                            color: DashboardTheme.textPale,
+                            fontSize: 11)),
                     const SizedBox(height: 12),
                     TextField(
                         controller: newPwCtrl,
@@ -675,6 +555,12 @@ class _ProfileViewState extends State<ProfileView> {
                               if (newPw.length < 8) {
                                 setDialogState(() =>
                                     errorMessage = _ts.t('password_too_short'));
+                                return;
+                              }
+                              // Frontend-side matching before sending to backend to explicitly guide user
+                              if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z]).{8,}$').hasMatch(newPw)) {
+                                setDialogState(() =>
+                                    errorMessage = "รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร มีตัวพิมพ์เล็กและพิมพ์ใหญ่");
                                 return;
                               }
                               if (newPw != confirmPw) {

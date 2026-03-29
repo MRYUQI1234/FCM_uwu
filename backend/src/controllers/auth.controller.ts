@@ -12,11 +12,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "vivorn-villa-secret-key-2026";
 const RegisterSchema = z.object({
   national_id: z.string().regex(/^[0-9]{13}$/, "National ID must be 13 digits"),
   email: z.string().email("Invalid email format"),
-  phone: z.string().min(9).max(15),
+  phone: z.string().regex(/^[0-9]{10}$/, "Phone number must be exactly 10 digits"),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter"),
   name: z.string().optional()
 });
 
@@ -27,6 +27,19 @@ const LoginSchema = z.object({
 
 const SetupPinSchema = z.object({
   pin: z.string().regex(/^[0-9]{6}$/, "PIN must be exactly 6 digits"),
+});
+
+const UpdateProfileSchema = z.object({
+  fullname: z.string().optional(),
+  name: z.string().optional(),
+  email: z.string().email("Invalid email format").optional(),
+  phone: z.string().regex(/^[0-9]{10}$/, "Phone number must be exactly 10 digits").optional(),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter").optional(),
+  pin: z.string().regex(/^[0-9]{6}$/, "PIN must be exactly 6 digits").optional(),
+  picture_uri: z.string().optional(),
 });
 
 export class AuthController {
@@ -44,7 +57,9 @@ export class AuthController {
     console.log("[FCM Backend] Incoming Body:", req.body);
 
     try {
-      const { national_id, email, password, name, phone } = req.body;
+      // Validate Input using Zod
+      const validatedData = RegisterSchema.parse(req.body);
+      const { national_id, email, password, name, phone } = validatedData;
 
       // Step 1: Check national_id in real_estate
       const estateRecord = db.prepare("SELECT * FROM real_estate WHERE national_id = ?").get(national_id) as any;
@@ -83,6 +98,9 @@ export class AuthController {
       });
 
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ status_code: 400, message: "ข้อมูลไม่ถูกต้องตามรูปแบบ", errors: error.format() });
+      }
       console.error("[FCM Backend] Registration Failed: SERVER_ERROR", error);
       return res.status(500).json({ status_code: 500, message: error.message });
     }
@@ -290,7 +308,13 @@ export class AuthController {
   static async updateProfile(req: Request, res: Response) {
     try {
       const userId = (req as any).user.id;
-      const { fullname, name, email, phone, password, picture_uri, pin } = req.body;
+      // Use Zod validation parser
+      const parsedBody = UpdateProfileSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({ success: false, message: "ข้อมูลไม่ถูกต้องตามรูปแบบ", errors: parsedBody.error.format() });
+      }
+
+      const { fullname, name, email, phone, password, picture_uri, pin } = parsedBody.data;
 
       const profileName = name || fullname;
 
@@ -315,21 +339,18 @@ export class AuthController {
         values.push(email);
       }
 
-      if (phone && typeof phone === "string") {
-        // Validation: 10 digits
-        if (/^[0-9]{10}$/.test(phone)) {
-          updates.push("phone = ?");
-          values.push(phone);
-        }
+      if (phone) {
+        updates.push("phone = ?");
+        values.push(phone);
       }
 
-      if (password && typeof password === "string" && password.length >= 8) {
+      if (password) {
         const hash = await bcrypt.hash(password, 10);
         updates.push("password_hash = ?");
         values.push(hash);
       }
 
-      if (pin && typeof pin === "string" && /^[0-9]{6}$/.test(pin)) {
+      if (pin) {
         const pinHash = await bcrypt.hash(pin, 10);
         updates.push("pin_hash = ?");
         values.push(pinHash);
